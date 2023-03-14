@@ -5,15 +5,16 @@ extern crate pest_derive;
 use pest::Parser;
 
 #[derive(Parser)]
-#[grammar = "grammar.pest"]
-struct FunctionParser;
+#[grammar = "gptql.pest"]
+struct GptQLParser;
 
 #[derive(Debug)]
 enum Expression {
     Number(i32),
     String(String),
-    Function(String, Vec<Expression>),
+    Bool(bool),
     Binary(Box<Expression>, char, Box<Expression>),
+    Comparison(Box<Expression>, String, Box<Expression>),
 }
 
 impl Expression {
@@ -25,107 +26,59 @@ impl Expression {
         Self::String(s)
     }
 
-    fn new_function(name: String, args: Vec<Expression>) -> Self {
-        Self::Function(name, args)
-    }
-
     fn new_binary(left: Expression, op: char, right: Expression) -> Self {
         Self::Binary(Box::new(left), op, Box::new(right))
     }
-}
 
-fn parse_parameter_list(pair: pest::iterators::Pair<Rule>) -> Vec<Expression> {
-    let mut args = Vec::new();
-    for expr_pair in pair.into_inner() {
-        args.push(parse_expression(expr_pair));
+    fn new_comparison(left: Expression, op: String, right: Expression) -> Self {
+        Self::Comparison(Box::new(left), op, Box::new(right))
     }
-    args
-}
-
-fn parse_function(pair: pest::iterators::Pair<Rule>) -> Expression {
-    let mut inner_pairs = pair.into_inner();
-    let name = inner_pairs.next().unwrap().as_span().as_str().to_string();
-    let arg_list_pair = inner_pairs.next().unwrap();
-    let args = parse_parameter_list(arg_list_pair);
-    let code_block_pair = inner_pairs.next().unwrap();
-    let _ = parse_expression(code_block_pair);
-    Expression::new_function(name, args)
 }
 
 fn parse_expression(pair: pest::iterators::Pair<Rule>) -> Expression {
-    match pair.as_rule() {
-        Rule::number => Expression::new_number(pair.as_str().parse().unwrap()),
-        Rule::string => Expression::new_string(pair.as_str().to_string()),
-        Rule::function => parse_function(pair),
-        Rule::expression => {
-            let mut inner_pairs = pair.into_inner();
-            let left = parse_expression(inner_pairs.next().unwrap());
-            let op = inner_pairs.next().unwrap().as_str().chars().next().unwrap();
-            let right = parse_expression(inner_pairs.next().unwrap());
-            Expression::new_binary(left, op, right)
-        },
-        Rule::assignment => {
-            let mut inner_pairs = pair.into_inner();
-            inner_pairs.next(); // Skip "let"
-            inner_pairs.next(); // Skip the name
-            inner_pairs.next(); // Skip "="
-            parse_expression(inner_pairs.next().unwrap()) // Process the assigned expression
-        },
-        Rule::digits => Expression::new_number(pair.as_str().parse().unwrap()),
-        _ => {
-            unreachable!("{}", pair)
-        }
-    }
-}
+    let mut inner_pairs = pair.into_inner();
 
-fn parse_function_block(pair: pest::iterators::Pair<Rule>) {
-    for expr_pair in pair.into_inner() {
-        match expr_pair.as_rule() {
-            Rule::expression | Rule::assignment => {
-                let _ = parse_expression(expr_pair);
+    let left_pair = inner_pairs.next().unwrap();
+    let left = match left_pair.as_rule() {
+        Rule::number => Expression::new_number(left_pair.as_str().parse().unwrap()),
+        Rule::digits => Expression::new_number(left_pair.as_str().parse().unwrap()),
+        Rule::string => Expression::new_string(left_pair.as_str().to_string()),
+        Rule::primary => {
+            let value = left_pair.as_str();
+            match value {
+                "true" => Expression::Bool(true),
+                "false" => Expression::Bool(false),
+                _ => unreachable!("{}", left_pair),
             }
-            _ => unreachable!(),
+        },
+        _ => {
+            parse_expression(left_pair)
         }
+    };
+
+    if let Some(op_pair) = inner_pairs.next() {
+        let op_str = op_pair.as_str();
+        let right = parse_expression(inner_pairs.next().unwrap());
+        match op_str {
+            "==" => Expression::new_comparison(left, op_str.to_string(), right),
+            _ => {
+                let op = op_str.chars().next().unwrap();
+                Expression::new_binary(left, op, right)
+            }
+        }
+    } else {
+        left
     }
 }
-
-fn parse_function_def(pair: pest::iterators::Pair<Rule>) {
-    let mut inner_pairs = pair.into_inner();
-    let name = inner_pairs.next().unwrap().as_span().as_str().to_string();
-    let arg_list_pair = inner_pairs.next().unwrap();
-    let args = parse_parameter_list(arg_list_pair);
-    let code_block_pair = inner_pairs.next().unwrap();
-    parse_function_block(code_block_pair);
-    let _ = Expression::new_function(name, args);
-}
-
-fn parse_assignment(pair: pest::iterators::Pair<Rule>) {
-    let mut inner_pairs = pair.into_inner();
-    let _ = inner_pairs.next().unwrap().as_span().as_str().to_string();
-    let _ = inner_pairs.next().unwrap().as_span().as_str().to_string();
-    let expr_pair = inner_pairs.next().unwrap();
-    let _ = parse_expression(expr_pair);
-}
-
 
 fn parse_program(pair: pest::iterators::Pair<Rule>) {
     for expr_pair in pair.into_inner() {
         match expr_pair.as_rule() {
-            Rule::function => parse_function_def(expr_pair),
             Rule::stmt => {
-                let stmt_pair = expr_pair.into_inner().next().unwrap();
-                match stmt_pair.as_rule() {
-                    Rule::assignment => {
-                        let _ = parse_assignment(stmt_pair);
-                    }
-                    Rule::expression => {
-                        let _ = parse_expression(stmt_pair);
-                    }
-                    _ => unreachable!("{}", stmt_pair),
-                }
+                let _ = parse_expression(expr_pair);
             }
             _ => {
-                unreachable!("{}", expr_pair)
+                let _ = parse_expression(expr_pair);
             }
         }
     }
@@ -133,9 +86,18 @@ fn parse_program(pair: pest::iterators::Pair<Rule>) {
 
 
 fn parse_function_program(input: &str) -> Result<(), pest::error::Error<Rule>> {
-    let pairs = FunctionParser::parse(Rule::program, input)?;
-    if let Some(pair) = pairs.into_iter().next() {
-        parse_program(pair);
+    let pairs = GptQLParser::parse(Rule::program, input);
+    match pairs {
+        Ok(pairs) => {
+            if let Some(pair) = pairs.into_iter().next() {
+                parse_program(pair);
+            }
+        },
+        Err(e) => {
+            println!("{:?}", e);
+            return Err(e)
+        }
+        
     }
     Ok(())
 }
@@ -164,20 +126,44 @@ mod test {
     }
 
     #[test]
-    fn test_parse_let_expression_number() {
-        let input = r#"let value = 2;"#;
+    fn test_parse_true_bool() {
+        let input = r#"true"#;
         assert!(parse_function_program(input).is_ok());
     }
 
     #[test]
-    fn test_parse_let_expression_string() {
-        let input = r#"let value = "string";"#;
+    fn test_parse_false_bool() {
+        let input = r#"false"#;
         assert!(parse_function_program(input).is_ok());
     }
 
     #[test]
-    fn test_parse_function_expression() {
-        let input = r#"fn hello() { "hello" }"#;
+    fn test_parse_string_equals() {
+        let input = r#""hello" == "hello""#;
         assert!(parse_function_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_bool_equals() {
+        let input = r#"true == true"#;
+        assert!(parse_function_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_equals() {
+        let input = r#"55 == 45"#;
+        assert!(parse_function_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_bool_equals_string() {
+        let input = r#"true == "hello""#;
+        assert!(parse_function_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_operator_error() {
+        let input = r#"*"#;
+        assert!(parse_function_program(input).is_err());
     }
 }
