@@ -1,12 +1,11 @@
-program = _ { SOI ~ stmt ~ EOI }
-stmt = _ { expression }
-expression = _ { primary ~ (WHITESPACE? ~ operator ~ WHITESPACE? ~ primary)? }
-primary = _ { "true" | "false" | "nil" | number | string | name }
+expression = _ { primary }
+primary = _ { bool | "nil" | number | string | name }
 name = { (alpha ~ (alpha | digit | "_")*) }
 number = { ("-" ~ digits) | digits }
 digits = { digit+ }
 digit = { ASCII_DIGIT }
 alpha = { ASCII_ALPHA | "_" }
+bool = { "true" | "false" }
 string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 operator = _{ add | subtract | multiply | divide | power | equalequal }
 add = { "+" }

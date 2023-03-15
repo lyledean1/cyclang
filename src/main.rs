@@ -14,7 +14,6 @@ enum Expression {
     String(String),
     Bool(bool),
     Binary(Box<Expression>, char, Box<Expression>),
-    Comparison(Box<Expression>, String, Box<Expression>),
 }
 
 impl Expression {
@@ -30,63 +29,48 @@ impl Expression {
         Self::Binary(Box::new(left), op, Box::new(right))
     }
 
-    fn new_comparison(left: Expression, op: String, right: Expression) -> Self {
-        Self::Comparison(Box::new(left), op, Box::new(right))
+    fn new_bool(b: bool) -> Self {
+        Self::Bool(b)
     }
 }
 
 fn parse_expression(pair: pest::iterators::Pair<Rule>) -> Expression {
-    let mut inner_pairs = pair.into_inner();
-
-    let left_pair = inner_pairs.next().unwrap();
-    let left = match left_pair.as_rule() {
-        Rule::number => Expression::new_number(left_pair.as_str().parse().unwrap()),
-        Rule::digits => Expression::new_number(left_pair.as_str().parse().unwrap()),
-        Rule::string => Expression::new_string(left_pair.as_str().to_string()),
-        Rule::primary => {
-            let value = left_pair.as_str();
-            match value {
-                "true" => Expression::Bool(true),
-                "false" => Expression::Bool(false),
-                _ => unreachable!("{}", left_pair),
+    match pair.as_rule() {
+        Rule::number => Expression::new_number(pair.as_str().parse().unwrap()),
+        Rule::string => Expression::new_string(pair.as_str().to_string()),
+        Rule::bool => {
+            match pair.as_str() {
+                "true" => Expression::new_bool(true),
+                "false" => Expression::new_bool(false),
+                _ => {
+                    unreachable!()
+                }
+                
             }
+        }
+        Rule::expression => {
+            let mut inner_pairs = pair.into_inner();
+            let left = parse_expression(inner_pairs.next().unwrap());
+            let op = inner_pairs.next().unwrap().as_str().chars().next().unwrap();
+            let right = parse_expression(inner_pairs.next().unwrap());
+            Expression::new_binary(left, op, right)
         },
+        Rule::digits => Expression::new_number(pair.as_str().parse().unwrap()),
         _ => {
-            parse_expression(left_pair)
+            unreachable!("{}", pair)
         }
-    };
-
-    if let Some(op_pair) = inner_pairs.next() {
-        let op_str = op_pair.as_str();
-        let right = parse_expression(inner_pairs.next().unwrap());
-        match op_str {
-            "==" => Expression::new_comparison(left, op_str.to_string(), right),
-            _ => {
-                let op = op_str.chars().next().unwrap();
-                Expression::new_binary(left, op, right)
-            }
-        }
-    } else {
-        left
     }
 }
 
 fn parse_program(pair: pest::iterators::Pair<Rule>) {
     for expr_pair in pair.into_inner() {
-        match expr_pair.as_rule() {
-            Rule::stmt => {
-                let _ = parse_expression(expr_pair);
-            }
-            _ => {
-                let _ = parse_expression(expr_pair);
-            }
-        }
+        parse_expression(expr_pair);
     }
 }
 
 
 fn parse_function_program(input: &str) -> Result<(), pest::error::Error<Rule>> {
-    let pairs = GptQLParser::parse(Rule::program, input);
+    let pairs = GptQLParser::parse(Rule::expression, input);
     match pairs {
         Ok(pairs) => {
             if let Some(pair) = pairs.into_iter().next() {
@@ -134,6 +118,12 @@ mod test {
     #[test]
     fn test_parse_false_bool() {
         let input = r#"false"#;
+        assert!(parse_function_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_nil() {
+        let input = r#"nil"#;
         assert!(parse_function_program(input).is_ok());
     }
 
