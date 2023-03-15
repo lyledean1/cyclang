@@ -1,5 +1,9 @@
-expression = _ { primary }
-primary = _ { bool | "nil" | number | string | name }
+
+expression = _ { base_expr }
+base_expr = { primary | let_stmt }
+primary = {bool | number | string | name}
+line_stmt = {primary ~ semicolon}
+let_stmt = { "let" ~ WHITESPACE? ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ primary ~ semicolon }
 name = { (alpha ~ (alpha | digit | "_")*) }
 number = { ("-" ~ digits) | digits }
 digits = { digit+ }
@@ -15,4 +19,5 @@ divide = { "/" }
 power = { "^" }
 equalequal = { "==" }
 equal = { "=" }
+semicolon = { ";" }
 WHITESPACE = _{ " " | "\t" }

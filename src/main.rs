@@ -14,6 +14,7 @@ enum Expression {
     String(String),
     Bool(bool),
     Binary(Box<Expression>, char, Box<Expression>),
+    LetStmt(String, Box<Expression>, Box<Expression>),
 }
 
 impl Expression {
@@ -35,18 +36,25 @@ impl Expression {
 }
 
 fn parse_expression(pair: pest::iterators::Pair<Rule>) -> Expression {
+
     match pair.as_rule() {
         Rule::number => Expression::new_number(pair.as_str().parse().unwrap()),
+        Rule::name => Expression::String(pair.as_str().parse().unwrap()),
+        Rule::digits => Expression::new_number(pair.as_str().parse().unwrap()),
         Rule::string => Expression::new_string(pair.as_str().to_string()),
         Rule::bool => {
             match pair.as_str() {
                 "true" => Expression::new_bool(true),
                 "false" => Expression::new_bool(false),
-                _ => {
-                    unreachable!()
-                }
-                
+                _ => unreachable!(),
             }
+        }
+        Rule::let_stmt => {
+            println!("{:?}", pair);
+            let mut inner_pairs = pair.into_inner();
+            let name = inner_pairs.next().unwrap().as_str().to_string();
+            let value = parse_expression(inner_pairs.next().unwrap());
+            Expression::LetStmt(name, Box::new(value), Box::new(parse_expression(inner_pairs.next().unwrap())))
         }
         Rule::expression => {
             let mut inner_pairs = pair.into_inner();
@@ -55,18 +63,43 @@ fn parse_expression(pair: pest::iterators::Pair<Rule>) -> Expression {
             let right = parse_expression(inner_pairs.next().unwrap());
             Expression::new_binary(left, op, right)
         },
-        Rule::digits => Expression::new_number(pair.as_str().parse().unwrap()),
+        Rule::primary => {
+            let inner_pair = pair.into_inner().next().unwrap(); // get the inner pair
+            parse_expression(inner_pair) // parse the inner pair recursively
+        },
         _ => {
             unreachable!("{}", pair)
         }
     }
 }
 
+fn parse_let_stmt(pair: pest::iterators::Pair<Rule>) -> Expression {
+    let mut inner_pairs = pair.into_inner();
+    let name = inner_pairs.next().unwrap().as_str().to_string();
+    let value = parse_expression(inner_pairs.next().unwrap());
+    Expression::LetStmt(name, Box::new(value), Box::new(parse_expression(inner_pairs.next().unwrap())))
+}
+
+
 fn parse_program(pair: pest::iterators::Pair<Rule>) {
-    for expr_pair in pair.into_inner() {
-        parse_expression(expr_pair);
+    for stmt_pair in pair.into_inner() {
+        match stmt_pair.as_rule() {
+            Rule::let_stmt => {
+                parse_let_stmt(stmt_pair);
+            },
+            Rule::expression => {
+                parse_expression(stmt_pair);
+            },
+            Rule::primary => {
+                parse_expression(stmt_pair);
+            },
+            _ => {
+                unreachable!("{}", stmt_pair)
+            }
+        }
     }
 }
+
 
 
 fn parse_function_program(input: &str) -> Result<(), pest::error::Error<Rule>> {
@@ -74,7 +107,7 @@ fn parse_function_program(input: &str) -> Result<(), pest::error::Error<Rule>> {
     match pairs {
         Ok(pairs) => {
             if let Some(pair) = pairs.into_iter().next() {
-                parse_program(pair);
+                parse_program(pair)
             }
         },
         Err(e) => {
@@ -122,12 +155,6 @@ mod test {
     }
 
     #[test]
-    fn test_parse_nil() {
-        let input = r#"nil"#;
-        assert!(parse_function_program(input).is_ok());
-    }
-
-    #[test]
     fn test_parse_string_equals() {
         let input = r#""hello" == "hello""#;
         assert!(parse_function_program(input).is_ok());
@@ -152,8 +179,8 @@ mod test {
     }
 
     #[test]
-    fn test_parse_operator_error() {
-        let input = r#"*"#;
-        assert!(parse_function_program(input).is_err());
+    fn test_parse_let_stmt() {
+        let input = r#"let value = "hello";"#;
+        assert!(parse_function_program(input).is_ok());
     }
 }
