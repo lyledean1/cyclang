@@ -18,6 +18,7 @@ enum Expression {
     Nil,
     Variable(String),
     Binary(Box<Expression>, char, Box<Expression>),
+    Grouping(Box<Expression>),
     LetStmt(String, Box<Expression>),
 }
 
@@ -92,6 +93,10 @@ fn parse_expression(
             let right = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_binary(left, op, right))
         }
+        Rule::grouping => {
+            let inner_pair = pair.into_inner().next().unwrap();
+            parse_expression(inner_pair).map(|expr| Expression::Grouping(Box::new(expr)))
+        }
         Rule::let_stmt => {
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
@@ -119,48 +124,43 @@ fn parse_expression(
     }
 }
 
-fn parse_program(pair: pest::iterators::Pair<Rule>) -> Result<(), pest::error::Error<Rule>> {
+fn parse_program(pair: pest::iterators::Pair<Rule>) -> Result<Vec<Expression>, pest::error::Error<Rule>> {
+    let mut expr_vec = vec![];
     for stmt_pair in pair.into_inner() {
         match stmt_pair.as_rule() {
             Rule::semicolon => {
                 continue;
             }
             _ => {
-                parse_expression(stmt_pair)?;
+                let expr = parse_expression(stmt_pair)?;
+                expr_vec.push(expr);
             }
         }
     }
-    Ok(())
+    Ok(expr_vec)
 }
 
-fn parse_function_program(input: &str) -> Result<(), String> {
-    let pairs = match GptQLParser::parse(Rule::expression_list, input) {
-        Ok(pairs) => pairs,
-        Err(e) => {
-            return Err(format!(
-                "Decoding error from GPTQL::Parse: {}",
-                e.to_string()
-            ))
-        }
+fn parse_function_program(input: &str) -> Result<Vec<Expression>, pest::error::Error<Rule>> {
+    match GptQLParser::parse(Rule::expression_list, input) {
+        Ok(pairs) => {
+            for pair in pairs {
+                match parse_program(pair) {
+                    Ok(pair) => {
+                        return Ok(pair);
+                    },
+                    Err(e) => { return Err(e) }
+                }
+            }
+        },
+        Err(e) => { return Err(e) }
     };
-
-    if let Some(pair) = pairs.into_iter().next() {
-        match parse_program(pair) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!(
-                "Failed to parse program: {}",
-                e.to_string()
-            )),
-        }
-    } else {
-        Err("No pairs found in input".to_string())
-    }
+    unreachable!("parse function program")
 }
 
 fn main() {
-    let input = r#""hello";"#;
+    let input = "let value = nil;let value = true;";
     match parse_function_program(input) {
-        Ok(()) => println!("Parsed successfully!"),
+        Ok(expr) => println!("Parsed expression successfully {:?}", expr),
         Err(e) => println!("Error: {}", e),
     }
 }
@@ -248,12 +248,38 @@ mod test {
     }
 
     #[test]
-    fn test_parse_let_stmt_only() {
+    fn test_parse_let_stmt_string() {
         let input = r#"let value = "hello";"#;
-        match parse_function_program(input) {
-            Ok(()) => (),
-            Err(e) => println!("Error: {}", e),
-        }
         assert!(parse_function_program(input).is_ok());
     }
+
+    #[test]
+    fn test_parse_let_stmt_bool() {
+        let input = r#"let value = true;"#;
+        assert!(parse_function_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_let_stmt_bool_without_comma() {
+        let input = r#"let value = true"#;
+        assert!(parse_function_program(input).is_err());
+    }  
+
+    #[test]
+    fn test_parse_let_stmt_number() {
+        let input = r#"let value = 555;"#;
+        assert!(parse_function_program(input).is_ok());
+    } 
+
+    #[test]
+    fn test_parse_let_stmt_nil() {
+        let input = r#"let value = nil;"#;
+        assert!(parse_function_program(input).is_ok());
+    } 
+
+    #[test]
+    fn test_parse_let_stmt_grouping() {
+        let input = r#"let value = (true == true);"#;
+        assert!(parse_function_program(input).is_ok());
+    } 
 }
