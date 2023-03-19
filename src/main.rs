@@ -15,13 +15,10 @@ enum Expression {
     Number(i32),
     String(String),
     Bool(bool),
+    Nil,
     Variable(String),
     Binary(Box<Expression>, char, Box<Expression>),
-    LetStmt(String, Box<Expression>, Box<Expression>),
-}
-
-fn make_error_message(info: String, message: String) -> String {
-    format!("{} {}", info, message)
+    LetStmt(String, Box<Expression>),
 }
 
 impl Expression {
@@ -41,12 +38,16 @@ impl Expression {
         Self::Bool(b)
     }
 
+    fn new_nil() -> Self {
+        Self::Nil
+    }
+
     fn new_variable(name: String) -> Self {
         Self::Variable(name)
     }
 
-    fn new_let_stmt(name: String, value: Expression, expr: Expression) -> Self {
-        Self::LetStmt(name, Box::new(value), Box::new(expr))
+    fn new_let_stmt(name: String, value: Expression) -> Self {
+        Self::LetStmt(name, Box::new(value))
     }
 }
 
@@ -83,32 +84,27 @@ fn parse_expression(
                 pair.as_span(),
             )),
         },
+        Rule::nil => Ok(Expression::new_nil()),
+        Rule::binary => {
+            let mut inner_pairs = pair.into_inner();
+            let left = parse_expression(inner_pairs.next().unwrap())?;
+            let op = inner_pairs.next().unwrap().as_str().chars().next().unwrap();
+            let right = parse_expression(inner_pairs.next().unwrap())?;
+            Ok(Expression::new_binary(left, op, right))
+        }
         Rule::let_stmt => {
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
+            inner_pairs.next(); // Skip the equal sign
             let value = parse_expression(inner_pairs.next().unwrap())?;
-            let expr = parse_expression(inner_pairs.next().unwrap())?;
-            Ok(Expression::new_let_stmt(name, value, expr))
+            Ok(Expression::new_let_stmt(name, value))
         }
         Rule::expression => {
             let mut inner_pairs = pair.into_inner();
             let left = parse_expression(inner_pairs.next().unwrap())?;
             let op = inner_pairs.next().unwrap().as_str().chars().next().unwrap();
             let right = parse_expression(inner_pairs.next().unwrap())?;
-            // Precedence handling
-            match op {
-                '+' | '-' | '*' | '/' | '^' => Ok(Expression::new_binary(left, op, right)),
-                '='  => { // add "=="
-                    if let Expression::Binary(lhs, _, _) = &left {
-                        unreachable!("invalid operator")
-                    } else {
-                        Ok(Expression::new_binary(left, op, right))
-                    }
-                }
-                _ => {
-                    unreachable!("invalid operator")
-                },
-            }
+            Ok(Expression::new_binary(left, op, right))
         }
         Rule::literal => {
             let inner_pair = pair.into_inner().next().unwrap();
@@ -116,7 +112,7 @@ fn parse_expression(
         }
         _ => Err(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
-                message: "Invalid expression".to_string(),
+                message: format!("Invalid expression for rule {:?}", pair.as_rule()),
             },
             pair.as_span(),
         )),
@@ -125,30 +121,12 @@ fn parse_expression(
 
 fn parse_program(pair: pest::iterators::Pair<Rule>) -> Result<(), pest::error::Error<Rule>> {
     for stmt_pair in pair.into_inner() {
-        println!("Parsed statement: {}", stmt_pair.as_str());
         match stmt_pair.as_rule() {
-            Rule::let_stmt => {
-                parse_expression(stmt_pair)?;
-            }
-            Rule::expression => {
-                parse_expression(stmt_pair)?;
-            }
-            Rule::literal => {
-                parse_expression(stmt_pair)?;
-            }
             Rule::semicolon => {
                 continue;
             }
             _ => {
-                return Err(pest::error::Error::new_from_span(
-                    pest::error::ErrorVariant::CustomError {
-                        message: make_error_message(
-                            "Invalid statement".to_string(),
-                            stmt_pair.to_string(),
-                        ),
-                    },
-                    stmt_pair.as_span(),
-                ));
+                parse_expression(stmt_pair)?;
             }
         }
     }
@@ -160,7 +138,7 @@ fn parse_function_program(input: &str) -> Result<(), String> {
         Ok(pairs) => pairs,
         Err(e) => {
             return Err(format!(
-                "Failed to decode pairs: {}",
+                "Decoding error from GPTQL::Parse: {}",
                 e.to_string()
             ))
         }
@@ -180,7 +158,7 @@ fn parse_function_program(input: &str) -> Result<(), String> {
 }
 
 fn main() {
-    let input = r#""hello""#;
+    let input = r#""hello";"#;
     match parse_function_program(input) {
         Ok(()) => println!("Parsed successfully!"),
         Err(e) => println!("Error: {}", e),
@@ -221,6 +199,12 @@ mod test {
     }
 
     #[test]
+    fn test_parse_nil() {
+        let input = r#"nil;"#;
+        assert!(parse_function_program(input).is_ok());
+    }
+
+    #[test]
     fn test_parse_true_bool() {
         let input = r#"true;"#;
         assert!(parse_function_program(input).is_ok());
@@ -241,12 +225,15 @@ mod test {
     #[test]
     fn test_parse_bool_equals() {
         let input = r#"true == true;"#;
-        match parse_function_program(input) {
-            Ok(()) => (),
-            Err(e) => println!("Error: {}", e),
-        }
         assert!(parse_function_program(input).is_ok());
     }
+
+    #[test]
+    fn test_parse_nil_equals() {
+        let input = r#"nil == nil;"#;
+        assert!(parse_function_program(input).is_ok());
+    }
+
 
     #[test]
     fn test_parse_number_equals() {

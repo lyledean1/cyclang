@@ -1,15 +1,16 @@
 
-expression_list = { expression ~ (semicolon ~ expression)* ~ semicolon | EOI }
-expression = _ { let_stmt | literal | binary | grouping }
+expression_list = { (expression ~ (semicolon ~ expression)* | binary | grouping) ~ semicolon | let_stmt | EOI }
+expression = _ { binary | literal | grouping }
 binary = { literal ~ operator ~ literal }
 grouping = { "(" ~ expression ~ ")" }
-literal = {bool | number | string | "nil"}
-let_stmt = { "let" ~ WHITESPACE ~ name ~ WHITESPACE ~ "=" ~ WHITESPACE ~ literal ~ semicolon }
+literal = {bool | number | string | nil }
+let_stmt = { "let" ~ WHITESPACE? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ literal ~ semicolon }
 name = { (alpha ~ (alpha | digit | "_")*) }
 number = { ("-" ~ digits) | digits }
 digits = { digit+ }
 digit = { ASCII_DIGIT }
 alpha = { ASCII_ALPHA | "_" }
+nil = { "nil" }
 bool = { "true" | "false" }
 string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 operator = _{ add | subtract | multiply | divide | power | equalequal }
