@@ -1,9 +1,10 @@
 
-expression = _ { base_expr }
-base_expr = { primary | let_stmt }
-primary = {bool | number | string | name}
-line_stmt = {primary ~ semicolon}
-let_stmt = { "let" ~ WHITESPACE? ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ primary ~ semicolon }
+expression_list = { expression ~ (semicolon ~ expression)* ~ semicolon | EOI }
+expression = _ { let_stmt | literal | binary | grouping }
+binary = { literal ~ operator ~ literal }
+grouping = { "(" ~ expression ~ ")" }
+literal = {bool | number | string | "nil"}
+let_stmt = { "let" ~ WHITESPACE ~ name ~ WHITESPACE ~ "=" ~ WHITESPACE ~ literal ~ semicolon }
 name = { (alpha ~ (alpha | digit | "_")*) }
 number = { ("-" ~ digits) | digits }
 digits = { digit+ }
