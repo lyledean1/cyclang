@@ -6,5 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+llvm-sys = "130.0.5"
 pest = "2.5.6"
 pest_derive = "2.5.6"
