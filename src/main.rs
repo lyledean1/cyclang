@@ -13,6 +13,8 @@ fn main() {
     print(68 - 10);
     print(99 * 2);
     print(100 / 2);
+    print(true);
+    print(false);
     ";
     match parser::parse_gptql_program(input) {
         Ok(exprs) => match compiler::compile(exprs) {
