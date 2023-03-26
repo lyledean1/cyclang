@@ -6,10 +6,9 @@ mod parser;
 
 fn main() {
     let input = "
-    let one = true;
-    let two = false;
-    let three = (two == one);
-    print(three);
+    print(\"this is a test\");
+    print(55);
+    print(63);
     ";
     match parser::parse_gptql_program(input) {
         Ok(exprs) => {

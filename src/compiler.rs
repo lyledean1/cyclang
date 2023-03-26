@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
+use std::ffi::CString;
 use std::io::Error;
+use std::process::Output;
 
 use crate::parser::Expression;
 
@@ -72,7 +74,7 @@ fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
     }
 }
 
-fn llvm_compile(expr: Expression) {
+fn llvm_compile(expr: Expression) -> Result<Output, Error> {
     unsafe {
         // setup
         let context = LLVMContextCreate();
@@ -89,7 +91,7 @@ fn llvm_compile(expr: Expression) {
         LLVMPositionBuilderAtEnd(builder, main_block);
 
         match_ast(builder, context, void_type, module, expr);
-        
+
         LLVMBuildRetVoid(builder);
         // write our bitcode file to arm64
         LLVMSetTarget(module, c_str!("arm64"));
@@ -102,35 +104,59 @@ fn llvm_compile(expr: Expression) {
     }
 
     // Run clang
-    Command::new("clang")
+    let output = Command::new("clang")
         .arg("bin/main.bc")
         .arg("-o")
         .arg("bin/main")
-        .output()
-        .expect("Failed to execute clang with main.bc file");
+        .output();
+
+    match output {
+        Ok(_) => {}
+        Err(e) => return Err(e),
+    }
 
     println!("main executable generated, running bin/main");
-    let output = Command::new("bin/main")
-        .output()
-        .expect("Failed to execute clang with main.bc file");
-    println!(
-        "calculon output: {}",
-        String::from_utf8_lossy(&output.stdout)
-    );
+    let output = Command::new("bin/main").output();
+    return output;
 }
 
 fn unbox<T>(value: Box<T>) -> T {
     *value
 }
 
-fn match_ast(builder: LLVMBuilderRef, context: LLVMContextRef, void_type: LLVMTypeRef, module: LLVMModuleRef, input: Expression) -> LLVMValueRef {
+fn match_ast(
+    builder: LLVMBuilderRef,
+    context: LLVMContextRef,
+    void_type: LLVMTypeRef,
+    module: LLVMModuleRef,
+    input: Expression,
+) -> Box<dyn TypeBase> {
     // LLVMAddFunction(M, Name, FunctionTy)
     match input {
         Expression::Number(input) => {
-            return int32(input.try_into().unwrap());
+            let value = int32(input.try_into().unwrap());
+            return Box::new(NumberType {
+                llmv_value: value,
+                llmv_value_pointer: None,
+            });
         }
         Expression::String(input) => {
-            unimplemented!()
+            let string = CString::new(input).unwrap();
+            unsafe {
+                let value = LLVMConstStringInContext(
+                    context,
+                    string.as_ptr(),
+                    string.as_bytes().len() as u32,
+                    0,
+                );
+                let mut len_value: usize = string.as_bytes().len() as usize;
+                let ptr: *mut usize = (&mut len_value) as *mut usize;
+                return Box::new(StringType {
+                    length: ptr,
+                    llmv_value: value,
+                    llmv_value_pointer: None,
+                });
+            }
         }
         Expression::Bool(input) => {
             unimplemented!()
@@ -165,31 +191,9 @@ fn match_ast(builder: LLVMBuilderRef, context: LLVMContextRef, void_type: LLVMTy
             unimplemented!()
         }
         Expression::Print(input) => {
-            // Set Bool
-            // Set initial value for calculator
-            unsafe {
-                let value_index_ptr = LLVMBuildAlloca(builder, int32_type(), c_str!("value"));
-                let value_ptr_init = match_ast(builder, context, void_type, module, unbox(input));
-                // First thing is to set initial value
-                LLVMBuildStore(builder, value_ptr_init, value_index_ptr);
-                // Set Value
-                // create string vairables and then function
-                // This is the Main Print Func
-
-                let value_is_str =
-                    LLVMBuildGlobalStringPtr(builder, c_str!("%d\n"), c_str!(""));
-
-                let print_func_type =
-                    LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
-                let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-
-                // Load Value from Value Index Ptr
-                let val = LLVMBuildLoad(builder, value_index_ptr, c_str!("value"));
-
-                let print_args = [value_is_str, val].as_mut_ptr();
-                LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
-            }
-            return int32(38);
+            let expression_value = match_ast(builder, context, void_type, module, unbox(input));
+            expression_value.print(builder, void_type, module);
+            return expression_value;
         }
         _ => {
             unreachable!("No match for in match_ast")
@@ -197,9 +201,73 @@ fn match_ast(builder: LLVMBuilderRef, context: LLVMContextRef, void_type: LLVMTy
     }
 }
 
-fn compile(input: Expression) -> Result<(), Error> {
-    llvm_compile(input);
-    Ok(())
+fn compile(input: Expression) -> Result<Output, Error> {
+    llvm_compile(input)
+}
+// Types
+trait TypeBase {
+    // fn new(value: LLVMValueRef) -> Self;
+    fn print(&self, builder: LLVMBuilderRef, void_type: LLVMTypeRef, module: LLVMModuleRef);
+}
+
+struct StringType {
+    llmv_value: LLVMValueRef,
+    length: *mut usize,
+    llmv_value_pointer: Option<LLVMValueRef>,
+}
+
+impl TypeBase for StringType {
+    fn print(&self, builder: LLVMBuilderRef, void_type: LLVMTypeRef, module: LLVMModuleRef) {
+        unsafe {
+
+            // Set Value
+            // create string vairables and then function
+            // This is the Main Print Func
+
+            let value_is_str = LLVMBuildGlobalStringPtr(builder, c_str!("%s\n"), c_str!(""));
+
+            let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
+            let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
+            let llvm_value_to_cstr = LLVMGetAsString(self.llmv_value, self.length);
+            
+            // Load Value from Value Index Ptr
+            let val = LLVMBuildGlobalStringPtr(builder, llvm_value_to_cstr, c_str!(""));
+
+            let print_args = [value_is_str, val].as_mut_ptr();
+            LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
+        }
+    }
+}
+
+struct NumberType {
+    llmv_value: LLVMValueRef,
+    llmv_value_pointer: Option<LLVMValueRef>,
+}
+
+impl TypeBase for NumberType {
+    fn print(&self, builder: LLVMBuilderRef, void_type: LLVMTypeRef, module: LLVMModuleRef) {
+        unsafe {
+            let value_index_ptr = LLVMBuildAlloca(builder, int32_type(), c_str!("value"));
+            // First thing is to set initial value
+
+            LLVMBuildStore(builder, self.llmv_value, value_index_ptr);
+
+            // Set Value
+            // create string vairables and then function
+            // This is the Main Print Func
+
+            let value_is_str = LLVMBuildGlobalStringPtr(builder, c_str!("%d\n"), c_str!(""));
+
+            let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
+            let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
+
+            // Load Value from Value Index Ptr
+            let val = LLVMBuildLoad(builder, value_index_ptr, c_str!("value"));
+
+            let print_args = [value_is_str, val].as_mut_ptr();
+            LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -208,8 +276,14 @@ mod test {
 
     use super::*;
     #[test]
-    fn test_parse_string_expression() {
-        let input = Expression::Print(Box::new(Expression::Number(2)));
+    fn test_compile_print_number_expression() {
+        let input = Expression::Print(Box::new(Expression::Number(10)));
+        assert!(compile(input).is_ok());
+    }
+
+    #[test]
+    fn test_compile_print_string_expression() {
+        let input = Expression::Print(Box::new(Expression::String(String::from("example blah blah blah"))));
         assert!(compile(input).is_ok());
     }
 }
