@@ -7,6 +7,7 @@ use std::process::Output;
 use crate::parser::Expression;
 
 extern crate llvm_sys;
+use llvm_sys::LLVMType;
 use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -74,7 +75,7 @@ fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
     }
 }
 
-fn llvm_compile(expr: Expression) -> Result<Output, Error> {
+fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
     unsafe {
         // setup
         let context = LLVMContextCreate();
@@ -90,12 +91,17 @@ fn llvm_compile(expr: Expression) -> Result<Output, Error> {
         let main_block = LLVMAppendBasicBlockInContext(context, main_func, c_str!("main"));
         LLVMPositionBuilderAtEnd(builder, main_block);
 
-        match_ast(builder, context, void_type, module, expr);
 
+        let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
+        let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
+
+        for expr in exprs {
+            match_ast(builder, context, print_func, expr);
+        }
         LLVMBuildRetVoid(builder);
         // write our bitcode file to arm64
         LLVMSetTarget(module, c_str!("arm64"));
-        LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
+        LLVMWriteBitcodeToFile(module, c_str!("/Users/lyledean/gpt/gptql/bin/main.bc"));
 
         // clean up
         LLVMDisposeBuilder(builder);
@@ -105,9 +111,9 @@ fn llvm_compile(expr: Expression) -> Result<Output, Error> {
 
     // Run clang
     let output = Command::new("clang")
-        .arg("bin/main.bc")
+        .arg("/Users/lyledean/gpt/gptql/bin/main.bc")
         .arg("-o")
-        .arg("bin/main")
+        .arg("/Users/lyledean/gpt/gptql/bin/main")
         .output();
 
     match output {
@@ -127,8 +133,7 @@ fn unbox<T>(value: Box<T>) -> T {
 fn match_ast(
     builder: LLVMBuilderRef,
     context: LLVMContextRef,
-    void_type: LLVMTypeRef,
-    module: LLVMModuleRef,
+    print_func: LLVMValueRef,
     input: Expression,
 ) -> Box<dyn TypeBase> {
     // LLVMAddFunction(M, Name, FunctionTy)
@@ -191,8 +196,8 @@ fn match_ast(
             unimplemented!()
         }
         Expression::Print(input) => {
-            let expression_value = match_ast(builder, context, void_type, module, unbox(input));
-            expression_value.print(builder, void_type, module);
+            let expression_value = match_ast(builder, context, print_func, unbox(input));
+            expression_value.print(builder, print_func);
             return expression_value;
         }
         _ => {
@@ -201,13 +206,13 @@ fn match_ast(
     }
 }
 
-fn compile(input: Expression) -> Result<Output, Error> {
+pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
     llvm_compile(input)
 }
 // Types
 trait TypeBase {
     // fn new(value: LLVMValueRef) -> Self;
-    fn print(&self, builder: LLVMBuilderRef, void_type: LLVMTypeRef, module: LLVMModuleRef);
+    fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef);
 }
 
 struct StringType {
@@ -217,21 +222,17 @@ struct StringType {
 }
 
 impl TypeBase for StringType {
-    fn print(&self, builder: LLVMBuilderRef, void_type: LLVMTypeRef, module: LLVMModuleRef) {
+    fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef) {
         unsafe {
-
             // Set Value
             // create string vairables and then function
             // This is the Main Print Func
+            let llvm_value_to_cstr = LLVMGetAsString(self.llmv_value, self.length);
 
             let value_is_str = LLVMBuildGlobalStringPtr(builder, c_str!("%s\n"), c_str!(""));
 
-            let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
-            let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-            let llvm_value_to_cstr = LLVMGetAsString(self.llmv_value, self.length);
-            
             // Load Value from Value Index Ptr
-            let val = LLVMBuildGlobalStringPtr(builder, llvm_value_to_cstr, c_str!(""));
+            let val = LLVMBuildGlobalStringPtr(builder, llvm_value_to_cstr, llvm_value_to_cstr);
 
             let print_args = [value_is_str, val].as_mut_ptr();
             LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
@@ -245,7 +246,7 @@ struct NumberType {
 }
 
 impl TypeBase for NumberType {
-    fn print(&self, builder: LLVMBuilderRef, void_type: LLVMTypeRef, module: LLVMModuleRef) {
+    fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef) {
         unsafe {
             let value_index_ptr = LLVMBuildAlloca(builder, int32_type(), c_str!("value"));
             // First thing is to set initial value
@@ -257,10 +258,6 @@ impl TypeBase for NumberType {
             // This is the Main Print Func
 
             let value_is_str = LLVMBuildGlobalStringPtr(builder, c_str!("%d\n"), c_str!(""));
-
-            let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
-            let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-
             // Load Value from Value Index Ptr
             let val = LLVMBuildLoad(builder, value_index_ptr, c_str!("value"));
 
@@ -277,13 +274,15 @@ mod test {
     use super::*;
     #[test]
     fn test_compile_print_number_expression() {
-        let input = Expression::Print(Box::new(Expression::Number(10)));
+        let input = vec![Expression::Print(Box::new(Expression::Number(12)))];
         assert!(compile(input).is_ok());
     }
 
     #[test]
     fn test_compile_print_string_expression() {
-        let input = Expression::Print(Box::new(Expression::String(String::from("example blah blah blah"))));
+        let input = vec![Expression::Print(Box::new(Expression::String(
+            String::from("example blah blah blah"),
+        )))];
         assert!(compile(input).is_ok());
     }
 }

@@ -7,15 +7,17 @@ mod parser;
 fn main() {
     let input = "
     print(\"this is a test\");
-    print(55);
-    print(63);
+    print(\"second call\");
+    print(555);
+    print(68);
     ";
     match parser::parse_gptql_program(input) {
-        Ok(exprs) => {
-            for expr in exprs {
-                println!("Parsed expression successfully {:?}", expr)
+        Ok(exprs) => match compiler::compile(exprs) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("{}", e);
             }
-        }
+        },
         Err(e) => println!("Error: {}", e),
     }
 }
