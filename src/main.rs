@@ -8,8 +8,11 @@ fn main() {
     let input = "
     print(\"this is a test\");
     print(\"second call\");
-    print(555);
-    print(68);
+    print(5525);
+    print(68 + 10);
+    print(68 - 10);
+    print(99 * 2);
+    print(100 / 2);
     ";
     match parser::parse_gptql_program(input) {
         Ok(exprs) => match compiler::compile(exprs) {

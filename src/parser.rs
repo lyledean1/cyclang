@@ -187,9 +187,16 @@ mod test {
         assert!(parse_gptql_program(input).is_ok());
     }
 
+
+    #[test]
+    fn test_parse_number_expression_add() {
+        let input = r#"555 + 555 + 555 + 555;"#;
+        assert!(parse_gptql_program(input).is_ok());
+    }
+
     #[test]
     fn test_parse_negative_number_expression() {
-        let input = r#"-555;"#;
+        let input = r#"-555 - 555;"#;
         assert!(parse_gptql_program(input).is_ok());
     }
 

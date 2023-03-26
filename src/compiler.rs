@@ -7,10 +7,10 @@ use std::process::Output;
 use crate::parser::Expression;
 
 extern crate llvm_sys;
-use llvm_sys::LLVMType;
 use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use llvm_sys::LLVMType;
 use std::os::raw::c_ulonglong;
 use std::process::Command;
 use std::ptr;
@@ -91,7 +91,6 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         let main_block = LLVMAppendBasicBlockInContext(context, main_func, c_str!("main"));
         LLVMPositionBuilderAtEnd(builder, main_block);
 
-
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
 
@@ -138,13 +137,17 @@ fn match_ast(
 ) -> Box<dyn TypeBase> {
     // LLVMAddFunction(M, Name, FunctionTy)
     match input {
-        Expression::Number(input) => {
-            let value = int32(input.try_into().unwrap());
+        Expression::Number(input) => unsafe {
+            let value = LLVMConstInt(
+                LLVMInt32TypeInContext(context),
+                input.try_into().unwrap(),
+                0,
+            );
             return Box::new(NumberType {
                 llmv_value: value,
                 llmv_value_pointer: None,
             });
-        }
+        },
         Expression::String(input) => {
             let string = CString::new(input).unwrap();
             unsafe {
@@ -174,16 +177,49 @@ fn match_ast(
         }
         Expression::Binary(lhs, op, rhs) => match op {
             '+' => {
-                unimplemented!()
+                let lhs = match_ast(builder, context, print_func, unbox(lhs));
+                let rhs = match_ast(builder, context, print_func, unbox(rhs));
+                unsafe {
+                    let result = LLVMBuildAdd(builder, lhs.get_value(), rhs.get_value(), c_str!("result"));
+                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
+                    return Box::new(NumberType {
+                        llmv_value: result,
+                        llmv_value_pointer: None,
+                    });
+                }
             }
             '-' => {
-                unimplemented!()
+                let lhs = match_ast(builder, context, print_func, unbox(lhs));
+                let rhs = match_ast(builder, context, print_func, unbox(rhs));
+                unsafe {
+                    let result = LLVMBuildSub(builder, lhs.get_value(), rhs.get_value(), c_str!("result"));
+                    return Box::new(NumberType {
+                        llmv_value: result,
+                        llmv_value_pointer: None,
+                    });
+                }
             }
             '/' => {
-                unimplemented!()
+                let lhs = match_ast(builder, context, print_func, unbox(lhs));
+                let rhs = match_ast(builder, context, print_func, unbox(rhs));
+                unsafe {
+                    let result = LLVMBuildFDiv(builder, lhs.get_value(), rhs.get_value(), c_str!("result"));
+                    return Box::new(NumberType {
+                        llmv_value: result,
+                        llmv_value_pointer: None,
+                    });
+                }
             }
             '*' => {
-                unimplemented!()
+                let lhs = match_ast(builder, context, print_func, unbox(lhs));
+                let rhs = match_ast(builder, context, print_func, unbox(rhs));
+                unsafe {
+                    let result = LLVMBuildMul(builder, lhs.get_value(), rhs.get_value(), c_str!("result"));
+                    return Box::new(NumberType {
+                        llmv_value: result,
+                        llmv_value_pointer: None,
+                    });
+                }
             }
             _ => {
                 unimplemented!()
@@ -213,6 +249,7 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
 trait TypeBase {
     // fn new(value: LLVMValueRef) -> Self;
     fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef);
+    fn get_value(&self) -> LLVMValueRef;
 }
 
 struct StringType {
@@ -237,6 +274,10 @@ impl TypeBase for StringType {
             let print_args = [value_is_str, val].as_mut_ptr();
             LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
         }
+    }
+
+    fn get_value(&self) -> LLVMValueRef {
+        self.llmv_value
     }
 }
 
@@ -264,6 +305,10 @@ impl TypeBase for NumberType {
             let print_args = [value_is_str, val].as_mut_ptr();
             LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
         }
+    }
+
+    fn get_value(&self) -> LLVMValueRef {
+        self.llmv_value
     }
 }
 
