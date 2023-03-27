@@ -4,10 +4,12 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::io::Error;
 use std::process::Output;
+use std::rc::Rc;
 
 use crate::parser::Expression;
 
 extern crate llvm_sys;
+use dyn_clone::DynClone;
 use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -24,7 +26,7 @@ macro_rules! c_str {
 const LLVM_FALSE: LLVMBool = 0;
 const LLVM_TRUE: LLVMBool = 1;
 
-// Types
+// Types 
 
 fn create_string_type(context: LLVMContextRef) -> LLVMTypeRef {
     unsafe {
@@ -186,7 +188,7 @@ fn match_ast(
         Expression::Variable(input) => match var_cache.get(&input) {
             Some(val) => {
                 // Load Var from Cache and Return
-                val
+                val          
             }
             None => {
                 panic!("var not found")
@@ -254,7 +256,6 @@ fn match_ast(
         }
         Expression::LetStmt(var, lhs) => {
             let lhs = match_ast(builder, context, print_func, var_cache, unbox(lhs));
-
             var_cache.set(&var.clone(), lhs);
             unreachable!()
         }
@@ -273,10 +274,12 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
     llvm_compile(input)
 }
 // Types
-trait TypeBase: Clone {
+trait TypeBase : DynClone {
     fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef);
     fn get_value(&self) -> LLVMValueRef;
 }
+
+dyn_clone::clone_trait_object!(TypeBase);
 
 #[derive(Debug, Clone)]
 struct StringType {
@@ -370,8 +373,13 @@ impl TypeBase for BoolType {
     }
 }
 
+
+#[derive(Clone)]
+struct Container {
+    trait_object: Box<dyn TypeBase>,
+}
 struct VariableCache {
-    map: HashMap<String, Box<dyn TypeBase>>,
+    map: HashMap<String, Container>,
 }
 
 impl VariableCache {
@@ -382,11 +390,17 @@ impl VariableCache {
     }
 
     fn set(&mut self, key: &str, value: Box<dyn TypeBase>) {
-        self.map.insert(key.to_string(), value);
+        self.map.insert(key.to_string(), Container { trait_object: value });
     }
 
     fn get(&self, key: &str) -> Option<Box<dyn TypeBase>> {
-        self.map.get(key).map(Box::clone)
+        match self.map.get(key) {
+            Some(v) => {
+                Some(dyn_clone::clone_box(&*v.trait_object))
+            }
+            None => { None}
+
+        }
     }
 }
 
