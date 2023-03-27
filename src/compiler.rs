@@ -243,7 +243,7 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
 }
 
 #[derive(Debug)]
-enum BaseT {
+enum BaseTypes {
     String,
     Number,
     Bool,
@@ -251,7 +251,7 @@ enum BaseT {
 // Types
 trait TypeBase: DynClone {
     fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef);
-    fn get_type(&self) -> BaseT;
+    fn get_type(&self) -> BaseTypes;
     fn get_value(&self) -> LLVMValueRef;
     fn add(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement add", self.get_type())
@@ -277,15 +277,15 @@ struct StringType {
 }
 
 impl TypeBase for StringType {
-    fn get_type(&self) -> BaseT {
-        BaseT::String
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::String
     }
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
     fn add(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseT::String => {
+            BaseTypes::String => {
                 unimplemented!()
             }
             _ => {
@@ -325,12 +325,12 @@ impl TypeBase for NumberType {
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
-    fn get_type(&self) -> BaseT {
-        BaseT::Number
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Number
     }
     fn add(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseT::Number => {
+            BaseTypes::Number => {
                 unsafe {
                     let result = LLVMBuildAdd(
                         _builder,
@@ -357,7 +357,7 @@ impl TypeBase for NumberType {
 
     fn sub(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseT::Number => {
+            BaseTypes::Number => {
                 unsafe {
                     let result = LLVMBuildSub(
                         _builder,
@@ -384,7 +384,7 @@ impl TypeBase for NumberType {
 
     fn mul(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseT::Number => {
+            BaseTypes::Number => {
                 unsafe {
                     let result = LLVMBuildMul(
                         _builder,
@@ -411,7 +411,7 @@ impl TypeBase for NumberType {
 
     fn div(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseT::Number => {
+            BaseTypes::Number => {
                 unsafe {
                     let result = LLVMBuildFDiv(
                         _builder,
@@ -468,8 +468,8 @@ impl TypeBase for BoolType {
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
-    fn get_type(&self) -> BaseT {
-        BaseT::Bool
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Bool
     }
     fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef) {
         unsafe {
