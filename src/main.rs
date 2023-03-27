@@ -6,15 +6,16 @@ mod parser;
 
 fn main() {
     let input = "
-    print(\"this is a test\");
-    print(\"second call\");
-    print(5525);
-    print(68 + 10);
-    print(68 - 10);
-    print(99 * 2);
-    print(100 / 2);
-    print(true);
-    print(false);
+    let five = 5;
+    let four = 4;
+    print(20 / four);
+    print(20 + four);
+    print(20 - four);
+    print(five * four);
+    let is_true = true;
+    print(is_true);
+    let example_string = \"hello\";
+    print(example_string);
     ";
     match parser::parse_gptql_program(input) {
         Ok(exprs) => match compiler::compile(exprs) {
