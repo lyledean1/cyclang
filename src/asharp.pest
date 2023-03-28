@@ -1,10 +1,11 @@
 
-expression_list = { (((expression | binary | grouping | let_stmt) ~ (semicolon ~ WHITESPACE? ~ (expression | binary | grouping | let_stmt))*) ~ semicolon) | EOI }
+expression_list = { SOI ~ (((expression | binary | grouping | let_stmt | print_stmt) ~ (semicolon ~ WHITESPACE? ~ (expression | binary | grouping | let_stmt | print_stmt))*) ~ semicolon) ~ EOI }
 expression = _ { binary | literal }
-binary = { literal ~ operator ~ literal }
+binary = { (literal | grouping | name) ~ operator ~ (literal | grouping | name) }
 grouping = { "(" ~ expression ~ ")" }
 literal = {bool | number | string | nil }
-let_stmt = { "let" ~ WHITESPACE? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (expression | grouping)}
+let_stmt = { "let" ~ WHITESPACE? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (expression | grouping | name)}
+print_stmt = { "print(" ~ (expression | name) ~ ")" }
 name = { (alpha ~ (alpha | digit | "_")*) }
 number = { ("-" ~ digits) | digits }
 digits = { digit+ }
@@ -22,4 +23,4 @@ power = { "^" }
 equalequal = { "==" }
 equal = { "=" }
 semicolon = { ";" }
-WHITESPACE = _{ " " | "\t" }
+WHITESPACE = _{ " " | "\t" | NEWLINE }
