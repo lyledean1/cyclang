@@ -95,9 +95,13 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
         let mut var_cache = VariableCache::new();
-
+        let ast_ctx = ASTContext {
+            builder: builder,
+            context: context,
+            print_func: print_func,
+        };
         for expr in exprs {
-            match_ast(builder, context, print_func, &mut var_cache, expr);
+            ast_ctx.match_ast(&mut var_cache, expr);
         }
         LLVMBuildRetVoid(builder);
         // write our bitcode file to arm64
@@ -131,109 +135,116 @@ fn unbox<T>(value: Box<T>) -> T {
     *value
 }
 
-fn match_ast(
+struct ASTContext {
     builder: LLVMBuilderRef,
     context: LLVMContextRef,
     print_func: LLVMValueRef,
-    var_cache: &mut VariableCache,
-    input: Expression,
-) -> Box<dyn TypeBase> {
-    // LLVMAddFunction(M, Name, FunctionTy)
-    match input {
-        Expression::Number(input) => unsafe {
-            let value = LLVMConstInt(
-                LLVMInt32TypeInContext(context),
-                input.try_into().unwrap(),
-                0,
-            );
-            return Box::new(NumberType {
-                llmv_value: value,
-                llmv_value_pointer: None,
-            });
-        },
-        Expression::String(input) => {
-            let string = CString::new(input).unwrap();
-            unsafe {
-                let value = LLVMConstStringInContext(
-                    context,
-                    string.as_ptr(),
-                    string.as_bytes().len() as u32,
+}
+
+impl ASTContext {
+    fn match_ast(
+        &self,
+        var_cache: &mut VariableCache,
+        input: Expression,
+    ) -> Box<dyn TypeBase> {
+        // LLVMAddFunction(M, Name, FunctionTy)
+        match input {
+            Expression::Number(input) => unsafe {
+                let value = LLVMConstInt(
+                    LLVMInt32TypeInContext(self.context),
+                    input.try_into().unwrap(),
                     0,
                 );
-                let mut len_value: usize = string.as_bytes().len() as usize;
-                let ptr: *mut usize = (&mut len_value) as *mut usize;
-                return Box::new(StringType {
-                    length: ptr,
+                return Box::new(NumberType {
                     llmv_value: value,
                     llmv_value_pointer: None,
                 });
+            },
+            Expression::String(input) => {
+                let string = CString::new(input).unwrap();
+                unsafe {
+                    let value = LLVMConstStringInContext(
+                        self.context,
+                        string.as_ptr(),
+                        string.as_bytes().len() as u32,
+                        0,
+                    );
+                    let mut len_value: usize = string.as_bytes().len() as usize;
+                    let ptr: *mut usize = (&mut len_value) as *mut usize;
+                    return Box::new(StringType {
+                        length: ptr,
+                        llmv_value: value,
+                        llmv_value_pointer: None,
+                    });
+                }
             }
-        }
-        Expression::Bool(input) => {
-            let mut num = 0;
-            match input {
-                true => num = 1,
-                _ => {}
+            Expression::Bool(input) => {
+                let mut num = 0;
+                match input {
+                    true => num = 1,
+                    _ => {}
+                }
+                unsafe {
+                    let bool_value = LLVMConstInt(int1_type(), num, 0);
+                    return Box::new(BoolType {
+                        value: input,
+                        llmv_value: bool_value,
+                        llmv_value_pointer: None,
+                    });
+                }
             }
-            unsafe {
-                let bool_value = LLVMConstInt(int1_type(), num, 0);
-                return Box::new(BoolType {
-                    value: input,
-                    llmv_value: bool_value,
-                    llmv_value_pointer: None,
-                });
-            }
-        }
-        Expression::Variable(input) => match var_cache.get(&input) {
-            Some(val) => val,
-            None => {
-                panic!("var not found")
-            }
-        },
-        Expression::Nil => {
-            unimplemented!()
-        }
-        Expression::Binary(lhs, op, rhs) => match op {
-            '+' => {
-                let lhs = match_ast(builder, context, print_func, var_cache, unbox(lhs));
-                let rhs = match_ast(builder, context, print_func, var_cache, unbox(rhs));
-                lhs.add(builder, rhs)
-            }
-            '-' => {
-                let lhs = match_ast(builder, context, print_func, var_cache, unbox(lhs));
-                let rhs = match_ast(builder, context, print_func, var_cache, unbox(rhs));
-                lhs.sub(builder, rhs)
-            }
-            '/' => {
-                let lhs = match_ast(builder, context, print_func, var_cache, unbox(lhs));
-                let rhs = match_ast(builder, context, print_func, var_cache, unbox(rhs));
-                lhs.div(builder, rhs)
-            }
-            '*' => {
-                let lhs = match_ast(builder, context, print_func, var_cache, unbox(lhs));
-                let rhs = match_ast(builder, context, print_func, var_cache, unbox(rhs));
-                lhs.mul(builder, rhs)
-            }
-            _ => {
+            Expression::Variable(input) => match var_cache.get(&input) {
+                Some(val) => val,
+                None => {
+                    panic!("var not found")
+                }
+            },
+            Expression::Nil => {
                 unimplemented!()
             }
-        },
-        Expression::Grouping(input) => {
-            unimplemented!()
-        }
-        Expression::LetStmt(var, lhs) => {
-            let lhs = match_ast(builder, context, print_func, var_cache, unbox(lhs));
-            var_cache.set(&var.clone(), lhs.clone());
-            //TODO: figure out best way to handle a let stmt return 
-            lhs
-        }
-        Expression::Print(input) => {
-            let expression_value = match_ast(builder, context, print_func, var_cache, unbox(input));
-            expression_value.print(builder, print_func);
-            return expression_value;
-        }
-        _ => {
-            unreachable!("No match for in match_ast")
+            Expression::Binary(lhs, op, rhs) => match op {
+                '+' => {
+                    let lhs = self.match_ast(var_cache, unbox(lhs));
+                    let rhs = self.match_ast(var_cache, unbox(rhs));
+                    lhs.add(self.builder, rhs)
+                }
+                '-' => {
+                    let lhs = self.match_ast(var_cache, unbox(lhs));
+                    let rhs = self.match_ast(var_cache, unbox(rhs));
+                    lhs.sub(self.builder, rhs)
+                }
+                '/' => {
+                    let lhs = self.match_ast(var_cache, unbox(lhs));
+                    let rhs = self.match_ast( var_cache, unbox(rhs));
+                    lhs.div(self.builder, rhs)
+                }
+                '*' => {
+                    let lhs = self.match_ast(var_cache, unbox(lhs));
+                    let rhs = self.match_ast(var_cache, unbox(rhs));
+                    lhs.mul(self.builder, rhs)
+                }
+                _ => {
+                    unimplemented!()
+                }
+            },
+            Expression::Grouping(input) => {
+                unimplemented!()
+            }
+            Expression::LetStmt(var, lhs) => {
+                let lhs = self.match_ast(var_cache, unbox(lhs));
+                var_cache.set(&var.clone(), lhs.clone());
+                //TODO: figure out best way to handle a let stmt return
+                lhs
+            }
+            Expression::Print(input) => {
+                let expression_value =
+                    self.match_ast(var_cache, unbox(input));
+                expression_value.print(self.builder, self.print_func);
+                return expression_value;
+            }
+            _ => {
+                unreachable!("No match for in match_ast")
+            }
         }
     }
 }
@@ -257,13 +268,13 @@ trait TypeBase: DynClone {
         unimplemented!("{:?} type does not implement add", self.get_type())
     }
     fn sub(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement add", self.get_type())
+        unimplemented!("{:?} type does not implement sub", self.get_type())
     }
     fn mul(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement add", self.get_type())
+        unimplemented!("{:?} type does not implement mul", self.get_type())
     }
     fn div(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement add", self.get_type())
+        unimplemented!("{:?} type does not implement div", self.get_type())
     }
 }
 
@@ -520,6 +531,8 @@ impl VariableCache {
         }
     }
 }
+
+// TODO: Implement Function Cache
 
 #[cfg(test)]
 mod test {
