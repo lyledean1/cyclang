@@ -94,14 +94,15 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
 
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-        let mut var_cache = VariableCache::new();
-        let ast_ctx = ASTContext {
+        let var_cache = VariableCache::new();
+        let mut ast_ctx = ASTContext {
             builder: builder,
             context: context,
             print_func: print_func,
+            var_cache: var_cache,
         };
         for expr in exprs {
-            ast_ctx.match_ast(&mut var_cache, expr);
+            ast_ctx.match_ast(expr);
         }
         LLVMBuildRetVoid(builder);
         // write our bitcode file to arm64
@@ -139,12 +140,12 @@ struct ASTContext {
     builder: LLVMBuilderRef,
     context: LLVMContextRef,
     print_func: LLVMValueRef,
+    var_cache: VariableCache,
 }
 
 impl ASTContext {
     fn match_ast(
-        &self,
-        var_cache: &mut VariableCache,
+        &mut self,
         input: Expression,
     ) -> Box<dyn TypeBase> {
         // LLVMAddFunction(M, Name, FunctionTy)
@@ -193,7 +194,7 @@ impl ASTContext {
                     });
                 }
             }
-            Expression::Variable(input) => match var_cache.get(&input) {
+            Expression::Variable(input) => match self.var_cache.get(&input) {
                 Some(val) => val,
                 None => {
                     panic!("var not found")
@@ -204,23 +205,23 @@ impl ASTContext {
             }
             Expression::Binary(lhs, op, rhs) => match op {
                 '+' => {
-                    let lhs = self.match_ast(var_cache, unbox(lhs));
-                    let rhs = self.match_ast(var_cache, unbox(rhs));
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast( unbox(rhs));
                     lhs.add(self.builder, rhs)
                 }
                 '-' => {
-                    let lhs = self.match_ast(var_cache, unbox(lhs));
-                    let rhs = self.match_ast(var_cache, unbox(rhs));
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
                     lhs.sub(self.builder, rhs)
                 }
                 '/' => {
-                    let lhs = self.match_ast(var_cache, unbox(lhs));
-                    let rhs = self.match_ast( var_cache, unbox(rhs));
+                    let lhs = self.match_ast( unbox(lhs));
+                    let rhs = self.match_ast( unbox(rhs));
                     lhs.div(self.builder, rhs)
                 }
                 '*' => {
-                    let lhs = self.match_ast(var_cache, unbox(lhs));
-                    let rhs = self.match_ast(var_cache, unbox(rhs));
+                    let lhs = self.match_ast( unbox(lhs));
+                    let rhs = self.match_ast( unbox(rhs));
                     lhs.mul(self.builder, rhs)
                 }
                 _ => {
@@ -231,14 +232,14 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::LetStmt(var, lhs) => {
-                let lhs = self.match_ast(var_cache, unbox(lhs));
-                var_cache.set(&var.clone(), lhs.clone());
+                let lhs = self.match_ast( unbox(lhs));
+                self.var_cache.set(&var.clone(), lhs.clone());
                 //TODO: figure out best way to handle a let stmt return
                 lhs
             }
             Expression::Print(input) => {
                 let expression_value =
-                    self.match_ast(var_cache, unbox(input));
+                    self.match_ast(unbox(input));
                 expression_value.print(self.builder, self.print_func);
                 return expression_value;
             }
