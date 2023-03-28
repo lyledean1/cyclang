@@ -92,10 +92,12 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         let main_block = LLVMAppendBasicBlockInContext(context, main_func, c_str!("main"));
         LLVMPositionBuilderAtEnd(builder, main_block);
 
+        // Define common functions
+        let mut llvm_func_cache = LLVMFunctionCache::new();
+
+        //printf
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-
-        let mut llvm_func_cache = LLVMFunctionCache::new();
         llvm_func_cache.set("printf", print_func);
 
         let var_cache = VariableCache::new();
@@ -111,6 +113,7 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         LLVMBuildRetVoid(builder);
         // write our bitcode file to arm64
         LLVMSetTarget(module, c_str!("arm64"));
+        LLVMPrintModuleToFile(module, c_str!("bin/main.ll"), ptr::null_mut());
         LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
 
         // clean up
@@ -127,7 +130,9 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         .output();
 
     match output {
-        Ok(_) => {}
+        Ok(ok) => {
+            print!("{:?}\n", ok);
+        }
         Err(e) => return Err(e),
     }
 
@@ -173,10 +178,16 @@ impl ASTContext {
                     );
                     let mut len_value: usize = string.as_bytes().len() as usize;
                     let ptr: *mut usize = (&mut len_value) as *mut usize;
+                    let buffer_ptr = LLVMBuildPointerCast(
+                        self.builder,
+                        value,
+                        LLVMPointerType(LLVMInt8Type(), 0),
+                        c_str!("buffer_ptr"),
+                    );
                     return Box::new(StringType {
                         length: ptr,
                         llmv_value: value,
-                        llmv_value_pointer: None,
+                        llmv_value_pointer: Some(buffer_ptr),
                     });
                 }
             }
@@ -272,6 +283,12 @@ trait TypeBase: DynClone {
     fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef);
     fn get_type(&self) -> BaseTypes;
     fn get_value(&self) -> LLVMValueRef;
+    fn get_ptr(&self) -> LLVMValueRef {
+        unimplemented!("get_ptr is not implemented for this type {:?}", self.get_type())
+    }
+    fn get_length(&self) -> *mut usize {
+        unimplemented!("{:?} type does not implement get_length", self.get_type())
+    }
     fn add(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement add", self.get_type())
     }
@@ -302,10 +319,81 @@ impl TypeBase for StringType {
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
+    fn get_length(&self) -> *mut usize {
+        self.length
+    }
+    fn get_ptr(&self) -> LLVMValueRef {
+        match self.llmv_value_pointer {
+            Some(v) => {
+                return v;
+            }
+            None => {
+                unreachable!("No pointer for this value")
+            }
+        }
+    }
     fn add(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::String => {
-                unimplemented!()
+                unsafe {
+                    // allocate buffer
+                    let mut buffer_size = *self.length + *_rhs.get_length();
+
+                    let buffer_ptr_type = LLVMPointerType(LLVMInt8Type(), 0);
+                    let buffer_ptr = LLVMBuildArrayMalloc(
+                        _builder,
+                        LLVMInt8Type(),
+                        LLVMConstInt(LLVMInt8Type(), buffer_size as u64, 0),
+                        c_str!("string_buffer"),
+                    );
+                    let buffer = LLVMBuildLoad(_builder, buffer_ptr, c_str!("buffer"));
+                    let lhs_ptr = self.get_ptr();
+                    let rhs_ptr = _rhs.get_ptr();
+                    let buffer_ptr = LLVMBuildPointerCast(
+                        _builder,
+                        buffer,
+                        LLVMPointerType(LLVMInt8Type(), 0),
+                        c_str!("buffer_ptr"),
+                    );
+
+                    LLVMBuildMemCpy(
+                        _builder,
+                        buffer_ptr,
+                        1,
+                        lhs_ptr,
+                        1,
+                        LLVMConstInt(LLVMInt8Type(), *self.length as u64, 0),
+                    );
+
+                    let buffer_ptr_offset = LLVMBuildAdd(
+                        _builder,
+                        buffer_ptr,
+                        LLVMConstInt(LLVMInt64Type(), *self.length as u64, 0),
+                        c_str!("buffer_ptr_offset"),
+                    );
+
+                    LLVMBuildMemCpy(
+                        _builder,
+                        buffer_ptr_offset,
+                        1,
+                        rhs_ptr,
+                        1,
+                        LLVMConstInt(LLVMInt8Type(), *_rhs.get_length() as u64, 0),
+                    );
+
+                    let value = LLVMBuildPointerCast(
+                        _builder,
+                        buffer_ptr,
+                        buffer_ptr_type,
+                        c_str!("buffer_ptr_cast"),
+                    );
+                    let length_ptr: *mut usize = &mut buffer_size as *mut usize;
+                    return Box::new(StringType {
+                        llmv_value: value,
+                        length: length_ptr,
+                        llmv_value_pointer: None,
+                    });
+                }
             }
             _ => {
                 unreachable!(
@@ -540,7 +628,6 @@ impl VariableCache {
     }
 }
 
-// TODO: Implement Function Cache
 struct LLVMFunctionCache {
     map: HashMap<String, LLVMValueRef>,
 }
@@ -557,7 +644,7 @@ impl LLVMFunctionCache {
     }
 
     fn get(&self, key: &str) -> Option<LLVMValueRef> {
-        // hack, copy reference, probably want one reference to this
+        //HACK, copy each time, probably want one reference to this
         self.map.get(key).copied()
     }
 }

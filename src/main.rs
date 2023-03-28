@@ -15,7 +15,7 @@ fn main() {
     let is_true = true;
     print(is_true);
     let example_string = \"hello\";
-    print(example_string);
+    print(example_string + \" world\");
     ";
     match parser::parse_gptql_program(input) {
         Ok(exprs) => match compiler::compile(exprs) {
