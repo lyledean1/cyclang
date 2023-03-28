@@ -94,11 +94,15 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
 
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
+
+        let mut llvm_func_cache = LLVMFunctionCache::new();
+        llvm_func_cache.set("printf", print_func);
+
         let var_cache = VariableCache::new();
         let mut ast_ctx = ASTContext {
             builder: builder,
             context: context,
-            print_func: print_func,
+            llvm_func_cache: llvm_func_cache,
             var_cache: var_cache,
         };
         for expr in exprs {
@@ -139,15 +143,12 @@ fn unbox<T>(value: Box<T>) -> T {
 struct ASTContext {
     builder: LLVMBuilderRef,
     context: LLVMContextRef,
-    print_func: LLVMValueRef,
     var_cache: VariableCache,
+    llvm_func_cache: LLVMFunctionCache,
 }
 
 impl ASTContext {
-    fn match_ast(
-        &mut self,
-        input: Expression,
-    ) -> Box<dyn TypeBase> {
+    fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
         // LLVMAddFunction(M, Name, FunctionTy)
         match input {
             Expression::Number(input) => unsafe {
@@ -206,7 +207,7 @@ impl ASTContext {
             Expression::Binary(lhs, op, rhs) => match op {
                 '+' => {
                     let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast( unbox(rhs));
+                    let rhs = self.match_ast(unbox(rhs));
                     lhs.add(self.builder, rhs)
                 }
                 '-' => {
@@ -215,13 +216,13 @@ impl ASTContext {
                     lhs.sub(self.builder, rhs)
                 }
                 '/' => {
-                    let lhs = self.match_ast( unbox(lhs));
-                    let rhs = self.match_ast( unbox(rhs));
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
                     lhs.div(self.builder, rhs)
                 }
                 '*' => {
-                    let lhs = self.match_ast( unbox(lhs));
-                    let rhs = self.match_ast( unbox(rhs));
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
                     lhs.mul(self.builder, rhs)
                 }
                 _ => {
@@ -232,16 +233,22 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::LetStmt(var, lhs) => {
-                let lhs = self.match_ast( unbox(lhs));
+                let lhs = self.match_ast(unbox(lhs));
                 self.var_cache.set(&var.clone(), lhs.clone());
                 //TODO: figure out best way to handle a let stmt return
                 lhs
             }
             Expression::Print(input) => {
-                let expression_value =
-                    self.match_ast(unbox(input));
-                expression_value.print(self.builder, self.print_func);
-                return expression_value;
+                let expression_value = self.match_ast(unbox(input));
+                match self.llvm_func_cache.get("printf") {
+                    Some(v) => {
+                        expression_value.print(self.builder, v);
+                        return expression_value;
+                    }
+                    _ => {
+                        unreachable!()
+                    }
+                }
             }
             _ => {
                 unreachable!("No match for in match_ast")
@@ -534,6 +541,26 @@ impl VariableCache {
 }
 
 // TODO: Implement Function Cache
+struct LLVMFunctionCache {
+    map: HashMap<String, LLVMValueRef>,
+}
+
+impl LLVMFunctionCache {
+    fn new() -> Self {
+        LLVMFunctionCache {
+            map: HashMap::new(),
+        }
+    }
+
+    fn set(&mut self, key: &str, value: LLVMValueRef) {
+        self.map.insert(key.to_string(), value);
+    }
+
+    fn get(&self, key: &str) -> Option<LLVMValueRef> {
+        // hack, copy reference, probably want one reference to this
+        self.map.get(key).copied()
+    }
+}
 
 #[cfg(test)]
 mod test {

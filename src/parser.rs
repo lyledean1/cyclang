@@ -4,7 +4,7 @@ use pest::Parser;
 use std::num::ParseIntError;
 
 #[derive(Parser)]
-#[grammar = "gptql.pest"]
+#[grammar = "asharp.pest"]
 struct GptQLParser;
 
 #[derive(Debug)]
