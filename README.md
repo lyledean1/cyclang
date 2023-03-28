@@ -23,6 +23,7 @@ cargo install --path=./
     - [x] Subtraction
     - [x] Multiplication
     - [x] Division
+- [ ] Grouping
 - [ ] Lists
 - [ ] Dict
 - [x] Boolean
@@ -51,5 +52,5 @@ export LLVM_SYS_130_PREFIX=/PATH/TO/LLVM13/VERSION
 
 Some examples are in the example folder, just run 
 ```
-cargo run example/calculator.calculon
+cargo run example/fibonacci.asharp
 ```
