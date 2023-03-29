@@ -12,6 +12,8 @@ use dyn_clone::DynClone;
 use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use llvm_sys::LLVMLinkage::LLVMPrivateLinkage;
+use llvm_sys::LLVMUnnamedAddr;
 use std::os::raw::c_ulonglong;
 use std::process::Command;
 use std::ptr;
@@ -100,9 +102,21 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
         llvm_func_cache.set("printf", print_func);
 
+        //sprintf
+        let mut arg_types = [
+            LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+            LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+        ];
+        let ret_type = LLVMPointerType(LLVMInt8TypeInContext(context), 0);
+        let sprintf_type =
+            LLVMFunctionType(ret_type, arg_types.as_mut_ptr(), arg_types.len() as u32, 1);
+        let sprintf = LLVMAddFunction(module, "sprintf\0".as_ptr() as *const i8, sprintf_type);
+        llvm_func_cache.set("sprintf", sprintf);
+
         let var_cache = VariableCache::new();
         let mut ast_ctx = ASTContext {
             builder: builder,
+            module: module,
             context: context,
             llvm_func_cache: llvm_func_cache,
             var_cache: var_cache,
@@ -147,6 +161,7 @@ fn unbox<T>(value: Box<T>) -> T {
 
 struct ASTContext {
     builder: LLVMBuilderRef,
+    module: LLVMModuleRef,
     context: LLVMContextRef,
     var_cache: VariableCache,
     llvm_func_cache: LLVMFunctionCache,
@@ -219,7 +234,7 @@ impl ASTContext {
                 '+' => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.add(self.builder, rhs)
+                    lhs.add(self, rhs)
                 }
                 '-' => {
                     let lhs = self.match_ast(unbox(lhs));
@@ -251,15 +266,8 @@ impl ASTContext {
             }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(unbox(input));
-                match self.llvm_func_cache.get("printf") {
-                    Some(v) => {
-                        expression_value.print(self.builder, v);
-                        return expression_value;
-                    }
-                    _ => {
-                        unreachable!()
-                    }
-                }
+                expression_value.print(self);
+                return expression_value;
             }
             _ => {
                 unreachable!("No match for in match_ast")
@@ -280,16 +288,19 @@ enum BaseTypes {
 }
 // Types
 trait TypeBase: DynClone {
-    fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef);
+    fn print(&self, ast_context: &mut ASTContext);
     fn get_type(&self) -> BaseTypes;
     fn get_value(&self) -> LLVMValueRef;
     fn get_ptr(&self) -> LLVMValueRef {
-        unimplemented!("get_ptr is not implemented for this type {:?}", self.get_type())
+        unimplemented!(
+            "get_ptr is not implemented for this type {:?}",
+            self.get_type()
+        )
     }
     fn get_length(&self) -> *mut usize {
         unimplemented!("{:?} type does not implement get_length", self.get_type())
     }
-    fn add(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement add", self.get_type())
     }
     fn sub(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
@@ -332,67 +343,86 @@ impl TypeBase for StringType {
             }
         }
     }
-    fn add(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::String => {
-                unsafe {
-                    // allocate buffer
-                    let mut buffer_size = *self.length + *_rhs.get_length();
+                match _ast_context.llvm_func_cache.get("sprintf") {
+                    Some(sprintf_func) => {
+                        unsafe {
+                            // allocate buffer
+                            // 1. Allocate the destination buffer
+                            let buffer_size = 24; // Choose an appropriate size based on your requirements
+                            let buffer = LLVMBuildArrayAlloca(
+                                _ast_context.builder,
+                                LLVMInt8TypeInContext(_ast_context.context),
+                                LLVMConstInt(
+                                    LLVMInt32TypeInContext(_ast_context.context),
+                                    buffer_size,
+                                    0,
+                                ),
+                                "buffer\0".as_ptr() as *const _,
+                            );
 
-                    let buffer_ptr_type = LLVMPointerType(LLVMInt8Type(), 0);
-                    let buffer_ptr = LLVMBuildArrayMalloc(
-                        _builder,
-                        LLVMInt8Type(),
-                        LLVMConstInt(LLVMInt8Type(), buffer_size as u64, 0),
-                        c_str!("string_buffer"),
-                    );
-                    let buffer = LLVMBuildLoad(_builder, buffer_ptr, c_str!("buffer"));
-                    let lhs_ptr = self.get_ptr();
-                    let rhs_ptr = _rhs.get_ptr();
-                    let buffer_ptr = LLVMBuildPointerCast(
-                        _builder,
-                        buffer,
-                        LLVMPointerType(LLVMInt8Type(), 0),
-                        c_str!("buffer_ptr"),
-                    );
+                            // 2. Create a format string, e.g., "%s%s" to concatenate two strings
+                            let format_str = "%s%s";
+                            let format_str_const = LLVMConstStringInContext(
+                                _ast_context.context,
+                                format_str.as_ptr() as *const _,
+                                format_str.len() as u32 - 1,
+                                0,
+                            );
+                            let format_str_global = LLVMAddGlobal(
+                                _ast_context.module,
+                                LLVMArrayType(
+                                    LLVMInt8TypeInContext(_ast_context.context),
+                                    format_str.len() as u32,
+                                ),
+                                "format_str\0".as_ptr() as *const _,
+                            );
+                            LLVMSetInitializer(format_str_global, format_str_const);
+                            LLVMSetLinkage(format_str_global, LLVMPrivateLinkage);
+                            LLVMSetGlobalConstant(format_str_global, 1);
+                            LLVMSetUnnamedAddress(
+                                format_str_global,
+                                LLVMUnnamedAddr::LLVMGlobalUnnamedAddr,
+                            );
+                            let mut indices = [
+                                LLVMConstInt(LLVMInt32TypeInContext(_ast_context.context), 0, 0),
+                                LLVMConstInt(LLVMInt32TypeInContext(_ast_context.context), 0, 0),
+                            ];
+                            let format_str_ptr = LLVMBuildInBoundsGEP(
+                                _ast_context.builder,
+                                format_str_global,
+                                indices.as_mut_ptr(),
+                                2,
+                                "format_str_ptr\0".as_ptr() as *const _,
+                            );
 
-                    LLVMBuildMemCpy(
-                        _builder,
-                        buffer_ptr,
-                        1,
-                        lhs_ptr,
-                        1,
-                        LLVMConstInt(LLVMInt8Type(), *self.length as u64, 0),
-                    );
+                            let mut args = [buffer, format_str_ptr, self.get_ptr(), _rhs.get_ptr()];
+                            let result = LLVMBuildCall(
+                                _ast_context.builder,
+                                sprintf_func,
+                                args.as_mut_ptr(),
+                                args.len() as u32,
+                                "result\0".as_ptr() as *const _,
+                            );
+                            let result_c_str = LLVMBuildBitCast(
+                                _ast_context.builder,
+                                result,
+                                LLVMPointerType(LLVMInt8TypeInContext(_ast_context.context), 0),
+                                "result_c_str\0".as_ptr() as *const _,
+                            );
 
-                    let buffer_ptr_offset = LLVMBuildAdd(
-                        _builder,
-                        buffer_ptr,
-                        LLVMConstInt(LLVMInt64Type(), *self.length as u64, 0),
-                        c_str!("buffer_ptr_offset"),
-                    );
-
-                    LLVMBuildMemCpy(
-                        _builder,
-                        buffer_ptr_offset,
-                        1,
-                        rhs_ptr,
-                        1,
-                        LLVMConstInt(LLVMInt8Type(), *_rhs.get_length() as u64, 0),
-                    );
-
-                    let value = LLVMBuildPointerCast(
-                        _builder,
-                        buffer_ptr,
-                        buffer_ptr_type,
-                        c_str!("buffer_ptr_cast"),
-                    );
-                    let length_ptr: *mut usize = &mut buffer_size as *mut usize;
-                    return Box::new(StringType {
-                        llmv_value: value,
-                        length: length_ptr,
-                        llmv_value_pointer: None,
-                    });
+                            return Box::new(StringType {
+                                llmv_value: result_c_str,
+                                length: self.length,
+                                llmv_value_pointer: None,
+                            });
+                        }
+                    }
+                    _ => {
+                        unreachable!()
+                    }
                 }
             }
             _ => {
@@ -404,20 +434,32 @@ impl TypeBase for StringType {
             }
         }
     }
-    fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef) {
+    fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
             // Set Value
             // create string vairables and then function
             // This is the Main Print Func
             let llvm_value_to_cstr = LLVMGetAsString(self.llmv_value, self.length);
 
-            let value_is_str = LLVMBuildGlobalStringPtr(builder, c_str!("%s\n"), c_str!(""));
+            let value_is_str =
+                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%s\n"), c_str!(""));
 
             // Load Value from Value Index Ptr
-            let val = LLVMBuildGlobalStringPtr(builder, llvm_value_to_cstr, llvm_value_to_cstr);
+            let val = LLVMBuildGlobalStringPtr(
+                ast_context.builder,
+                llvm_value_to_cstr,
+                llvm_value_to_cstr,
+            );
 
             let print_args = [value_is_str, val].as_mut_ptr();
-            LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
+            match ast_context.llvm_func_cache.get("printf") {
+                Some(print_func) => {
+                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                }
+                _ => {
+                    unreachable!()
+                }
+            }
         }
     }
 }
@@ -435,12 +477,12 @@ impl TypeBase for NumberType {
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Number
     }
-    fn add(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => {
                 unsafe {
                     let result = LLVMBuildAdd(
-                        _builder,
+                        _ast_context.builder,
                         self.get_value(),
                         _rhs.get_value(),
                         c_str!("result"),
@@ -543,23 +585,32 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef) {
+    fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
-            let value_index_ptr = LLVMBuildAlloca(builder, int32_type(), c_str!("value"));
+            let value_index_ptr =
+                LLVMBuildAlloca(ast_context.builder, int32_type(), c_str!("value"));
             // First thing is to set initial value
 
-            LLVMBuildStore(builder, self.llmv_value, value_index_ptr);
+            LLVMBuildStore(ast_context.builder, self.llmv_value, value_index_ptr);
 
             // Set Value
             // create string vairables and then function
             // This is the Main Print Func
 
-            let value_is_str = LLVMBuildGlobalStringPtr(builder, c_str!("%d\n"), c_str!(""));
+            let value_is_str =
+                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%d\n"), c_str!(""));
             // Load Value from Value Index Ptr
-            let val = LLVMBuildLoad(builder, value_index_ptr, c_str!("value"));
+            let val = LLVMBuildLoad(ast_context.builder, value_index_ptr, c_str!("value"));
 
             let print_args = [value_is_str, val].as_mut_ptr();
-            LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
+            match ast_context.llvm_func_cache.get("printf") {
+                Some(print_func) => {
+                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                }
+                _ => {
+                    unreachable!()
+                }
+            }
         }
     }
 }
@@ -578,20 +629,31 @@ impl TypeBase for BoolType {
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Bool
     }
-    fn print(&self, builder: LLVMBuilderRef, print_func: LLVMValueRef) {
+    fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
             let mut llvm_value_str =
-                LLVMBuildGlobalStringPtr(builder, c_str!("true"), c_str!("true_str"));
+                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("true"), c_str!("true_str"));
             match self.value {
                 false => {
-                    llvm_value_str =
-                        LLVMBuildGlobalStringPtr(builder, c_str!("false"), c_str!("false_str"));
+                    llvm_value_str = LLVMBuildGlobalStringPtr(
+                        ast_context.builder,
+                        c_str!("false"),
+                        c_str!("false_str"),
+                    );
                 }
                 _ => {}
             }
-            let value_is_str = LLVMBuildGlobalStringPtr(builder, c_str!("%s\n"), c_str!(""));
+            let value_is_str =
+                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%s\n"), c_str!(""));
             let print_args = [value_is_str, llvm_value_str].as_mut_ptr();
-            LLVMBuildCall(builder, print_func, print_args, 2, c_str!(""));
+            match ast_context.llvm_func_cache.get("printf") {
+                Some(print_func) => {
+                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                }
+                _ => {
+                    unreachable!()
+                }
+            }
         }
     }
 }
