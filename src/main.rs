@@ -14,9 +14,8 @@ fn main() {
     print(five * four);
     let is_true = true;
     print(is_true);
-    let example_string = \"hello\";
-    let second = example_string + \" world\";
-    print(second);
+    let second = \"hello\" + \" world\";
+    print(second + \" this is more data\");
     ";
     match parser::parse_gptql_program(input) {
         Ok(exprs) => match compiler::compile(exprs) {

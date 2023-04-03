@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+use std::ffi::CStr;
 use std::ffi::CString;
 use std::io::Error;
 use std::process::Output;
@@ -21,6 +22,12 @@ use std::ptr;
 macro_rules! c_str {
     ($s:expr) => {
         concat!($s, "\0").as_ptr() as *const i8
+    };
+}
+
+macro_rules! concat_c_str {
+    ($lhs:expr, $rhs:expr) => {
+        concat!($lhs, $rhs, "\0").as_ptr() as *const i8
     };
 }
 
@@ -106,6 +113,8 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         let mut arg_types = [
             LLVMPointerType(LLVMInt8TypeInContext(context), 0),
             LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+            LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+            LLVMPointerType(LLVMInt8TypeInContext(context), 0),
         ];
         let ret_type = LLVMPointerType(LLVMInt8TypeInContext(context), 0);
         let sprintf_type =
@@ -183,7 +192,7 @@ impl ASTContext {
                 });
             },
             Expression::String(input) => {
-                let string = CString::new(input).unwrap();
+                let string = CString::new(input.clone()).unwrap();
                 unsafe {
                     let value = LLVMConstStringInContext(
                         self.context,
@@ -203,6 +212,7 @@ impl ASTContext {
                         length: ptr,
                         llmv_value: value,
                         llmv_value_pointer: Some(buffer_ptr),
+                        str_value: input, // fix
                     });
                 }
             }
@@ -297,6 +307,9 @@ trait TypeBase: DynClone {
             self.get_type()
         )
     }
+    fn get_str(&self) -> String {
+        unimplemented!("{:?} type does not implement get_cstr", self.get_type())
+    }
     fn get_length(&self) -> *mut usize {
         unimplemented!("{:?} type does not implement get_length", self.get_type())
     }
@@ -321,6 +334,7 @@ struct StringType {
     llmv_value: LLVMValueRef,
     length: *mut usize,
     llmv_value_pointer: Option<LLVMValueRef>,
+    str_value: String,
 }
 
 impl TypeBase for StringType {
@@ -343,88 +357,44 @@ impl TypeBase for StringType {
             }
         }
     }
+    fn get_str(&self) -> String {
+        self.str_value.clone()
+    }
+
     fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseTypes::String => {
-                match _ast_context.llvm_func_cache.get("sprintf") {
-                    Some(sprintf_func) => {
-                        unsafe {
-                            // allocate buffer
-                            // 1. Allocate the destination buffer
-                            let buffer_size = 24; // Choose an appropriate size based on your requirements
-                            let buffer = LLVMBuildArrayAlloca(
-                                _ast_context.builder,
-                                LLVMInt8TypeInContext(_ast_context.context),
-                                LLVMConstInt(
-                                    LLVMInt32TypeInContext(_ast_context.context),
-                                    buffer_size,
-                                    0,
-                                ),
-                                "buffer\0".as_ptr() as *const _,
-                            );
+            BaseTypes::String => match _ast_context.llvm_func_cache.get("sprintf") {
+                Some(sprintf_func) => unsafe {
+                    // TODO: Use sprintf to concatenate two strings
+                    // Remove extra quotes
+                    let new_string = format!("{}{}", self.get_str().to_string(), _rhs.get_str().to_string()).replace("\"", "");
 
-                            // 2. Create a format string, e.g., "%s%s" to concatenate two strings
-                            let format_str = "%s%s";
-                            let format_str_const = LLVMConstStringInContext(
-                                _ast_context.context,
-                                format_str.as_ptr() as *const _,
-                                format_str.len() as u32 - 1,
-                                0,
-                            );
-                            let format_str_global = LLVMAddGlobal(
-                                _ast_context.module,
-                                LLVMArrayType(
-                                    LLVMInt8TypeInContext(_ast_context.context),
-                                    format_str.len() as u32,
-                                ),
-                                "format_str\0".as_ptr() as *const _,
-                            );
-                            LLVMSetInitializer(format_str_global, format_str_const);
-                            LLVMSetLinkage(format_str_global, LLVMPrivateLinkage);
-                            LLVMSetGlobalConstant(format_str_global, 1);
-                            LLVMSetUnnamedAddress(
-                                format_str_global,
-                                LLVMUnnamedAddr::LLVMGlobalUnnamedAddr,
-                            );
-                            let mut indices = [
-                                LLVMConstInt(LLVMInt32TypeInContext(_ast_context.context), 0, 0),
-                                LLVMConstInt(LLVMInt32TypeInContext(_ast_context.context), 0, 0),
-                            ];
-                            let format_str_ptr = LLVMBuildInBoundsGEP(
-                                _ast_context.builder,
-                                format_str_global,
-                                indices.as_mut_ptr(),
-                                2,
-                                "format_str_ptr\0".as_ptr() as *const _,
-                            );
-
-                            let mut args = [buffer, format_str_ptr, self.get_ptr(), _rhs.get_ptr()];
-                            let result = LLVMBuildCall(
-                                _ast_context.builder,
-                                sprintf_func,
-                                args.as_mut_ptr(),
-                                args.len() as u32,
-                                "result\0".as_ptr() as *const _,
-                            );
-                            let result_c_str = LLVMBuildBitCast(
-                                _ast_context.builder,
-                                result,
-                                LLVMPointerType(LLVMInt8TypeInContext(_ast_context.context), 0),
-                                "result_c_str\0".as_ptr() as *const _,
-                            );
-
-                            return Box::new(StringType {
-                                llmv_value: result_c_str,
-                                length: self.length,
-                                llmv_value_pointer: None,
-                            });
-                        }
-                    }
-                    _ => {
-                        unreachable!()
-                    }
+                    let string = CString::new(new_string.clone()).unwrap();
+                    let value = LLVMConstStringInContext(
+                        _ast_context.context,
+                        string.as_ptr(),
+                        string.as_bytes().len() as u32,
+                        0,
+                    );
+                    let mut len_value: usize = string.as_bytes().len() as usize;
+                    let ptr: *mut usize = (&mut len_value) as *mut usize;
+                    let buffer_ptr = LLVMBuildPointerCast(
+                        _ast_context.builder,
+                        value,
+                        LLVMPointerType(LLVMInt8Type(), 0),
+                        c_str!("buffer_ptr"),
+                    );
+                    return Box::new(StringType {
+                        length: ptr,
+                        llmv_value: value,
+                        llmv_value_pointer: Some(buffer_ptr),
+                        str_value: new_string,
+                    });
+                },
+                _ => {
+                    unreachable!()
                 }
-            }
+            },
             _ => {
                 unreachable!(
                     "Can't add type {:?} and type {:?}",

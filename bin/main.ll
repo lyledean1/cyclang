@@ -8,9 +8,8 @@ target triple = "arm64"
 @3 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @true_str = private unnamed_addr constant [5 x i8] c"true\00", align 1
 @4 = private unnamed_addr constant [4 x i8] c"%s\0A\00", align 1
-@format_str = private unnamed_addr constant [5 x i8] c"%s%s\00"
 @5 = private unnamed_addr constant [4 x i8] c"%s\0A\00", align 1
-@"H\85\1B" = private unnamed_addr constant [4 x i8] c"H\85\1B\00", align 1
+@"hello world this is more data" = private unnamed_addr constant [30 x i8] c"hello world this is more data\00", align 1
 
 define void @main() {
 main:
@@ -31,12 +30,10 @@ main:
   %value7 = load i32, i32* %value6, align 4
   call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @3, i32 0, i32 0), i32 %value7)
   call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @4, i32 0, i32 0), i8* getelementptr inbounds ([5 x i8], [5 x i8]* @true_str, i32 0, i32 0))
-  %buffer = alloca i8, i32 24, align 1
-  %result = call i8* (i8*, i8*, ...) @sprintf(i8* %buffer, i8* getelementptr inbounds ([5 x i8], [5 x i8]* @format_str, i32 0, i32 0), i8* bitcast ([8 x i8] c"\22hello\22\00" to i8*), i8* bitcast ([9 x i8] c"\22 world\22\00" to i8*))
-  call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @5, i32 0, i32 0), i8* getelementptr inbounds ([4 x i8], [4 x i8]* @"H\85\1B", i32 0, i32 0))
+  call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @5, i32 0, i32 0), i8* getelementptr inbounds ([30 x i8], [30 x i8]* @"hello world this is more data", i32 0, i32 0))
   ret void
 }
 
 declare void @printf(i8*, ...)
 
-declare i8* @sprintf(i8*, i8*, ...)
+declare i8* @sprintf(i8*, i8*, i8*, i8*, ...)
