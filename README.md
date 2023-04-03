@@ -31,7 +31,7 @@ cargo install --path=./
 - [ ] Null Values
 - [x] Variables 
     - [x] Reassignment
-- [x] Let Statements `let x = a;`
+- [x] Let Statements
 - [ ] If Statements 
 - [ ] For Loops
 - [ ] Functions
