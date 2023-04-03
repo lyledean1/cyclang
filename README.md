@@ -17,7 +17,7 @@ cargo install --path=./
 ## Grammar
 
 - [x] Strings 
-    - [ ] Addition
+    - [x] Addition
 - [x] Numbers 
     - [x] Addition
     - [x] Subtraction
