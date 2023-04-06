@@ -1,29 +1,32 @@
 #[macro_use]
 extern crate pest_derive;
-
+use std::fs;
+use clap::Parser;
 mod compiler;
 mod parser;
+mod repl;
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg(short, long)]
+    file: Option<String>,
+}
 
 fn main() {
-    let input = "
-    let five = 5;
-    let four = 4;
-    print(20 / four);
-    print(20 + four);
-    print(20 - four);
-    print(five * four);
-    let is_true = true;
-    print(is_true);
-    let second = \"hello\" + \" world\";
-    print(second + \" this is more data\");
-    ";
-    match parser::parse_gptql_program(input) {
-        Ok(exprs) => match compiler::compile(exprs) {
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("{}", e);
-            }
-        },
-        Err(e) => println!("Error: {}", e),
+    let args = Args::parse();
+    if let Some(filename) = args.file {
+        let contents = fs::read_to_string(filename)
+        .expect("Failed to read file");
+        match parser::parse_gptql_program(&contents) {
+            Ok(exprs) => match compiler::compile(exprs) {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}", e);
+                }
+            },
+            Err(e) => println!("Error: {}", e),
+        }
+    } else {
+        repl::run();
     }
 }
