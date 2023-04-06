@@ -9,6 +9,14 @@ Download the repo and run
 cargo install --path=./
 ```
 
+## Run
+
+Run the .asharp file 
+
+```
+asharp --file /path/to/file.asharp
+```
+
 ## Features
 
 - [ ] REPL

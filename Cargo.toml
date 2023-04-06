@@ -1,12 +1,15 @@
 [package]
-name = "gptql"
+name = "asharp"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = {version = "4.1.8", features = ["derive"]}
 dyn-clone = "1.0.11"
 llvm-sys = "130.0.5"
 pest = "2.5.6"
 pest_derive = "2.5.6"
+rustyline = "11.0.0"
+text-colorizer = "1.0.0"

@@ -154,12 +154,13 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
 
     match output {
         Ok(ok) => {
-            print!("{:?}\n", ok);
+            // print!("{:?}\n", ok);
         }
         Err(e) => return Err(e),
     }
 
-    println!("main executable generated, running bin/main");
+    //TODO: add this as a debug line
+    // println!("main executable generated, running bin/main");
     let output = Command::new("bin/main").output();
     return output;
 }
@@ -367,7 +368,12 @@ impl TypeBase for StringType {
                 Some(sprintf_func) => unsafe {
                     // TODO: Use sprintf to concatenate two strings
                     // Remove extra quotes
-                    let new_string = format!("{}{}", self.get_str().to_string(), _rhs.get_str().to_string()).replace("\"", "");
+                    let new_string = format!(
+                        "{}{}",
+                        self.get_str().to_string(),
+                        _rhs.get_str().to_string()
+                    )
+                    .replace("\"", "");
 
                     let string = CString::new(new_string.clone()).unwrap();
                     let value = LLVMConstStringInContext(
