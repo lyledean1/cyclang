@@ -1,6 +1,6 @@
 # A#
 
-A simple programming language I built in Rust mainly for my own learning. Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) to compile to a machine code binary.
+A programming language I built in Rust - mainly for fun and my own learning! Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) as the backend to compile to machine code binary.
 
 ## Install 
 
@@ -25,7 +25,7 @@ asharp --file /path/to/file.asharp
 ## Grammar
 
 - [x] Strings 
-    - [ ] Addition
+    - [x] Addition
 - [x] Numbers 
     - [x] Addition
     - [x] Subtraction
@@ -39,7 +39,7 @@ asharp --file /path/to/file.asharp
 - [ ] Null Values
 - [x] Variables 
     - [x] Reassignment
-- [x] Let Statements `let x = a;`
+- [x] Let Statements
 - [ ] If Statements 
 - [ ] For Loops
 - [ ] Functions
