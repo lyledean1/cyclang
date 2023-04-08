@@ -3,3 +3,7 @@ fn example(arg1, arg2) {
     print(total);
 };
 example();
+
+for (i) {
+
+}

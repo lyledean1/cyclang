@@ -21,6 +21,7 @@ pub enum Expression {
     CallStmt(String, Vec<String>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
     WhileStmt(Box<Expression>, Box<Expression>),
+    ForStmt(String, i32, i32, i32, Box<Expression>),
     Print(Box<Expression>),
 }
 
@@ -53,12 +54,24 @@ impl Expression {
         Self::LetStmt(name, Box::new(value))
     }
 
-    fn new_if_stmt(condition: Expression, if_block_expr: Expression, else_block_expr: Option<Expression>) -> Self {
-        Self::IfStmt(Box::new(condition), Box::new(if_block_expr), Box::new(else_block_expr))
+    fn new_if_stmt(
+        condition: Expression,
+        if_block_expr: Expression,
+        else_block_expr: Option<Expression>,
+    ) -> Self {
+        Self::IfStmt(
+            Box::new(condition),
+            Box::new(if_block_expr),
+            Box::new(else_block_expr),
+        )
     }
 
     fn new_while_stmt(condition: Expression, while_block_expr: Expression) -> Self {
         Self::WhileStmt(Box::new(condition), Box::new(while_block_expr))
+    }
+
+    fn new_for_stmt(var_name: String, start: i32, end: i32, step: i32, for_block_expr: Expression) -> Self {
+        Self::ForStmt(var_name, start, end, step, Box::new(for_block_expr))
     }
 
     fn new_func_stmt(name: String, args: Vec<String>, body: Expression) -> Self {
@@ -146,7 +159,10 @@ fn parse_expression(
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
             let mut args = vec![];
-            while inner_pairs.peek().map_or(false, |p| p.as_rule() == Rule::comma) {
+            while inner_pairs
+                .peek()
+                .map_or(false, |p| p.as_rule() == Rule::comma)
+            {
                 inner_pairs.next(); // skip the comma
                 let arg_name = inner_pairs.next().unwrap().as_str().to_string();
                 args.push(arg_name);
@@ -158,17 +174,20 @@ fn parse_expression(
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
             let mut args = vec![];
-            while inner_pairs.peek().map_or(false, |p| p.as_rule() == Rule::comma) {
+            while inner_pairs
+                .peek()
+                .map_or(false, |p| p.as_rule() == Rule::comma)
+            {
                 inner_pairs.next(); // skip the comma
                 let arg_name = inner_pairs.next().unwrap().as_str().to_string();
                 args.push(arg_name);
             }
             Ok(Expression::new_call_stmt(name, args))
-        },
+        }
         Rule::block_stmt => {
             let inner_pair = pair.into_inner().next().unwrap();
             parse_expression(inner_pair)
-        },
+        }
         Rule::if_stmt => {
             let mut inner_pairs = pair.into_inner();
             let cond = parse_expression(inner_pairs.next().unwrap())?;
@@ -179,7 +198,20 @@ fn parse_expression(
                 None
             };
             Ok(Expression::new_if_stmt(cond, if_stmt, else_stmt))
-        },
+        }
+        Rule::for_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let var_name = inner_pairs.next().unwrap().as_str().to_string();
+            inner_pairs.next(); // Skip the "="
+            let start = inner_pairs.next().unwrap().as_str().parse::<i32>().unwrap();
+            inner_pairs.next(); // Skip the ";"
+            let end = inner_pairs.next().unwrap().as_str().parse::<i32>().unwrap();
+            inner_pairs.next(); // Skip the ";"
+
+            let step = inner_pairs.next().unwrap().as_str().parse::<i32>().unwrap();
+            let block_stmt = parse_expression(inner_pairs.next().unwrap())?;
+            Ok(Expression::new_for_stmt(var_name, start, end, step, block_stmt))
+        }
         Rule::while_stmt => {
             let mut inner_pairs = pair.into_inner();
             let cond = parse_expression(inner_pairs.next().unwrap())?;
@@ -462,7 +494,20 @@ mod test {
         "#;
         assert!(parse_asharp_program(input).is_ok());
     }
-
+    #[test]
+    fn test_for_loop_stmt() {
+        let input = r#"
+        for (var i = 0; i < 20; i++)
+        {
+            print(i);
+        };
+        "#;
+        match parse_asharp_program(input) {
+            Err(e) => {
+                eprintln!("{:?}", e)
+            }
+            _ => {}
+        }
+        assert!(parse_asharp_program(input).is_ok());
+    }
 }
-
-

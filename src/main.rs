@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate pest_derive;
-use std::fs;
 use clap::Parser;
+use std::fs;
 mod compiler;
 mod parser;
 mod repl;
@@ -15,8 +15,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
     if let Some(filename) = args.file {
-        let contents = fs::read_to_string(filename)
-        .expect("Failed to read file");
+        let contents = fs::read_to_string(filename).expect("Failed to read file");
         match parser::parse_asharp_program(&contents) {
             // loop through expression, if type var then store
             Ok(exprs) => match compiler::compile(exprs) {

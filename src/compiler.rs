@@ -266,7 +266,7 @@ impl ASTContext {
                 //TODO: figure out best way to handle a let stmt return
                 lhs
             }
-            Expression::FuncStmt(name, args, body ) => {
+            Expression::FuncStmt(name, args, body) => {
                 // save to call stack
                 unimplemented!()
             }
@@ -277,6 +277,9 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
+                unimplemented!()
+            }
+            Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
                 unimplemented!()
             }
             Expression::Print(input) => {
