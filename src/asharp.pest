@@ -1,12 +1,15 @@
 
-expression_list = { SOI ~ (((expression | binary | grouping | let_stmt | print_stmt) ~ (semicolon ~ WHITESPACE? ~ (expression | binary | grouping | let_stmt | print_stmt))*) ~ semicolon) ~ EOI }
+expression_list = { SOI ~ expression_list_inner ~ EOI }
+expression_list_inner = _{(((expression | binary | grouping | let_stmt | print_stmt | func_stmt | call_stmt ) ~ (semicolon ~ WHITESPACE? ~ (expression | binary | grouping | let_stmt | print_stmt | func_stmt | call_stmt ))*) ~ semicolon)}
 expression = _ { binary | literal }
-binary = { (literal | grouping | name) ~ operator ~ (literal | grouping | name) }
+binary = { (literal | grouping | name) ~ operator ~ (literal | grouping | name) ~ (operator ~ (literal | grouping | name))?}
 grouping = { "(" ~ expression ~ ")" }
 literal = {bool | number | string | nil }
 let_stmt = { "let" ~ WHITESPACE? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (expression | grouping | name)}
+func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ (name ~ comma?)* ~ ")" ~ WHITESPACE? ~ "{" ~ WHITESPACE? ~ expression_list_inner ~ WHITESPACE? ~ "}" }
+call_stmt = { name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
 print_stmt = { "print(" ~ (expression | name) ~ ")" }
-name = { (alpha ~ (alpha | digit | "_")*) }
+name = { (alpha | "_") ~ (alpha | digit | "_")* }
 number = { ("-" ~ digits) | digits }
 digits = { digit+ }
 digit = { ASCII_DIGIT }
@@ -23,4 +26,5 @@ power = { "^" }
 equalequal = { "==" }
 equal = { "=" }
 semicolon = { ";" }
+comma = { WHITESPACE? ~ "," ~ WHITESPACE? }
 WHITESPACE = _{ " " | "\t" | NEWLINE }

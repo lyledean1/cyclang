@@ -266,6 +266,13 @@ impl ASTContext {
                 //TODO: figure out best way to handle a let stmt return
                 lhs
             }
+            Expression::FuncStmt(name, args, body ) => {
+                // save to call stack
+                unimplemented!()
+            }
+            Expression::CallStmt(name, args) => {
+                unimplemented!()
+            }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(unbox(input));
                 expression_value.print(self);

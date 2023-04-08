@@ -17,6 +17,8 @@ pub enum Expression {
     Binary(Box<Expression>, char, Box<Expression>),
     Grouping(Box<Expression>),
     LetStmt(String, Box<Expression>),
+    FuncStmt(String, Vec<String>, Box<Expression>),
+    CallStmt(String, Vec<String>),
     Print(Box<Expression>),
 }
 
@@ -47,6 +49,14 @@ impl Expression {
 
     fn new_let_stmt(name: String, value: Expression) -> Self {
         Self::LetStmt(name, Box::new(value))
+    }
+
+    fn new_func_stmt(name: String, args: Vec<String>, body: Expression) -> Self {
+        Self::FuncStmt(name, args, Box::new(body))
+    }
+
+    fn new_call_stmt(name: String, args: Vec<String>) -> Self {
+        Self::CallStmt(name, args)
     }
 
     fn new_print_stmt(value: Expression) -> Self {
@@ -122,6 +132,29 @@ fn parse_expression(
             let value = parse_expression(inner_pair)?;
             Ok(Expression::new_print_stmt(value))
         }
+        Rule::func_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let name = inner_pairs.next().unwrap().as_str().to_string();
+            let mut args = vec![];
+            while inner_pairs.peek().map_or(false, |p| p.as_rule() == Rule::comma) {
+                inner_pairs.next(); // skip the comma
+                let arg_name = inner_pairs.next().unwrap().as_str().to_string();
+                args.push(arg_name);
+            }
+            let body = parse_expression(inner_pairs.next().unwrap())?;
+            Ok(Expression::new_func_stmt(name, args, body))
+        }
+        Rule::call_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let name = inner_pairs.next().unwrap().as_str().to_string();
+            let mut args = vec![];
+            while inner_pairs.peek().map_or(false, |p| p.as_rule() == Rule::comma) {
+                inner_pairs.next(); // skip the comma
+                let arg_name = inner_pairs.next().unwrap().as_str().to_string();
+                args.push(arg_name);
+            }
+            Ok(Expression::new_call_stmt(name, args))
+        }
         _ => Err(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
                 message: format!("Invalid expression for rule {:?}", pair.as_rule()),
@@ -137,7 +170,7 @@ fn parse_program(
     let mut expr_vec = vec![];
     for stmt_pair in pair.into_inner() {
         match stmt_pair.as_rule() {
-            Rule::semicolon | Rule::EOI => {
+            Rule::semicolon | Rule::EOI | Rule::comma => {
                 continue;
             }
             _ => {
@@ -322,4 +355,33 @@ mod test {
         ";
         assert!(parse_asharp_program(input).is_ok());
     }
+
+    #[test]
+    fn test_func() {
+        let input = r#"
+        fn example(arg1, arg2) {
+            print(1);
+        };
+        fn example_two(arg1, arg2) {
+            let a = 5;
+            print(a);
+        };
+        fn hello() {
+            print("hello");
+        };
+        "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_call_func() {
+        let input = r#"
+        fn hello() {
+            print("hello");
+        };
+        hello();
+        "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
 }
