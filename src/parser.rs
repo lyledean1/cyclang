@@ -5,7 +5,7 @@ use std::num::ParseIntError;
 
 #[derive(Parser)]
 #[grammar = "asharp.pest"]
-struct GptQLParser;
+struct ASharpParser;
 
 #[derive(Debug)]
 pub enum Expression {
@@ -149,8 +149,8 @@ fn parse_program(
     Ok(expr_vec)
 }
 
-pub fn parse_gptql_program(input: &str) -> Result<Vec<Expression>, pest::error::Error<Rule>> {
-    match GptQLParser::parse(Rule::expression_list, input) {
+pub fn parse_asharp_program(input: &str) -> Result<Vec<Expression>, pest::error::Error<Rule>> {
+    match ASharpParser::parse(Rule::expression_list, input) {
         Ok(pairs) => {
             for pair in pairs {
                 match parse_program(pair) {
@@ -172,145 +172,145 @@ mod test {
     #[test]
     fn test_parse_string_expression() {
         let input = r#""hello";"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_string_expression_err() {
         let input = r#"hello";"#;
-        assert!(parse_gptql_program(input).is_err());
+        assert!(parse_asharp_program(input).is_err());
     }
 
     #[test]
     fn test_parse_number_expression() {
         let input = r#"555;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_expression_add() {
         let input = r#"555 + 555 + 555;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_expression_add_grouping() {
         let input = r#"(555 + 555) + (555 + 555);"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_negative_number_expression() {
         let input = r#"-555 - 555;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_expression_err() {
         let input = r#"555""#;
-        assert!(parse_gptql_program(input).is_err());
+        assert!(parse_asharp_program(input).is_err());
     }
 
     #[test]
     fn test_parse_nil() {
         let input = r#"nil;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_true_bool() {
         let input = r#"true;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_false_bool() {
         let input = r#"false;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_string_equals() {
         let input = r#""hello" == "hello";"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_bool_equals() {
         let input = r#"true == true;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_nil_equals() {
         let input = r#"nil == nil;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_equals() {
         let input = r#"55 == 45;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_bool_equals_string() {
         let input = r#"true == "hello";"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_string() {
         let input = r#"let value = "hello";"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_bool() {
         let input = r#"let value = true;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_bool_without_comma() {
         let input = r#"let value = true"#;
-        assert!(parse_gptql_program(input).is_err());
+        assert!(parse_asharp_program(input).is_err());
     }
 
     #[test]
     fn test_parse_let_stmt_number() {
         let input = r#"let value = 555;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_nil() {
         let input = r#"let value = nil;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_grouping() {
         let input = r#"let value = (true == true);"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_assign() {
         let input = r#"let value = other_value;"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_bool_assign() {
         let input = r#"let value = (other_value == first_value);"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_print_stmt_bool_assign() {
         let input = r#"print(other_value == first_value);"#;
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
@@ -320,6 +320,6 @@ mod test {
         let two = false;
         let three = (two == one);
         ";
-        assert!(parse_gptql_program(input).is_ok());
+        assert!(parse_asharp_program(input).is_ok());
     }
 }

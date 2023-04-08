@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
-use std::ffi::CStr;
 use std::ffi::CString;
 use std::io::Error;
 use std::process::Output;
@@ -13,8 +12,6 @@ use dyn_clone::DynClone;
 use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-use llvm_sys::LLVMLinkage::LLVMPrivateLinkage;
-use llvm_sys::LLVMUnnamedAddr;
 use std::os::raw::c_ulonglong;
 use std::process::Command;
 use std::ptr;
@@ -22,12 +19,6 @@ use std::ptr;
 macro_rules! c_str {
     ($s:expr) => {
         concat!($s, "\0").as_ptr() as *const i8
-    };
-}
-
-macro_rules! concat_c_str {
-    ($lhs:expr, $rhs:expr) => {
-        concat!($lhs, $rhs, "\0").as_ptr() as *const i8
     };
 }
 
@@ -78,7 +69,7 @@ fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
         let bool_type = LLVMInt1TypeInContext(context);
 
         // Create a LLVM value for the bool
-        let bool_value = unsafe { LLVMConstInt(bool_type, boolean as u64, 0) };
+        let bool_value = LLVMConstInt(bool_type, boolean as u64, 0);
 
         // Return the LLVMValueRef for the bool
         bool_value
@@ -153,7 +144,7 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         .output();
 
     match output {
-        Ok(ok) => {
+        Ok(_ok) => {
             // print!("{:?}\n", ok);
         }
         Err(e) => return Err(e),
@@ -266,7 +257,7 @@ impl ASTContext {
                     unimplemented!()
                 }
             },
-            Expression::Grouping(input) => {
+            Expression::Grouping(_input) => {
                 unimplemented!()
             }
             Expression::LetStmt(var, lhs) => {
@@ -279,9 +270,6 @@ impl ASTContext {
                 let expression_value = self.match_ast(unbox(input));
                 expression_value.print(self);
                 return expression_value;
-            }
-            _ => {
-                unreachable!("No match for in match_ast")
             }
         }
     }
@@ -365,7 +353,7 @@ impl TypeBase for StringType {
     fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::String => match _ast_context.llvm_func_cache.get("sprintf") {
-                Some(sprintf_func) => unsafe {
+                Some(_sprintf_func) => unsafe {
                     // TODO: Use sprintf to concatenate two strings
                     // Remove extra quotes
                     let new_string = format!(

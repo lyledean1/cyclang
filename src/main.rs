@@ -17,7 +17,8 @@ fn main() {
     if let Some(filename) = args.file {
         let contents = fs::read_to_string(filename)
         .expect("Failed to read file");
-        match parser::parse_gptql_program(&contents) {
+        match parser::parse_asharp_program(&contents) {
+            // loop through expression, if type var then store
             Ok(exprs) => match compiler::compile(exprs) {
                 Ok(_) => {}
                 Err(e) => {
