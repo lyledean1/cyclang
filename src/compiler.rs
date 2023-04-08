@@ -273,6 +273,12 @@ impl ASTContext {
             Expression::CallStmt(name, args) => {
                 unimplemented!()
             }
+            Expression::IfStmt(condition, if_stmt, else_stmt) => {
+                unimplemented!()
+            }
+            Expression::WhileStmt(condition, while_block_stmt) => {
+                unimplemented!()
+            }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(unbox(input));
                 expression_value.print(self);

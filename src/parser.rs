@@ -19,6 +19,8 @@ pub enum Expression {
     LetStmt(String, Box<Expression>),
     FuncStmt(String, Vec<String>, Box<Expression>),
     CallStmt(String, Vec<String>),
+    IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
+    WhileStmt(Box<Expression>, Box<Expression>),
     Print(Box<Expression>),
 }
 
@@ -49,6 +51,14 @@ impl Expression {
 
     fn new_let_stmt(name: String, value: Expression) -> Self {
         Self::LetStmt(name, Box::new(value))
+    }
+
+    fn new_if_stmt(condition: Expression, if_block_expr: Expression, else_block_expr: Option<Expression>) -> Self {
+        Self::IfStmt(Box::new(condition), Box::new(if_block_expr), Box::new(else_block_expr))
+    }
+
+    fn new_while_stmt(condition: Expression, while_block_expr: Expression) -> Self {
+        Self::WhileStmt(Box::new(condition), Box::new(while_block_expr))
     }
 
     fn new_func_stmt(name: String, args: Vec<String>, body: Expression) -> Self {
@@ -154,6 +164,27 @@ fn parse_expression(
                 args.push(arg_name);
             }
             Ok(Expression::new_call_stmt(name, args))
+        },
+        Rule::block_stmt => {
+            let inner_pair = pair.into_inner().next().unwrap();
+            parse_expression(inner_pair)
+        },
+        Rule::if_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let cond = parse_expression(inner_pairs.next().unwrap())?;
+            let if_stmt = parse_expression(inner_pairs.next().unwrap())?;
+            let else_stmt = if let Some(else_pair) = inner_pairs.next() {
+                Some(parse_expression(else_pair)?)
+            } else {
+                None
+            };
+            Ok(Expression::new_if_stmt(cond, if_stmt, else_stmt))
+        },
+        Rule::while_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let cond = parse_expression(inner_pairs.next().unwrap())?;
+            let while_block_expr = parse_expression(inner_pairs.next().unwrap())?;
+            Ok(Expression::new_while_stmt(cond, while_block_expr))
         }
         _ => Err(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
@@ -357,6 +388,19 @@ mod test {
     }
 
     #[test]
+    fn test_block_stmt() {
+        let input = "
+        {
+            let b = 5;
+            {
+            let a = 5;
+            };
+        };
+        ";
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
     fn test_func() {
         let input = r#"
         fn example(arg1, arg2) {
@@ -384,4 +428,41 @@ mod test {
         assert!(parse_asharp_program(input).is_ok());
     }
 
+    #[test]
+    fn test_if_stmt() {
+        let input = r#"
+        if (value)
+        {
+            print("hello");
+        };
+        "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_if_else_stmt() {
+        let input = r#"
+        if (value)
+        {
+            print("hello");
+        } 
+        else {
+            print("else");
+        };
+        "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+    #[test]
+    fn test_while_stmt() {
+        let input = r#"
+        while (value)
+        {
+            print("hello");
+        };
+        "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
 }
+
+

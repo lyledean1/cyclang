@@ -1,6 +1,5 @@
 fn example(arg1, arg2) {
     let total = arg1 + arg2;
     print(total);
-}
-
+};
 example();
