@@ -440,7 +440,9 @@ impl TypeBase for StringType {
             let print_args = [value_is_str, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                    let void_type = LLVMVoidTypeInContext(ast_context.context);
+                    let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
+                    LLVMBuildCall2(ast_context.builder, print_func_type, print_func, print_args, 2, c_str!(""));
                 }
                 _ => {
                     unreachable!()
@@ -586,12 +588,14 @@ impl TypeBase for NumberType {
             let value_is_str =
                 LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%d\n"), c_str!(""));
             // Load Value from Value Index Ptr
-            let val = LLVMBuildLoad(ast_context.builder, value_index_ptr, c_str!("value"));
+            let val = LLVMBuildLoad2(ast_context.builder, int8_ptr_type(), value_index_ptr, c_str!("value"));
 
             let print_args = [value_is_str, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                    let void_type = LLVMVoidTypeInContext(ast_context.context);
+                    let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
+                    LLVMBuildCall2(ast_context.builder, print_func_type, print_func, print_args, 2, c_str!(""));
                 }
                 _ => {
                     unreachable!()
@@ -634,7 +638,10 @@ impl TypeBase for BoolType {
             let print_args = [value_is_str, llvm_value_str].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                    let void_type = LLVMVoidTypeInContext(ast_context.context);
+                    let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
+                    LLVMBuildCall2(ast_context.builder, print_func_type, print_func, print_args, 2, c_str!(""));
+
                 }
                 _ => {
                     unreachable!()
@@ -706,7 +713,7 @@ mod test {
     #[test]
     fn test_compile_print_number_expression() {
         let input = vec![make_print_stmt(Expression::Number(12))];
-        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i32 %value1)"#;
+        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr %value1)"#;
         let output = llvm_compile_to_ir(input);
         assert!(output.contains(expected_ir));
     }
@@ -717,7 +724,7 @@ mod test {
             "example blah blah blah",
         )))];
         // call print statement for str
-        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([23 x i8], [23 x i8]* @"example blah blah blah", i32 0, i32 0))"#;
+        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr @"example blah blah blah")"#;
         let output = llvm_compile_to_ir(input);
         assert!(output.contains(expected_ir));
     }
@@ -726,7 +733,7 @@ mod test {
     fn test_compile_print_bool_expression() {
         let input = vec![make_print_stmt(Expression::Bool(true))];
         // call print statement for str
-        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([5 x i8], [5 x i8]* @true_str, i32 0, i32 0))"#;
+        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr @true_str)"#;
         let output = llvm_compile_to_ir(input);
         assert!(output.contains(expected_ir));
     }
