@@ -7,4 +7,4 @@ print(five * four);
 let is_true = true;
 print(is_true);
 let second = "hello" + " world";
-print(second + " this is less data");
+print(second + " this is more data");

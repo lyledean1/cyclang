@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+use std::ffi::CStr;
 use std::ffi::CString;
 use std::io::Error;
 use std::process::Output;
@@ -76,7 +77,7 @@ fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
     }
 }
 
-fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
+fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
     unsafe {
         // setup
         let context = LLVMContextCreate();
@@ -129,31 +130,15 @@ fn llvm_compile(exprs: Vec<Expression>) -> Result<Output, Error> {
         LLVMSetTarget(module, c_str!("arm64"));
         LLVMPrintModuleToFile(module, c_str!("bin/main.ll"), ptr::null_mut());
         LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
+        let module_cstr = CStr::from_ptr(LLVMPrintModuleToString(module));
+        let module_string = module_cstr.to_string_lossy().into_owned();
 
         // clean up
         LLVMDisposeBuilder(builder);
         LLVMDisposeModule(module);
         LLVMContextDispose(context);
+        module_string
     }
-
-    // Run clang
-    let output = Command::new("clang")
-        .arg("bin/main.bc")
-        .arg("-o")
-        .arg("bin/main")
-        .output();
-
-    match output {
-        Ok(_ok) => {
-            // print!("{:?}\n", ok);
-        }
-        Err(e) => return Err(e),
-    }
-
-    //TODO: add this as a debug line
-    // println!("main executable generated, running bin/main");
-    let output = Command::new("bin/main").output();
-    return output;
 }
 
 fn unbox<T>(value: Box<T>) -> T {
@@ -294,7 +279,26 @@ impl ASTContext {
 }
 
 pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
-    llvm_compile(input)
+    // output LLVM IR
+    llvm_compile_to_ir(input);
+    // compile to binary
+    let output = Command::new("clang")
+        .arg("bin/main.bc")
+        .arg("-o")
+        .arg("bin/main")
+        .output();
+
+    match output {
+        Ok(_ok) => {
+            // print!("{:?}\n", ok);
+        }
+        Err(e) => return Err(e),
+    }
+
+    //TODO: add this as a debug line
+    // println!("main executable generated, running bin/main");
+    let output = Command::new("bin/main").output();
+    return output;
 }
 
 #[derive(Debug)]
@@ -698,17 +702,73 @@ mod test {
     use crate::parser::Expression;
 
     use super::*;
+    //Note: Just testing lines of LLVM IR for the time being until I figure a better way to address these tests for the compiler
     #[test]
     fn test_compile_print_number_expression() {
-        let input = vec![Expression::Print(Box::new(Expression::Number(12)))];
-        assert!(compile(input).is_ok());
+        let input = vec![make_print_stmt(Expression::Number(12))];
+        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i32 %value1)"#;
+        let output = llvm_compile_to_ir(input);
+        assert!(output.contains(expected_ir));
     }
 
     #[test]
     fn test_compile_print_string_expression() {
-        let input = vec![Expression::Print(Box::new(Expression::String(
-            String::from("example blah blah blah"),
+        let input = vec![make_print_stmt(Expression::String(String::from(
+            "example blah blah blah",
         )))];
-        assert!(compile(input).is_ok());
+        // call print statement for str
+        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([23 x i8], [23 x i8]* @"example blah blah blah", i32 0, i32 0))"#;
+        let output = llvm_compile_to_ir(input);
+        assert!(output.contains(expected_ir));
     }
+
+    #[test]
+    fn test_compile_print_bool_expression() {
+        let input = vec![make_print_stmt(Expression::Bool(true))];
+        // call print statement for str
+        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([5 x i8], [5 x i8]* @true_str, i32 0, i32 0))"#;
+        let output = llvm_compile_to_ir(input);
+        assert!(output.contains(expected_ir));
+    }
+
+
+    // #[test]
+    // fn test_compile_variable() {
+    //     // TODO -> use global variables for LLVM IR
+    //     let input = vec![
+    //         make_test_let_stmt("example".to_string(), Expression::Bool(true)),
+    //         make_print_stmt(Expression::Variable("example".to_string())),
+    //     ];
+    //     // call print statement for str
+    //     let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([5 x i8], [5 x i8]* @true_str, i32 0, i32 0))"#;
+    //     let output = llvm_compile_to_ir(input);
+    //     println!("{}", output);
+    //     assert!(output.contains(expected_ir));
+    // }
+
+    // #[test]
+    // fn test_compile_addition() {
+    //     // TODO -> use global variables for LLVM IR
+    //     let input = vec![
+    //         make_print_stmt(make_binary_stmt(Expression::Number(2), '+', Expression::Number(4)))
+    //     ];
+    //     // call print statement for str
+    //     let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([5 x i8], [5 x i8]* @true_str, i32 0, i32 0))"#;
+    //     let output = llvm_compile_to_ir(input);
+    //     println!("{}", output);
+    //     assert!(output.contains(expected_ir));
+    // }
+
+    fn make_test_let_stmt(variable: String, expr: Expression) -> Expression {
+        Expression::LetStmt(String::from(variable), Box::new(expr))
+    }
+
+    fn make_print_stmt(expr: Expression) -> Expression {
+        Expression::Print(Box::new(expr))
+    }
+
+    fn make_binary_stmt(lhs: Expression, operator: char, rhs: Expression) -> Expression {
+        Expression::Binary(Box::new(lhs), operator, Box::new(rhs))
+    }
+
 }
