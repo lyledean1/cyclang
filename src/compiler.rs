@@ -99,7 +99,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         //printf
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-        llvm_func_cache.set("printf", print_func);
+        llvm_func_cache.set("printf", LLVMFunction{function: print_func, func_type: print_func_type});
 
         //sprintf
         let mut arg_types = [
@@ -112,7 +112,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         let sprintf_type =
             LLVMFunctionType(ret_type, arg_types.as_mut_ptr(), arg_types.len() as u32, 1);
         let sprintf = LLVMAddFunction(module, "sprintf\0".as_ptr() as *const i8, sprintf_type);
-        llvm_func_cache.set("sprintf", sprintf);
+        llvm_func_cache.set("sprintf", LLVMFunction { function: sprintf, func_type: sprintf_type });
 
         let var_cache = VariableCache::new();
         let mut ast_ctx = ASTContext {
@@ -440,9 +440,7 @@ impl TypeBase for StringType {
             let print_args = [value_is_str, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    let void_type = LLVMVoidTypeInContext(ast_context.context);
-                    let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
-                    LLVMBuildCall2(ast_context.builder, print_func_type, print_func, print_args, 2, c_str!(""));
+                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
                 }
                 _ => {
                     unreachable!()
@@ -593,9 +591,7 @@ impl TypeBase for NumberType {
             let print_args = [value_is_str, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    let void_type = LLVMVoidTypeInContext(ast_context.context);
-                    let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
-                    LLVMBuildCall2(ast_context.builder, print_func_type, print_func, print_args, 2, c_str!(""));
+                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
                 }
                 _ => {
                     unreachable!()
@@ -638,10 +634,7 @@ impl TypeBase for BoolType {
             let print_args = [value_is_str, llvm_value_str].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    let void_type = LLVMVoidTypeInContext(ast_context.context);
-                    let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
-                    LLVMBuildCall2(ast_context.builder, print_func_type, print_func, print_args, 2, c_str!(""));
-
+                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
                 }
                 _ => {
                     unreachable!()
@@ -684,7 +677,13 @@ impl VariableCache {
 }
 
 struct LLVMFunctionCache {
-    map: HashMap<String, LLVMValueRef>,
+    map: HashMap<String, LLVMFunction>,
+}
+
+#[derive(Clone, Copy)]
+struct LLVMFunction {
+    function: LLVMValueRef,
+    func_type: LLVMTypeRef
 }
 
 impl LLVMFunctionCache {
@@ -694,11 +693,11 @@ impl LLVMFunctionCache {
         }
     }
 
-    fn set(&mut self, key: &str, value: LLVMValueRef) {
+    fn set(&mut self, key: &str, value: LLVMFunction) {
         self.map.insert(key.to_string(), value);
     }
 
-    fn get(&self, key: &str) -> Option<LLVMValueRef> {
+    fn get(&self, key: &str) -> Option<LLVMFunction> {
         //HACK, copy each time, probably want one reference to this
         self.map.get(key).copied()
     }
