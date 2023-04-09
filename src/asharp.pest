@@ -1,16 +1,17 @@
 
-expression_list = { SOI ~ expression_list_inner ~ EOI }
-expression_list_inner = _{(((expression | if_stmt | while_stmt| for_stmt | let_stmt | func_stmt | call_stmt | block_stmt | print_stmt | binary | grouping) ~ (semicolon ~ WHITESPACE? ~ (expression | if_stmt | while_stmt | for_stmt | let_stmt | func_stmt | call_stmt | block_stmt | print_stmt |binary | grouping))*) ~ semicolon)}
+expression_list = { SOI ~ (stmt_inner | expression_list_inner) ~ (WHITESPACE? ~ (stmt_inner | expression_list_inner)*) ~ EOI }
+stmt_inner = _{ if_stmt | while_stmt| for_stmt | func_stmt | block_stmt }
+expression_list_inner = _{(((expression | let_stmt | print_stmt | call_stmt | binary | grouping) ~ (semicolon ~ WHITESPACE? ~ (expression | let_stmt | print_stmt | call_stmt | binary | grouping))*) ~ semicolon)}
 expression = _ { binary | literal }
 binary = { (literal | grouping | name) ~ operator ~ (literal | grouping | name) ~ (operator ~ (literal | grouping | name))?}
 grouping = { "(" ~ expression ~ ")" }
 while_stmt = {"while" ~ WHITESPACE? ~ "(" ~ (expression | name) ~ ")" ~ WHITESPACE? ~ block_stmt}
-block_stmt = { "{" ~ WHITESPACE? ~ expression_list_inner ~ WHITESPACE? ~ "}" }
+block_stmt = { "{" ~ WHITESPACE? ~ (stmt_inner | expression_list_inner) ~ (WHITESPACE? ~ (stmt_inner | expression_list_inner)*) ~ WHITESPACE? ~ "}" }
 literal = {bool | number | string | nil }
 for_stmt = { "for" ~ WHITESPACE? ~ "(" ~ initialization ~ ";" ~ condition ~ ";" ~ iteration ~ ")" ~ block_stmt }
-initialization = { "var" ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ number }
+initialization = { "let" ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ number }
 condition = { name ~ WHITESPACE? ~ "<" ~ WHITESPACE? ~ number }
-iteration = { name ~ WHITESPACE? ~ "++" }
+iteration = { name ~ WHITESPACE? ~ ("++" | "--") }
 if_stmt = { "if" ~ WHITESPACE? ~ "(" ~ (expression | name) ~ ")" ~ WHITESPACE? ~ block_stmt ~ (WHITESPACE? ~ "else" ~ block_stmt)? }
 let_stmt = { "let" ~ WHITESPACE? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (expression | grouping | name)}
 func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ (name ~ comma?)* ~ ")" ~ WHITESPACE? ~ block_stmt }

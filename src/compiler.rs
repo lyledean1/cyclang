@@ -168,6 +168,8 @@ struct ASTContext {
     llvm_func_cache: LLVMFunctionCache,
 }
 
+//TODO: remove this and see code warnings
+#[allow(unused_variables, unused_assignments)]
 impl ASTContext {
     fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
         // LLVMAddFunction(M, Name, FunctionTy)

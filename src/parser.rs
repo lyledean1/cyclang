@@ -200,15 +200,23 @@ fn parse_expression(
             Ok(Expression::new_if_stmt(cond, if_stmt, else_stmt))
         }
         Rule::for_stmt => {
+            //TODO: improve this logic
             let mut inner_pairs = pair.into_inner();
-            let var_name = inner_pairs.next().unwrap().as_str().to_string();
-            inner_pairs.next(); // Skip the "="
-            let start = inner_pairs.next().unwrap().as_str().parse::<i32>().unwrap();
-            inner_pairs.next(); // Skip the ";"
-            let end = inner_pairs.next().unwrap().as_str().parse::<i32>().unwrap();
-            inner_pairs.next(); // Skip the ";"
+            let mut var = inner_pairs.next().unwrap().into_inner();
+            let var_name = var.next().unwrap().as_str().to_string().replace(" ", "");
+            let start = var.next().unwrap().as_str().parse::<i32>().unwrap();
 
-            let step = inner_pairs.next().unwrap().as_str().parse::<i32>().unwrap();
+            //TODO: Identify > and < signs 
+            let mut cond_stmt = inner_pairs.next().unwrap().into_inner();
+            let _cond_var_name = cond_stmt.next().unwrap().as_str().to_string().replace(" ", "");
+            let end = cond_stmt.next().unwrap().as_str().parse::<i32>().unwrap();
+
+            let mut step = 1;
+            let step_stmt = inner_pairs.next();
+            
+            if step_stmt.unwrap().as_str().to_string().contains("--") {
+                step = -1;
+            }
             let block_stmt = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_for_stmt(var_name, start, end, step, block_stmt))
         }
@@ -425,9 +433,15 @@ mod test {
         {
             let b = 5;
             {
-            let a = 5;
-            };
-        };
+                {
+                    fn example(arg1, arg2) {
+                        print(arg1 + arg2);
+                    }
+                    example(5,5);
+                }
+                let a = 5;
+            }
+        }
         ";
         assert!(parse_asharp_program(input).is_ok());
     }
@@ -437,14 +451,14 @@ mod test {
         let input = r#"
         fn example(arg1, arg2) {
             print(1);
-        };
+        }
         fn example_two(arg1, arg2) {
             let a = 5;
             print(a);
-        };
+        }
         fn hello() {
             print("hello");
-        };
+        }
         "#;
         assert!(parse_asharp_program(input).is_ok());
     }
@@ -454,7 +468,7 @@ mod test {
         let input = r#"
         fn hello() {
             print("hello");
-        };
+        }
         hello();
         "#;
         assert!(parse_asharp_program(input).is_ok());
@@ -466,7 +480,7 @@ mod test {
         if (value)
         {
             print("hello");
-        };
+        }
         "#;
         assert!(parse_asharp_program(input).is_ok());
     }
@@ -480,7 +494,7 @@ mod test {
         } 
         else {
             print("else");
-        };
+        }
         "#;
         assert!(parse_asharp_program(input).is_ok());
     }
@@ -490,24 +504,30 @@ mod test {
         while (value)
         {
             print("hello");
-        };
+            let i = 1;
+        }
         "#;
         assert!(parse_asharp_program(input).is_ok());
     }
     #[test]
     fn test_for_loop_stmt() {
         let input = r#"
-        for (var i = 0; i < 20; i++)
+        for (let i = 0; i < 20; i++)
         {
             print(i);
-        };
-        "#;
-        match parse_asharp_program(input) {
-            Err(e) => {
-                eprintln!("{:?}", e)
-            }
-            _ => {}
         }
+        "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_for_loop_stmt_reverse() {
+        let input = r#"
+        for (let i = 40; i < 10; i--)
+        {
+            print(i);
+        }
+        "#;
         assert!(parse_asharp_program(input).is_ok());
     }
 }
