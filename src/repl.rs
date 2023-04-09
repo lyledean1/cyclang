@@ -1,15 +1,14 @@
+use crate::compiler;
+use crate::parser;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use text_colorizer::*;
-use crate::compiler;
-use crate::parser;
 
 pub fn run() {
     let version: &str = env!("CARGO_PKG_VERSION");
 
     println!("{} version: {}", "a#".bold(), version.italic());
     println!("");
-
 
     let mut rl = DefaultEditor::new().unwrap();
     if rl.load_history("history.txt").is_err() {
@@ -28,12 +27,11 @@ pub fn run() {
                     "exit()" => break,
                     _ => {
                         //TODO: to
-                        match parser::parse_gptql_program(&input) {
-                            // add each 
+                        match parser::parse_asharp_program(&input) {
+                            // add each
                             Ok(exprs) => match compiler::compile(exprs) {
                                 Ok(output) => {
                                     println!("{}", String::from_utf8_lossy(&output.stdout))
-
                                 }
                                 Err(e) => {
                                     eprintln!("{}", e);
