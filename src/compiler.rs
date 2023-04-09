@@ -99,7 +99,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         //printf
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-        llvm_func_cache.set("printf", print_func);
+        llvm_func_cache.set("printf", LLVMFunction{function: print_func, func_type: print_func_type});
 
         //sprintf
         let mut arg_types = [
@@ -112,7 +112,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         let sprintf_type =
             LLVMFunctionType(ret_type, arg_types.as_mut_ptr(), arg_types.len() as u32, 1);
         let sprintf = LLVMAddFunction(module, "sprintf\0".as_ptr() as *const i8, sprintf_type);
-        llvm_func_cache.set("sprintf", sprintf);
+        llvm_func_cache.set("sprintf", LLVMFunction { function: sprintf, func_type: sprintf_type });
 
         let var_cache = VariableCache::new();
         let mut ast_ctx = ASTContext {
@@ -440,7 +440,7 @@ impl TypeBase for StringType {
             let print_args = [value_is_str, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
                 }
                 _ => {
                     unreachable!()
@@ -586,12 +586,12 @@ impl TypeBase for NumberType {
             let value_is_str =
                 LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%d\n"), c_str!(""));
             // Load Value from Value Index Ptr
-            let val = LLVMBuildLoad(ast_context.builder, value_index_ptr, c_str!("value"));
+            let val = LLVMBuildLoad2(ast_context.builder, int8_ptr_type(), value_index_ptr, c_str!("value"));
 
             let print_args = [value_is_str, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
                 }
                 _ => {
                     unreachable!()
@@ -634,7 +634,7 @@ impl TypeBase for BoolType {
             let print_args = [value_is_str, llvm_value_str].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall(ast_context.builder, print_func, print_args, 2, c_str!(""));
+                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
                 }
                 _ => {
                     unreachable!()
@@ -677,7 +677,13 @@ impl VariableCache {
 }
 
 struct LLVMFunctionCache {
-    map: HashMap<String, LLVMValueRef>,
+    map: HashMap<String, LLVMFunction>,
+}
+
+#[derive(Clone, Copy)]
+struct LLVMFunction {
+    function: LLVMValueRef,
+    func_type: LLVMTypeRef
 }
 
 impl LLVMFunctionCache {
@@ -687,11 +693,11 @@ impl LLVMFunctionCache {
         }
     }
 
-    fn set(&mut self, key: &str, value: LLVMValueRef) {
+    fn set(&mut self, key: &str, value: LLVMFunction) {
         self.map.insert(key.to_string(), value);
     }
 
-    fn get(&self, key: &str) -> Option<LLVMValueRef> {
+    fn get(&self, key: &str) -> Option<LLVMFunction> {
         //HACK, copy each time, probably want one reference to this
         self.map.get(key).copied()
     }
@@ -706,7 +712,7 @@ mod test {
     #[test]
     fn test_compile_print_number_expression() {
         let input = vec![make_print_stmt(Expression::Number(12))];
-        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i32 %value1)"#;
+        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr %value1)"#;
         let output = llvm_compile_to_ir(input);
         assert!(output.contains(expected_ir));
     }
@@ -717,7 +723,7 @@ mod test {
             "example blah blah blah",
         )))];
         // call print statement for str
-        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([23 x i8], [23 x i8]* @"example blah blah blah", i32 0, i32 0))"#;
+        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr @"example blah blah blah")"#;
         let output = llvm_compile_to_ir(input);
         assert!(output.contains(expected_ir));
     }
@@ -726,7 +732,7 @@ mod test {
     fn test_compile_print_bool_expression() {
         let input = vec![make_print_stmt(Expression::Bool(true))];
         // call print statement for str
-        let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([5 x i8], [5 x i8]* @true_str, i32 0, i32 0))"#;
+        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr @true_str)"#;
         let output = llvm_compile_to_ir(input);
         assert!(output.contains(expected_ir));
     }

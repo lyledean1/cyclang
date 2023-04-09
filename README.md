@@ -48,14 +48,14 @@ asharp --file /path/to/file.asharp
 
 ## Run
 
-Install LLVM 13
+Install LLVM 16
 ```
-brew install llvm@13
+brew install llvm@16
 ```
 
-Set LLVM_SYS_130_PREFIX variable before you run `cargo run`
+Set LLVM_SYS_160_PREFIX variable before you run `cargo run`
 ```
-export LLVM_SYS_130_PREFIX=/PATH/TO/LLVM13/VERSION
+export LLVM_SYS_160_PREFIX=/PATH/TO/LLVM16/VERSION
 ```
 
 Some examples are in the example folder, just run 
