@@ -70,7 +70,13 @@ impl Expression {
         Self::WhileStmt(Box::new(condition), Box::new(while_block_expr))
     }
 
-    fn new_for_stmt(var_name: String, start: i32, end: i32, step: i32, for_block_expr: Expression) -> Self {
+    fn new_for_stmt(
+        var_name: String,
+        start: i32,
+        end: i32,
+        step: i32,
+        for_block_expr: Expression,
+    ) -> Self {
         Self::ForStmt(var_name, start, end, step, Box::new(for_block_expr))
     }
 
@@ -206,19 +212,26 @@ fn parse_expression(
             let var_name = var.next().unwrap().as_str().to_string().replace(" ", "");
             let start = var.next().unwrap().as_str().parse::<i32>().unwrap();
 
-            //TODO: Identify > and < signs 
+            //TODO: Identify > and < signs
             let mut cond_stmt = inner_pairs.next().unwrap().into_inner();
-            let _cond_var_name = cond_stmt.next().unwrap().as_str().to_string().replace(" ", "");
+            let _cond_var_name = cond_stmt
+                .next()
+                .unwrap()
+                .as_str()
+                .to_string()
+                .replace(" ", "");
             let end = cond_stmt.next().unwrap().as_str().parse::<i32>().unwrap();
 
             let mut step = 1;
             let step_stmt = inner_pairs.next();
-            
+
             if step_stmt.unwrap().as_str().to_string().contains("--") {
                 step = -1;
             }
             let block_stmt = parse_expression(inner_pairs.next().unwrap())?;
-            Ok(Expression::new_for_stmt(var_name, start, end, step, block_stmt))
+            Ok(Expression::new_for_stmt(
+                var_name, start, end, step, block_stmt,
+            ))
         }
         Rule::while_stmt => {
             let mut inner_pairs = pair.into_inner();
