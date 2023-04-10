@@ -4,7 +4,7 @@ print(20 / four);
 print(20 + four);
 print(20 - four);
 print(five * four);
-let is_true = false;
+let is_true = true;
 print(is_true);
 let second = "hello" + " world";
 print(second + " this is less data");
@@ -14,3 +14,10 @@ if (is_true) {
 } else {
     print("this is false");
 }
+
+while (is_true) {
+    print("here");
+    is_true = false;
+    print(is_true);
+}
+print("exited");
