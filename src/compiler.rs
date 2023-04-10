@@ -172,11 +172,14 @@ struct ASTContext {
     current_block: LLVMBasicBlockRef,
 }
 
+struct ExprContext {
+    alloca: Option<LLVMValueRef>,
+}
+
 //TODO: remove this and see code warnings
 #[allow(unused_variables, unused_assignments)]
 impl ASTContext {
     fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
-        // LLVMAddFunction(M, Name, FunctionTy)
         match input {
             Expression::Number(input) => unsafe {
                 let value = LLVMConstInt(
@@ -215,17 +218,27 @@ impl ASTContext {
                 }
             }
             Expression::Bool(input) => {
+                println!("{}", input);
                 let mut num = 0;
                 match input {
                     true => num = 1,
                     _ => {}
                 }
                 unsafe {
+                    println!("{}", num);
                     let bool_value = LLVMConstInt(int1_type(), num, 0);
+                    let var_name = c_str!("bool_type");
+                    // Check if the global variable already exists
+                    let alloca = LLVMBuildAlloca(self.builder, int1_type(), var_name);
+
+                    let build_store = LLVMBuildStore(self.builder, bool_value, alloca);
+
                     return Box::new(BoolType {
+                        builder: self.builder,
                         value: input,
-                        llmv_value: bool_value,
+                        llmv_value: alloca,
                         llmv_value_pointer: None,
+                        alloca: alloca,
                     });
                 }
             }
@@ -267,10 +280,34 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::LetStmt(var, lhs) => {
-                let lhs = self.match_ast(unbox(lhs));
-                self.var_cache.set(&var.clone(), lhs.clone());
-                //TODO: figure out best way to handle a let stmt return
-                lhs
+                match self.var_cache.get(&var) {
+                    Some(val) => {
+                        // combine alloca to reassign variable
+                        let mut lhs = self.match_ast(unbox(lhs));
+                        self.var_cache.set(&var.clone(), lhs.clone());
+                        //TODO: figure out best way to handle a let stmt return
+                        unsafe {
+                            let alloca = val.get_alloca();
+                            lhs.set_alloca(alloca);
+                            let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
+                            let new_value = LLVMBuildLoad2(
+                                self.builder,
+                                int1_type(),
+                                alloca,
+                                c_str!("bool_type"),
+                            );
+                            lhs.set_value(new_value);
+
+                            lhs
+                        }
+                    }
+                    _ => {
+                        let lhs = self.match_ast(unbox(lhs));
+                        self.var_cache.set(&var.clone(), lhs.clone());
+                        //TODO: figure out best way to handle a let stmt return
+                        lhs
+                    }
+                }
             }
             Expression::FuncStmt(name, args, body) => {
                 // save to call stack
@@ -278,6 +315,14 @@ impl ASTContext {
             }
             Expression::CallStmt(name, args) => {
                 unimplemented!()
+            }
+            Expression::BlockStmt(exprs) => {
+                for expr in unbox(exprs.clone()) {
+                    self.match_ast(expr);
+                }
+                Box::new(BlockType {
+                    values: unbox(exprs),
+                })
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
                 let cond = self.match_ast(unbox(condition));
@@ -289,7 +334,7 @@ impl ASTContext {
                         LLVMAppendBasicBlock(self.current_function.function, c_str!("else_block"));
                     let merge_block =
                         LLVMAppendBasicBlock(self.current_function.function, c_str!("merge_block"));
-            
+
                     LLVMBuildCondBr(self.builder, cond.get_value(), then_block, else_block);
 
                     LLVMPositionBuilderAtEnd(self.builder, then_block);
@@ -305,7 +350,7 @@ impl ASTContext {
                         }
                         _ => {
                             LLVMPositionBuilderAtEnd(self.builder, else_block);
-                            LLVMBuildBr(self.builder, merge_block); // Branch to merge_block            
+                            LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
                         }
                     }
                     LLVMPositionBuilderAtEnd(self.builder, merge_block);
@@ -313,9 +358,89 @@ impl ASTContext {
                 cond
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
-                unimplemented!()
+                unsafe {
+                    let var_name = c_str!("bool_type");
+                    // Check if the global variable already exists
+
+                    let loop_cond_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
+                    let loop_body_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_body"));
+                    let loop_exit_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
+                    LLVMBuildBr(self.builder, loop_cond_block);
+                    self.match_ast(unbox(while_block_stmt));
+
+                    let value_condition = self.match_ast(unbox(condition));
+                    let build_store = LLVMBuildStore(
+                        self.builder,
+                        value_condition.get_value(),
+                        value_condition.get_alloca(),
+                    );
+                    let loop_condition = LLVMBuildLoad2(
+                        self.builder,
+                        int1_type(),
+                        value_condition.get_alloca(),
+                        var_name,
+                    );
+
+                    // Build loop condition block
+                    LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
+                    LLVMBuildCondBr(
+                        self.builder,
+                        loop_condition,
+                        loop_body_block,
+                        loop_exit_block,
+                    );
+
+                    // Build loop body block
+                    LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
+
+                    LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
+
+                    // Position builder at loop exit block
+                    LLVMPositionBuilderAtEnd(self.builder, loop_exit_block);
+                    value_condition
+                }
             }
             Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
+                //     unsafe {
+                //         // Create basic blocks
+                //         let loop_cond_block =
+                //             LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
+                //         let loop_body_block =
+                //             LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_body"));
+                //         let loop_incr_block =
+                //             LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_incr"));
+                //         let loop_exit_block =
+                //             LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
+
+                //         // Branch to loop condition block
+                //         LLVMBuildBr(self.builder, loop_cond_block);
+
+                //         // Build loop condition block
+                //         LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
+                //         let loop_condition = self.match_ast(unbox(condition));
+                //         LLVMBuildCondBr(
+                //             self.builder,
+                //             loop_condition.get_value(),
+                //             loop_body_block,
+                //             loop_exit_block,
+                //         );
+
+                //         // Build loop body block
+                //         LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
+                //         self.match_ast(unbox(body_stmt));
+                //         LLVMBuildBr(self.builder, loop_incr_block); // Jump to loop increment block
+
+                //         // Build loop increment block
+                //         LLVMPositionBuilderAtEnd(self.builder, loop_incr_block);
+                //         self.match_ast(unbox(increment));
+                //         LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
+
+                //         // Position builder at loop exit block
+                //         LLVMPositionBuilderAtEnd(self.builder, loop_exit_block);
+                //     }
                 unimplemented!()
             }
             Expression::Print(input) => {
@@ -337,16 +462,16 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
         .arg("bin/main")
         .output();
 
-    match output {
-        Ok(ok) => {
-            print!("{:?}\n", ok);
-        }
-        Err(e) => return Err(e),
-    }
+    // match output {
+    //     Ok(ok) => {
+    //         print!("{:?}\n", ok);
+    //     }
+    //     Err(e) => return Err(e),
+    // }
 
-    //TODO: add this as a debug line
-    println!("main executable generated, running bin/main");
-    let output = Command::new("bin/main").output();
+    // // //TODO: add this as a debug line
+    // println!("main executable generated, running bin/main");
+    // let output = Command::new("bin/main").output();
     return output;
 }
 
@@ -355,17 +480,27 @@ enum BaseTypes {
     String,
     Number,
     Bool,
+    Block,
 }
 // Types
 trait TypeBase: DynClone {
     fn print(&self, ast_context: &mut ASTContext);
     fn get_type(&self) -> BaseTypes;
     fn get_value(&self) -> LLVMValueRef;
+    fn set_value(&mut self, _value: LLVMValueRef) {
+        unimplemented!("{:?} type does not implement set_value", self.get_type())
+    }
     fn get_ptr(&self) -> LLVMValueRef {
         unimplemented!(
             "get_ptr is not implemented for this type {:?}",
             self.get_type()
         )
+    }
+    fn get_alloca(&self) -> LLVMValueRef {
+        unimplemented!("{:?} type does not implement get_alloca", self.get_type())
+    }
+    fn set_alloca(&mut self, _value: LLVMValueRef) {
+        unimplemented!("{:?} type does not implement set_alloca", self.get_type())
     }
     fn get_str(&self) -> String {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
@@ -671,17 +806,35 @@ impl TypeBase for NumberType {
 
 #[derive(Debug, Clone)]
 struct BoolType {
+    builder: LLVMBuilderRef,
     value: bool,
     llmv_value: LLVMValueRef,
     llmv_value_pointer: Option<LLVMValueRef>,
+    alloca: LLVMValueRef,
 }
 
 impl TypeBase for BoolType {
     fn get_value(&self) -> LLVMValueRef {
-        self.llmv_value
+        unsafe {
+            LLVMBuildLoad2(
+                self.builder,
+                int1_type(),
+                self.llmv_value,
+                c_str!("bool_type"),
+            )
+        }
+    }
+    fn set_value(&mut self, _value: LLVMValueRef) {
+        self.llmv_value = _value;
     }
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Bool
+    }
+    fn get_alloca(&self) -> LLVMValueRef {
+        self.alloca
+    }
+    fn set_alloca(&mut self, _value: LLVMValueRef) {
+        self.alloca = _value;
     }
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
@@ -716,6 +869,23 @@ impl TypeBase for BoolType {
                 }
             }
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct BlockType {
+    values: Vec<Expression>,
+}
+
+impl TypeBase for BlockType {
+    fn get_value(&self) -> LLVMValueRef {
+        unimplemented!("No value ref for block type")
+    }
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Block
+    }
+    fn print(&self, _ast_context: &mut ASTContext) {
+        unreachable!("Shouldn't be able to print block type")
     }
 }
 

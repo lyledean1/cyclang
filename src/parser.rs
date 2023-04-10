@@ -7,7 +7,7 @@ use std::num::ParseIntError;
 #[grammar = "asharp.pest"]
 struct ASharpParser;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Number(i32),
     String(String),
@@ -17,6 +17,7 @@ pub enum Expression {
     Binary(Box<Expression>, char, Box<Expression>),
     Grouping(Box<Expression>),
     LetStmt(String, Box<Expression>),
+    BlockStmt(Box<Vec<Expression>>),
     FuncStmt(String, Vec<String>, Box<Expression>),
     CallStmt(String, Vec<String>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
@@ -52,6 +53,10 @@ impl Expression {
 
     fn new_let_stmt(name: String, value: Expression) -> Self {
         Self::LetStmt(name, Box::new(value))
+    }
+
+    fn new_block_stmt(exprs: Vec<Expression>) -> Self {
+        Self::BlockStmt(Box::new(exprs))
     }
 
     fn new_if_stmt(
@@ -191,8 +196,17 @@ fn parse_expression(
             Ok(Expression::new_call_stmt(name, args))
         }
         Rule::block_stmt => {
-            let inner_pair = pair.into_inner().next().unwrap();
-            parse_expression(inner_pair)
+            let inner_pairs = pair.into_inner();
+            let mut expressions = Vec::new();
+
+            for inner_pair in inner_pairs {
+                if inner_pair.as_rule() == Rule::semicolon {
+                    continue;
+                }
+                expressions.push(parse_expression(inner_pair)?);
+            }
+
+            Ok(Expression::new_block_stmt(expressions))
         }
         Rule::if_stmt => {
             let mut inner_pairs = pair.into_inner();
@@ -254,7 +268,7 @@ fn parse_program(
     let mut expr_vec = vec![];
     for stmt_pair in pair.into_inner() {
         match stmt_pair.as_rule() {
-            Rule::semicolon | Rule::EOI | Rule::comma => {
+            Rule::semicolon | Rule::EOI | Rule::comma | Rule::single_line_comment => {
                 continue;
             }
             _ => {

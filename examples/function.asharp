@@ -4,6 +4,7 @@ fn example(arg1, arg2) {
 };
 example();
 
-for (i) {
-
+for (let i = 0; i < 20; i++)
+{
+    print(i);
 }
