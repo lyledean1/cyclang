@@ -172,11 +172,14 @@ struct ASTContext {
     current_block: LLVMBasicBlockRef,
 }
 
+struct ExprContext {
+    alloca: Option<LLVMValueRef>,
+}
+
 //TODO: remove this and see code warnings
 #[allow(unused_variables, unused_assignments)]
 impl ASTContext {
     fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
-        // LLVMAddFunction(M, Name, FunctionTy)
         match input {
             Expression::Number(input) => unsafe {
                 let value = LLVMConstInt(
@@ -235,6 +238,7 @@ impl ASTContext {
                         value: input,
                         llmv_value: alloca,
                         llmv_value_pointer: None,
+                        alloca: alloca,
                     });
                 }
             }
@@ -276,10 +280,34 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::LetStmt(var, lhs) => {
-                let lhs = self.match_ast(unbox(lhs));
-                self.var_cache.set(&var.clone(), lhs.clone());
-                //TODO: figure out best way to handle a let stmt return
-                lhs
+                match self.var_cache.get(&var) {
+                    Some(val) => {
+                        // combine alloca to reassign variable
+                        let mut lhs = self.match_ast(unbox(lhs));
+                        self.var_cache.set(&var.clone(), lhs.clone());
+                        //TODO: figure out best way to handle a let stmt return
+                        unsafe {
+                            let alloca = val.get_alloca();
+                            lhs.set_alloca(alloca);
+                            let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
+                            let new_value = LLVMBuildLoad2(
+                                self.builder,
+                                int1_type(),
+                                alloca,
+                                c_str!("bool_type"),
+                            );
+                            lhs.set_value(new_value);
+
+                            lhs
+                        }
+                    }
+                    _ => {
+                        let lhs = self.match_ast(unbox(lhs));
+                        self.var_cache.set(&var.clone(), lhs.clone());
+                        //TODO: figure out best way to handle a let stmt return
+                        lhs
+                    }
+                }
             }
             Expression::FuncStmt(name, args, body) => {
                 // save to call stack
@@ -331,9 +359,8 @@ impl ASTContext {
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 unsafe {
-                    let var_name = c_str!("while_bool");
+                    let var_name = c_str!("bool_type");
                     // Check if the global variable already exists
-                    let alloca = LLVMBuildAlloca(self.builder, int1_type(), var_name);
 
                     let loop_cond_block =
                         LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
@@ -342,9 +369,20 @@ impl ASTContext {
                     let loop_exit_block =
                         LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
                     LLVMBuildBr(self.builder, loop_cond_block);
-                    let value_condition = self.match_ast(unbox(condition.clone()));
-                    let build_store = LLVMBuildStore(self.builder, value_condition.get_value(), alloca);
-                    let loop_condition = LLVMBuildLoad2(self.builder, int1_type(), alloca, var_name);
+                    self.match_ast(unbox(while_block_stmt));
+
+                    let value_condition = self.match_ast(unbox(condition));
+                    let build_store = LLVMBuildStore(
+                        self.builder,
+                        value_condition.get_value(),
+                        value_condition.get_alloca(),
+                    );
+                    let loop_condition = LLVMBuildLoad2(
+                        self.builder,
+                        int1_type(),
+                        value_condition.get_alloca(),
+                        var_name,
+                    );
 
                     // Build loop condition block
                     LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
@@ -357,18 +395,10 @@ impl ASTContext {
 
                     // Build loop body block
                     LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
-                    self.match_ast(unbox(while_block_stmt));
 
-                    let updated_condition_value = LLVMConstInt(int1_type(), 0, 0); // false
-
-                    let value_condition = self.match_ast(unbox(condition));
-                    let build_store = LLVMBuildStore(self.builder, updated_condition_value, alloca);
-
-
-                    let updated_loop_condition = LLVMBuildLoad2(self.builder, int1_type(), alloca, var_name);
                     LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
 
-                                                                // Position builder at loop exit block
+                    // Position builder at loop exit block
                     LLVMPositionBuilderAtEnd(self.builder, loop_exit_block);
                     value_condition
                 }
@@ -432,16 +462,16 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
         .arg("bin/main")
         .output();
 
-    match output {
-        Ok(ok) => {
-            print!("{:?}\n", ok);
-        }
-        Err(e) => return Err(e),
-    }
+    // match output {
+    //     Ok(ok) => {
+    //         print!("{:?}\n", ok);
+    //     }
+    //     Err(e) => return Err(e),
+    // }
 
-    // //TODO: add this as a debug line
-    println!("main executable generated, running bin/main");
-    let output = Command::new("bin/main").output();
+    // // //TODO: add this as a debug line
+    // println!("main executable generated, running bin/main");
+    // let output = Command::new("bin/main").output();
     return output;
 }
 
@@ -457,11 +487,20 @@ trait TypeBase: DynClone {
     fn print(&self, ast_context: &mut ASTContext);
     fn get_type(&self) -> BaseTypes;
     fn get_value(&self) -> LLVMValueRef;
+    fn set_value(&mut self, _value: LLVMValueRef) {
+        unimplemented!("{:?} type does not implement set_value", self.get_type())
+    }
     fn get_ptr(&self) -> LLVMValueRef {
         unimplemented!(
             "get_ptr is not implemented for this type {:?}",
             self.get_type()
         )
+    }
+    fn get_alloca(&self) -> LLVMValueRef {
+        unimplemented!("{:?} type does not implement get_alloca", self.get_type())
+    }
+    fn set_alloca(&mut self, _value: LLVMValueRef) {
+        unimplemented!("{:?} type does not implement set_alloca", self.get_type())
     }
     fn get_str(&self) -> String {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
@@ -771,6 +810,7 @@ struct BoolType {
     value: bool,
     llmv_value: LLVMValueRef,
     llmv_value_pointer: Option<LLVMValueRef>,
+    alloca: LLVMValueRef,
 }
 
 impl TypeBase for BoolType {
@@ -784,8 +824,17 @@ impl TypeBase for BoolType {
             )
         }
     }
+    fn set_value(&mut self, _value: LLVMValueRef) {
+        self.llmv_value = _value;
+    }
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Bool
+    }
+    fn get_alloca(&self) -> LLVMValueRef {
+        self.alloca
+    }
+    fn set_alloca(&mut self, _value: LLVMValueRef) {
+        self.alloca = _value;
     }
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
