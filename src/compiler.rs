@@ -86,6 +86,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
 
         // common void type
         let void_type = LLVMVoidTypeInContext(context);
+        let mut llvm_func_cache = LLVMFunctionCache::new();
 
         // our "main" function which will be the entry point when we run the executable
         let main_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
@@ -94,12 +95,17 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         LLVMPositionBuilderAtEnd(builder, main_block);
 
         // Define common functions
-        let mut llvm_func_cache = LLVMFunctionCache::new();
 
         //printf
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
         let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-        llvm_func_cache.set("printf", LLVMFunction{function: print_func, func_type: print_func_type});
+        llvm_func_cache.set(
+            "printf",
+            LLVMFunction {
+                function: print_func,
+                func_type: print_func_type,
+            },
+        );
 
         //sprintf
         let mut arg_types = [
@@ -112,7 +118,13 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         let sprintf_type =
             LLVMFunctionType(ret_type, arg_types.as_mut_ptr(), arg_types.len() as u32, 1);
         let sprintf = LLVMAddFunction(module, "sprintf\0".as_ptr() as *const i8, sprintf_type);
-        llvm_func_cache.set("sprintf", LLVMFunction { function: sprintf, func_type: sprintf_type });
+        llvm_func_cache.set(
+            "sprintf",
+            LLVMFunction {
+                function: sprintf,
+                func_type: sprintf_type,
+            },
+        );
 
         let var_cache = VariableCache::new();
         let mut ast_ctx = ASTContext {
@@ -121,6 +133,11 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
             context: context,
             llvm_func_cache: llvm_func_cache,
             var_cache: var_cache,
+            current_function: LLVMFunction {
+                function: main_func,
+                func_type: main_func_type,
+            },
+            current_block: main_block,
         };
         for expr in exprs {
             ast_ctx.match_ast(expr);
@@ -151,6 +168,8 @@ struct ASTContext {
     context: LLVMContextRef,
     var_cache: VariableCache,
     llvm_func_cache: LLVMFunctionCache,
+    current_function: LLVMFunction,
+    current_block: LLVMBasicBlockRef,
 }
 
 //TODO: remove this and see code warnings
@@ -261,7 +280,37 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                unimplemented!()
+                let cond = self.match_ast(unbox(condition));
+                unsafe {
+                    // Build If Block
+                    let then_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("then_block"));
+                    let else_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("else_block"));
+                    let merge_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("merge_block"));
+            
+                    LLVMBuildCondBr(self.builder, cond.get_value(), then_block, else_block);
+
+                    LLVMPositionBuilderAtEnd(self.builder, then_block);
+                    let then_result = self.match_ast(unbox(if_stmt));
+                    LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
+
+                    // Build Else Block
+                    LLVMPositionBuilderAtEnd(self.builder, else_block);
+                    match unbox(else_stmt) {
+                        Some(v_stmt) => {
+                            let else_result = self.match_ast(v_stmt);
+                            LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
+                        }
+                        _ => {
+                            LLVMPositionBuilderAtEnd(self.builder, else_block);
+                            LLVMBuildBr(self.builder, merge_block); // Branch to merge_block            
+                        }
+                    }
+                    LLVMPositionBuilderAtEnd(self.builder, merge_block);
+                }
+                cond
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 unimplemented!()
@@ -289,14 +338,14 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
         .output();
 
     match output {
-        Ok(_ok) => {
-            // print!("{:?}\n", ok);
+        Ok(ok) => {
+            print!("{:?}\n", ok);
         }
         Err(e) => return Err(e),
     }
 
     //TODO: add this as a debug line
-    // println!("main executable generated, running bin/main");
+    println!("main executable generated, running bin/main");
     let output = Command::new("bin/main").output();
     return output;
 }
@@ -440,7 +489,14 @@ impl TypeBase for StringType {
             let print_args = [value_is_str, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
+                    LLVMBuildCall2(
+                        ast_context.builder,
+                        print_func.func_type,
+                        print_func.function,
+                        print_args,
+                        2,
+                        c_str!(""),
+                    );
                 }
                 _ => {
                     unreachable!()
@@ -586,12 +642,24 @@ impl TypeBase for NumberType {
             let value_is_str =
                 LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%d\n"), c_str!(""));
             // Load Value from Value Index Ptr
-            let val = LLVMBuildLoad2(ast_context.builder, int8_ptr_type(), value_index_ptr, c_str!("value"));
+            let val = LLVMBuildLoad2(
+                ast_context.builder,
+                int8_ptr_type(),
+                value_index_ptr,
+                c_str!("value"),
+            );
 
             let print_args = [value_is_str, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
+                    LLVMBuildCall2(
+                        ast_context.builder,
+                        print_func.func_type,
+                        print_func.function,
+                        print_args,
+                        2,
+                        c_str!(""),
+                    );
                 }
                 _ => {
                     unreachable!()
@@ -634,7 +702,14 @@ impl TypeBase for BoolType {
             let print_args = [value_is_str, llvm_value_str].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
-                    LLVMBuildCall2(ast_context.builder, print_func.func_type, print_func.function, print_args, 2, c_str!(""));
+                    LLVMBuildCall2(
+                        ast_context.builder,
+                        print_func.func_type,
+                        print_func.function,
+                        print_args,
+                        2,
+                        c_str!(""),
+                    );
                 }
                 _ => {
                     unreachable!()
@@ -683,7 +758,7 @@ struct LLVMFunctionCache {
 #[derive(Clone, Copy)]
 struct LLVMFunction {
     function: LLVMValueRef,
-    func_type: LLVMTypeRef
+    func_type: LLVMTypeRef,
 }
 
 impl LLVMFunctionCache {
@@ -737,33 +812,34 @@ mod test {
         assert!(output.contains(expected_ir));
     }
 
+    #[test]
+    fn test_compile_variable() {
+        // TODO -> use global variables for LLVM IR
+        let input = vec![
+            make_test_let_stmt("example".to_string(), Expression::Bool(true)),
+            make_print_stmt(Expression::Variable("example".to_string())),
+        ];
+        // call print statement for str
+        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr @true_str)"#;
+        let output = llvm_compile_to_ir(input);
+        println!("{}", output);
+        assert!(output.contains(expected_ir));
+    }
 
-    // #[test]
-    // fn test_compile_variable() {
-    //     // TODO -> use global variables for LLVM IR
-    //     let input = vec![
-    //         make_test_let_stmt("example".to_string(), Expression::Bool(true)),
-    //         make_print_stmt(Expression::Variable("example".to_string())),
-    //     ];
-    //     // call print statement for str
-    //     let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([5 x i8], [5 x i8]* @true_str, i32 0, i32 0))"#;
-    //     let output = llvm_compile_to_ir(input);
-    //     println!("{}", output);
-    //     assert!(output.contains(expected_ir));
-    // }
-
-    // #[test]
-    // fn test_compile_addition() {
-    //     // TODO -> use global variables for LLVM IR
-    //     let input = vec![
-    //         make_print_stmt(make_binary_stmt(Expression::Number(2), '+', Expression::Number(4)))
-    //     ];
-    //     // call print statement for str
-    //     let expected_ir = r#"call void (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i8* getelementptr inbounds ([5 x i8], [5 x i8]* @true_str, i32 0, i32 0))"#;
-    //     let output = llvm_compile_to_ir(input);
-    //     println!("{}", output);
-    //     assert!(output.contains(expected_ir));
-    // }
+    #[test]
+    fn test_compile_addition() {
+        // TODO -> use global variables for LLVM IR
+        let input = vec![make_print_stmt(make_binary_stmt(
+            Expression::Number(2),
+            '+',
+            Expression::Number(4),
+        ))];
+        // call print statement for str
+        let expected_ir = r#"%value1 = load ptr, ptr %value, align 8"#;
+        let output = llvm_compile_to_ir(input);
+        println!("{}", output);
+        assert!(output.contains(expected_ir));
+    }
 
     fn make_test_let_stmt(variable: String, expr: Expression) -> Expression {
         Expression::LetStmt(String::from(variable), Box::new(expr))
@@ -776,5 +852,4 @@ mod test {
     fn make_binary_stmt(lhs: Expression, operator: char, rhs: Expression) -> Expression {
         Expression::Binary(Box::new(lhs), operator, Box::new(rhs))
     }
-
 }
