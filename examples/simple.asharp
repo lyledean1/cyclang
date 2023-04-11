@@ -1,23 +1,25 @@
 let five = 5;
 let four = 4;
-print(20 / four);
+print(20 == 10);
+print(20 != 10);
+print(20 != 20);
+print(20 == 20);
+print(20 >= 21);
+print(20 >= 20);
+
+if (true) {
+    print("don't print this");
+} else {
+    print("correct, 20 is not more than 21");
+}
+
+
+
 print(20 + four);
 print(20 - four);
 print(five * four);
-let is_true = true;
+let is_true = 1;
 print(is_true);
 let second = "hello" + " world";
 print(second + " this is less data");
 
-if (is_true) {
-    print("this is true");
-} else {
-    print("this is false");
-}
-
-while (is_true) {
-    print("here");
-    is_true = false;
-    print(is_true);
-}
-print("exited");

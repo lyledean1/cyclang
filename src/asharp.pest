@@ -25,13 +25,18 @@ alpha = { ASCII_ALPHA | "_" }
 nil = { "nil" }
 bool = { "true" | "false" }
 string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
-operator = _{ add | subtract | multiply | divide | power | equalequal }
+operator = _{ add | subtract | multiply | divide | power | equalequal | notequal | morethanequal | lessthanequal | morethan | lessthan }
 add = { "+" }
 subtract = { "-" }
 multiply = { "*" }
 divide = { "/" }
 power = { "^" }
 equalequal = { "==" }
+notequal = {"!="}
+morethan = {">"}
+morethanequal = {">="}
+lessthan = {"<"}
+lessthanequal = {"<="}
 equal = { "=" }
 semicolon = { ";" }
 comma = { WHITESPACE? ~ "," ~ WHITESPACE? }
