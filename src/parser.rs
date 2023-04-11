@@ -268,7 +268,7 @@ fn parse_program(
     let mut expr_vec = vec![];
     for stmt_pair in pair.into_inner() {
         match stmt_pair.as_rule() {
-            Rule::semicolon | Rule::EOI | Rule::comma | Rule::single_line_comment => {
+            Rule::semicolon | Rule::EOI | Rule::comma => {
                 continue;
             }
             _ => {
@@ -309,6 +309,18 @@ mod test {
     #[test]
     fn test_parse_string_expression_err() {
         let input = r#"hello";"#;
+        assert!(parse_asharp_program(input).is_err());
+    }
+
+    #[test]
+    fn test_parse_digit() {
+        let input = r#"5;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_digit_err() {
+        let input = r#"5"#;
         assert!(parse_asharp_program(input).is_err());
     }
 
@@ -379,6 +391,50 @@ mod test {
     }
 
     #[test]
+    fn test_parse_number_equals_digit() {
+        let input = r#"5 == 5;"#;
+        match parse_asharp_program(input) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            _ => {
+
+            }
+        }
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_not_equals_digit() {
+        let input = r#"5 != 5;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_lt_digit() {
+        let input = r#"5 < 5;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_lte_digit() {
+        let input = r#"5 <= 5;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_gt_digit() {
+        let input = r#"5 > 5;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_gte_digit() {
+        let input = r#"5 >= 5;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
     fn test_parse_number_equals() {
         let input = r#"55 == 45;"#;
         assert!(parse_asharp_program(input).is_ok());
@@ -436,6 +492,12 @@ mod test {
     fn test_parse_let_stmt_bool_without_comma() {
         let input = r#"let value = true"#;
         assert!(parse_asharp_program(input).is_err());
+    }
+
+    #[test]
+    fn test_parse_let_stmt_digit() {
+        let input = r#"let value = 5;"#;
+        assert!(parse_asharp_program(input).is_ok());
     }
 
     #[test]
@@ -545,6 +607,34 @@ mod test {
             print("hello");
         }
         "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_if_stmt_expression_value_comp() {
+        let input = r#"
+        if (value == other_value)
+        {
+            print("hello");
+        }
+        "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_if_stmt_expression() {
+        let input = r#"
+        if (1 == 1)
+        {
+            print("hello");
+        }
+        "#;
+        match parse_asharp_program(input) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            _ => {}
+        }
         assert!(parse_asharp_program(input).is_ok());
     }
 

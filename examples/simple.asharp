@@ -6,20 +6,22 @@ print(20 != 20);
 print(20 == 20);
 print(20 >= 21);
 print(20 >= 20);
-
-if (true) {
+print("test");
+print(5 == 5);
+let is_true = true;
+if (false) {
     print("don't print this");
 } else {
     print("correct, 20 is not more than 21");
 }
 
+while (is_true) {
+    print(20 + four);
+    print(20 - four);
+    print(five * four);
+    let is_true = false;
+}
 
-
-print(20 + four);
-print(20 - four);
-print(five * four);
-let is_true = 1;
-print(is_true);
 let second = "hello" + " world";
 print(second + " this is less data");
 
