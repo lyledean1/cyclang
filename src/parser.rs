@@ -14,7 +14,7 @@ pub enum Expression {
     Bool(bool),
     Nil,
     Variable(String),
-    Binary(Box<Expression>, char, Box<Expression>),
+    Binary(Box<Expression>, String, Box<Expression>),
     Grouping(Box<Expression>),
     LetStmt(String, Box<Expression>),
     BlockStmt(Box<Vec<Expression>>),
@@ -35,7 +35,7 @@ impl Expression {
         Self::String(s)
     }
 
-    fn new_binary(left: Expression, op: char, right: Expression) -> Self {
+    fn new_binary(left: Expression, op: String, right: Expression) -> Self {
         Self::Binary(Box::new(left), op, Box::new(right))
     }
 
@@ -135,7 +135,7 @@ fn parse_expression(
         Rule::binary => {
             let mut inner_pairs = pair.into_inner();
             let left = parse_expression(inner_pairs.next().unwrap())?;
-            let op = inner_pairs.next().unwrap().as_str().chars().next().unwrap();
+            let op = inner_pairs.next().unwrap().as_str().to_string();
             let right = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_binary(left, op, right))
         }
@@ -153,7 +153,7 @@ fn parse_expression(
         Rule::expression => {
             let mut inner_pairs = pair.into_inner();
             let left = parse_expression(inner_pairs.next().unwrap())?;
-            let op = inner_pairs.next().unwrap().as_str().chars().next().unwrap();
+            let op = inner_pairs.next().unwrap().as_str().to_string();
             let right = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_binary(left, op, right))
         }
@@ -385,6 +385,36 @@ mod test {
     }
 
     #[test]
+    fn test_parse_number_less_than() {
+        let input = r#"55 < 45;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_less_than_equal() {
+        let input = r#"55 <= 45;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_more_than() {
+        let input = r#"55 > 45;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_more_than_equal() {
+        let input = r#"55 >= 45;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_not_equal() {
+        let input = r#"55 != 45;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
     fn test_parse_bool_equals_string() {
         let input = r#"true == "hello";"#;
         assert!(parse_asharp_program(input).is_ok());
@@ -466,10 +496,16 @@ mod test {
                     }
                     example(5,5);
                 }
-                let a = 5;
+                a = 5;
             }
         }
         ";
+        match parse_asharp_program(input) {
+            Err(e) => {
+                println!("{}", e);
+            }
+            _ => {}
+        }
         assert!(parse_asharp_program(input).is_ok());
     }
 

@@ -13,6 +13,7 @@ use dyn_clone::DynClone;
 use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use llvm_sys::LLVMIntPredicate;
 use std::os::raw::c_ulonglong;
 use std::process::Command;
 use std::ptr;
@@ -251,26 +252,59 @@ impl ASTContext {
             Expression::Nil => {
                 unimplemented!()
             }
-            Expression::Binary(lhs, op, rhs) => match op {
-                '+' => {
+            Expression::Binary(lhs, op, rhs) => match op.as_str() {
+                "+" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
                     lhs.add(self, rhs)
                 }
-                '-' => {
+                "-" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
                     lhs.sub(self.builder, rhs)
                 }
-                '/' => {
+                "/" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
                     lhs.div(self.builder, rhs)
                 }
-                '*' => {
+                "*" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
                     lhs.mul(self.builder, rhs)
+                }
+                "^" => {
+                    unimplemented!()
+                }
+                "==" => {
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
+                    lhs.eqeq(self.builder, rhs)
+                }
+                "!=" => {
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
+                    lhs.ne(self.builder, rhs)
+                }
+                "<" => {
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
+                    lhs.lt(self.builder, rhs)
+                }
+                "<=" => {
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
+                    lhs.lte(self.builder, rhs)
+                }
+                ">" => {
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
+                    lhs.gt(self.builder, rhs)
+                }
+                ">=" => {
+                    let lhs = self.match_ast(unbox(lhs));
+                    let rhs = self.match_ast(unbox(rhs));
+                    lhs.gte(self.builder, rhs)
                 }
                 _ => {
                     unimplemented!()
@@ -520,6 +554,24 @@ trait TypeBase: DynClone {
     fn div(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement div", self.get_type())
     }
+    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        unimplemented!("{:?} type does not implement eqeq", self.get_type())
+    }
+    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        unimplemented!("{:?} type does not implement eqeq", self.get_type())
+    }
+    fn gt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        unimplemented!("{:?} type does not implement gt", self.get_type())
+    }
+    fn gte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        unimplemented!("{:?} type does not implement gte", self.get_type())
+    }
+    fn lt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        unimplemented!("{:?} type does not implement lt", self.get_type())
+    }
+    fn lte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        unimplemented!("{:?} type does not implement lte", self.get_type())
+    }
 }
 
 dyn_clone::clone_trait_object!(TypeBase);
@@ -762,6 +814,132 @@ impl TypeBase for NumberType {
         }
     }
 
+    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::Number => unsafe {
+                let bool_type = get_comparison_number_type(
+                    _builder,
+                    _rhs.get_value(),
+                    self.get_value(),
+                    LLVMIntPredicate::LLVMIntEQ,
+                );
+                return Box::new(bool_type);
+            },
+            _ => {
+                unreachable!(
+                    "Can't add type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+
+    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::Number => unsafe {
+                let bool_type = get_comparison_number_type(
+                    _builder,
+                    _rhs.get_value(),
+                    self.get_value(),
+                    LLVMIntPredicate::LLVMIntNE,
+                );
+                return Box::new(bool_type);
+            },
+            _ => {
+                unreachable!(
+                    "Can't add type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+
+    fn gt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::Number => unsafe {
+                let bool_type = get_comparison_number_type(
+                    _builder,
+                    _rhs.get_value(),
+                    self.get_value(),
+                    LLVMIntPredicate::LLVMIntSGT,
+                );
+                return Box::new(bool_type);
+            },
+            _ => {
+                unreachable!(
+                    "Can't add type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+
+    fn gte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::Number => unsafe {
+                let bool_type = get_comparison_number_type(
+                    _builder,
+                    _rhs.get_value(),
+                    self.get_value(),
+                    LLVMIntPredicate::LLVMIntSGE,
+                );
+                return Box::new(bool_type);
+            },
+            _ => {
+                unreachable!(
+                    "Can't add type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+
+    fn lt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::Number => unsafe {
+                let bool_type = get_comparison_number_type(
+                    _builder,
+                    _rhs.get_value(),
+                    self.get_value(),
+                    LLVMIntPredicate::LLVMIntSLT,
+                );
+                return Box::new(bool_type);
+            },
+            _ => {
+                unreachable!(
+                    "Can't add type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+
+    fn lte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::Number => unsafe {
+                let bool_type = get_comparison_number_type(
+                    _builder,
+                    _rhs.get_value(),
+                    self.get_value(),
+                    LLVMIntPredicate::LLVMIntSLE,
+                );
+                return Box::new(bool_type);
+            },
+            _ => {
+                unreachable!(
+                    "Can't add type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
             let value_index_ptr =
@@ -802,6 +980,34 @@ impl TypeBase for NumberType {
             }
         }
     }
+}
+
+unsafe fn get_comparison_number_type(
+    _builder: LLVMBuilderRef,
+    rhs: LLVMValueRef,
+    lhs: LLVMValueRef,
+    comparison: LLVMIntPredicate,
+) -> BoolType {
+    let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
+    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
+    let bool_cmp = LLVMBuildZExt(
+        _builder,
+        cmp,
+        int8_type(),
+        CString::new("bool_cmp").unwrap().as_ptr(),
+    );
+    let var_name = c_str!("bool_type_eqeq");
+    // Check if the global variable already exists
+    let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
+    let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
+
+    return BoolType {
+        builder: _builder,
+        value: bool_value,
+        llmv_value: bool_cmp,
+        llmv_value_pointer: None,
+        alloca: alloca,
+    };
 }
 
 #[derive(Debug, Clone)]
@@ -1001,13 +1207,26 @@ mod test {
         // TODO -> use global variables for LLVM IR
         let input = vec![make_print_stmt(make_binary_stmt(
             Expression::Number(2),
-            '+',
+            String::from("+"),
             Expression::Number(4),
         ))];
         // call print statement for str
         let expected_ir = r#"%value1 = load ptr, ptr %value, align 8"#;
         let output = llvm_compile_to_ir(input);
-        println!("{}", output);
+        assert!(output.contains(expected_ir));
+    }
+
+    #[test]
+    fn test_compile_eqeq() {
+        // TODO -> use global variables for LLVM IR
+        let input = vec![make_print_stmt(make_binary_stmt(
+            Expression::Number(4),
+            String::from("=="),
+            Expression::Number(4),
+        ))];
+        // call print statement for str
+        let expected_ir = r#"%value1 = load ptr, ptr %value, align 8"#;
+        let output = llvm_compile_to_ir(input);
         assert!(output.contains(expected_ir));
     }
 
@@ -1019,7 +1238,7 @@ mod test {
         Expression::Print(Box::new(expr))
     }
 
-    fn make_binary_stmt(lhs: Expression, operator: char, rhs: Expression) -> Expression {
+    fn make_binary_stmt(lhs: Expression, operator: String, rhs: Expression) -> Expression {
         Expression::Binary(Box::new(lhs), operator, Box::new(rhs))
     }
 }
