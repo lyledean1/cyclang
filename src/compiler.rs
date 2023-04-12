@@ -107,7 +107,6 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 func_type: print_func_type,
             },
         );
-
         //sprintf
         let mut arg_types = [
             LLVMPointerType(LLVMInt8TypeInContext(context), 0),
@@ -990,12 +989,7 @@ unsafe fn get_comparison_number_type(
 ) -> BoolType {
     let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    let bool_cmp = LLVMBuildZExt(
-        _builder,
-        cmp,
-        int8_type(),
-        CString::new("bool_cmp").unwrap().as_ptr(),
-    );
+    let bool_cmp = LLVMBuildZExt(_builder, cmp, int8_type(), c_str!("bool_cmp"));
     let var_name = c_str!("bool_type_eqeq");
     // Check if the global variable already exists
     let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
@@ -1225,7 +1219,7 @@ mod test {
             Expression::Number(4),
         ))];
         // call print statement for str
-        let expected_ir = r#"%value1 = load ptr, ptr %value, align 8"#;
+        let expected_ir = r#"%bool_type_eqeq = alloca i1, align 1"#;
         let output = llvm_compile_to_ir(input);
         assert!(output.contains(expected_ir));
     }
