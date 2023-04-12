@@ -1,27 +1,16 @@
-let five = 5;
-let four = 4;
-print(20 == 10);
-print(20 != 10);
-print(20 != 20);
-print(20 == 20);
-print(20 >= 21);
-print(20 >= 20);
-print("test");
-print(5 == 5);
-let is_true = true;
-if (false) {
-    print("don't print this");
+if (true) {
+    if (true) {
+        print(1);
+        if (false) {
+            print("error");
+        } else {
+            print(2);
+            if (true) {
+                print(3);
+            }
+        }
+    }
+    print(4);
 } else {
-    print("correct, 20 is not more than 21");
+    print("don't print this");
 }
-
-while (is_true) {
-    print(20 + four);
-    print(20 - four);
-    print(five * four);
-    let is_true = false;
-}
-
-let second = "hello" + " world";
-print(second + " this is less data");
-
