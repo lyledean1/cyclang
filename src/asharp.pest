@@ -1,39 +1,39 @@
 
-expression_list = { SOI ~ ( stmt_inner | expression_list_inner ) ~ (WHITESPACE? ~ (stmt_inner | expression_list_inner )*) ~ EOI }
+expression_list = { SOI ~ ( stmt_inner | expression_list_inner | comment ) ~ (WHITESPACE* ~ (stmt_inner | expression_list_inner | comment )*) ~ EOI }
 stmt_inner = _{ if_stmt | while_stmt| for_stmt | func_stmt | block_stmt }
-expression_list_inner = _{(((expression | let_stmt | print_stmt | call_stmt | binary | grouping) ~ (semicolon ~ WHITESPACE? ~ (expression | let_stmt | print_stmt | call_stmt | binary | grouping))*) ~ semicolon)}
+expression_list_inner = _{((( expression | let_stmt | print_stmt | call_stmt | grouping ) ~ (semicolon ~ WHITESPACE? ~ (binary | expression | let_stmt | print_stmt | call_stmt | grouping))*) ~ semicolon)}
 expression = _ { binary | literal }
-binary = { operand ~ WHITESPACE* ~ operator_sequence }
-operand = _{ literal | grouping | name }
+binary = {  operand ~ WHITESPACE? ~ operator_sequence }
+operand = _{ literal ~ WHITESPACE? | grouping | name }
 operator_sequence = _{ operator ~ WHITESPACE* ~ operand ~ (WHITESPACE* ~ operator_sequence)? }
 grouping = { "(" ~ expression ~ ")" }
 while_stmt = {"while" ~ WHITESPACE? ~ "(" ~ (expression | name) ~ ")" ~ WHITESPACE? ~ block_stmt}
 block_stmt = { "{" ~ WHITESPACE? ~ (expression_list_inner) ~ (WHITESPACE? ~ (expression_list_inner)*) ~ WHITESPACE? ~ "}" }
-literal = {bool | number | nil | string }
+literal = { number | string | bool | nil  }
 for_stmt = { "for" ~ WHITESPACE? ~ "(" ~ initialization ~ ";" ~ condition ~ ";" ~ iteration ~ ")" ~ block_stmt }
 initialization = { "let" ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ number }
 condition = { name ~ WHITESPACE? ~ "<" ~ WHITESPACE? ~ number }
 iteration = { name ~ WHITESPACE? ~ ("++" | "--") }
-if_stmt = { "if" ~ WHITESPACE? ~ "(" ~ (expression | name | binary) ~ ")" ~ WHITESPACE? ~ block_stmt ~ (WHITESPACE? ~ "else" ~ block_stmt)? }
+if_stmt = { "if" ~ WHITESPACE? ~ "(" ~ (expression | name ) ~ ")" ~ WHITESPACE? ~ block_stmt ~ (WHITESPACE? ~ "else" ~ block_stmt)? }
 let_stmt = { ("let" ~ WHITESPACE?)? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (expression | grouping | name )}
 func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ (name ~ comma?)* ~ ")" ~ WHITESPACE? ~ block_stmt }
 call_stmt = { name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
 print_stmt = { "print(" ~ (expression | name) ~ ")" }
 name = { (alpha | "_") ~ (alpha | digits | "_")* }
 number = { "-"? ~ digits }
-digits = {digit+ }
+digits = @{ digit+ }
 digit = { ASCII_DIGIT }
 alpha = { ASCII_ALPHA | "_" }
 string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 nil = { "nil" }
 bool = { "true" | "false" }
-operator = { add | subtract | multiply | divide | power | equalequal | notequal | morethanequal | lessthanequal | morethan | lessthan }
+operator = { equalequal | notequal | morethanequal | lessthanequal | morethan | lessthan | add | subtract | multiply | divide | power }
 add = { "+" }
 subtract = { "-" }
 multiply = { "*" }
 divide = { "/" }
 power = { "^" }
-equalequal = { "==" }
+equalequal = {"=="}
 notequal = {"!="}
 morethan = {">"}
 morethanequal = {">="}
@@ -41,5 +41,6 @@ lessthan = {"<"}
 lessthanequal = {"<="}
 equal = { "=" }
 semicolon = { ";" }
+comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 comma = { WHITESPACE? ~ "," ~ WHITESPACE? }
 WHITESPACE = _{ " " | "\t" | NEWLINE }

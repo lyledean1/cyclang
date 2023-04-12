@@ -1,3 +1,6 @@
+/* this is a while statement */
+/* example */
+
 let is_true = true;
 while (is_true) {
     print(is_true);

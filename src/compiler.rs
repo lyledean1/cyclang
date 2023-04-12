@@ -107,7 +107,6 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 func_type: print_func_type,
             },
         );
-
         //sprintf
         let mut arg_types = [
             LLVMPointerType(LLVMInt8TypeInContext(context), 0),

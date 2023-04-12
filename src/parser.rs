@@ -268,7 +268,7 @@ fn parse_program(
     let mut expr_vec = vec![];
     for stmt_pair in pair.into_inner() {
         match stmt_pair.as_rule() {
-            Rule::semicolon | Rule::EOI | Rule::comma => {
+            Rule::semicolon | Rule::EOI | Rule::comma | Rule::comment => {
                 continue;
             }
             _ => {
@@ -343,8 +343,26 @@ mod test {
     }
 
     #[test]
-    fn test_parse_negative_number_expression() {
+    fn test_parse_minus_negative_number_expression() {
         let input = r#"-555 - 555;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_minus_negative_two_number_expression() {
+        let input = r#"-555 - -555;"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_negative_digit_expression() {
+        let input = r#"-5 - 5;"#;
+        match parse_asharp_program(input) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            _ => {}
+        }
         assert!(parse_asharp_program(input).is_ok());
     }
 
@@ -391,16 +409,32 @@ mod test {
     }
 
     #[test]
+    fn test_parse_char_equals() {
+        let input = r#""h" == "h";"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_str_equals() {
+        let input = r#""hello" == "hello";"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
     fn test_parse_number_equals_digit() {
         let input = r#"5 == 5;"#;
         match parse_asharp_program(input) {
             Err(e) => {
                 eprintln!("{}", e);
             }
-            _ => {
-
-            }
+            _ => {}
         }
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_number_equals_digit_rhs() {
+        let input = r#"55 == 5;"#;
         assert!(parse_asharp_program(input).is_ok());
     }
 
@@ -676,6 +710,18 @@ mod test {
     #[test]
     fn test_for_loop_stmt_reverse() {
         let input = r#"
+        for (let i = 40; i < 10; i--)
+        {
+            print(i);
+        }
+        "#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_for_loop_stmt_reverse_with_comment() {
+        let input = r#"
+        /* this is a comment */
         for (let i = 40; i < 10; i--)
         {
             print(i);
