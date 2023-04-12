@@ -255,7 +255,7 @@ fn parse_expression(
         }
         _ => Err(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
-                message: format!("Invalid expression for rule {:?}", pair.as_rule()),
+                message: format!("Invalid expression for rule {:?} or rule not specified for grammar", pair.as_rule()),
             },
             pair.as_span(),
         )),
@@ -505,6 +505,34 @@ mod test {
     }
 
     #[test]
+    fn test_parse_list() {
+        let input = r#"[1, true, false, "three", nil, Map(1 -> 2)];"#;
+        match parse_asharp_program(input) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            _ => {
+
+            }
+        }
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_map() {
+        let input = r#"Map(1 -> 2, "three" -> 4, "five" -> 6);"#;
+        match parse_asharp_program(input) {
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+            _ => {
+
+            }
+        }
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    #[test]
     fn test_parse_bool_equals_string() {
         let input = r#"true == "hello";"#;
         assert!(parse_asharp_program(input).is_ok());
@@ -596,12 +624,6 @@ mod test {
             }
         }
         ";
-        match parse_asharp_program(input) {
-            Err(e) => {
-                println!("{}", e);
-            }
-            _ => {}
-        }
         assert!(parse_asharp_program(input).is_ok());
     }
 
