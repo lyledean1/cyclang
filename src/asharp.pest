@@ -8,7 +8,7 @@ operand = _{ literal ~ WHITESPACE? | grouping | name }
 operator_sequence = _{ operator ~ WHITESPACE* ~ operand ~ (WHITESPACE* ~ operator_sequence)? }
 grouping = { "(" ~ expression ~ ")" }
 while_stmt = {"while" ~ WHITESPACE? ~ "(" ~ (expression | name) ~ ")" ~ WHITESPACE? ~ block_stmt}
-block_stmt = { "{" ~ WHITESPACE? ~ (expression_list_inner) ~ (WHITESPACE? ~ (expression_list_inner)*) ~ WHITESPACE? ~ "}" }
+block_stmt = { "{" ~ WHITESPACE? ~ (expression_list_inner | stmt_inner) ~ (WHITESPACE? ~ (expression_list_inner | stmt_inner)*) ~ WHITESPACE? ~ "}" }
 literal = { number | string | bool | nil  }
 for_stmt = { "for" ~ WHITESPACE? ~ "(" ~ initialization ~ ";" ~ condition ~ ";" ~ iteration ~ ")" ~ block_stmt }
 initialization = { "let" ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ number }
