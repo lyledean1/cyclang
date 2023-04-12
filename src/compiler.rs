@@ -437,45 +437,53 @@ impl ASTContext {
                 }
             }
             Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
-                //     unsafe {
-                //         // Create basic blocks
-                //         let loop_cond_block =
-                //             LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
-                //         let loop_body_block =
-                //             LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_body"));
-                //         let loop_incr_block =
-                //             LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_incr"));
-                //         let loop_exit_block =
-                //             LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
-
-                //         // Branch to loop condition block
-                //         LLVMBuildBr(self.builder, loop_cond_block);
-
-                //         // Build loop condition block
-                //         LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
-                //         let loop_condition = self.match_ast(unbox(condition));
-                //         LLVMBuildCondBr(
-                //             self.builder,
-                //             loop_condition.get_value(),
-                //             loop_body_block,
-                //             loop_exit_block,
-                //         );
-
-                //         // Build loop body block
-                //         LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
-                //         self.match_ast(unbox(body_stmt));
-                //         LLVMBuildBr(self.builder, loop_incr_block); // Jump to loop increment block
-
-                //         // Build loop increment block
-                //         LLVMPositionBuilderAtEnd(self.builder, loop_incr_block);
-                //         self.match_ast(unbox(increment));
-                //         LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
-
-                //         // Position builder at loop exit block
-                //         LLVMPositionBuilderAtEnd(self.builder, loop_exit_block);
-                //     }
-                unimplemented!()
+                unsafe {
+                    // Create basic blocks
+                    let loop_cond_block = LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
+                    let loop_body_block = LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_body"));
+                    let loop_incr_block = LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_incr"));
+                    let loop_exit_block = LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
+            
+                    // Initialize the loop variable
+                    let var_value = LLVMConstInt(int32_type(), init as u64, 0);
+                    LLVMBuildStore(self.builder, var_value, var_value);
+            
+                    // Branch to loop condition block
+                    LLVMBuildBr(self.builder, loop_cond_block);
+            
+                    // Build loop condition block
+                    LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
+                    let loop_condition = LLVMBuildICmp(
+                        self.builder,
+                        LLVMIntPredicate::LLVMIntSLT,
+                        LLVMBuildLoad2(self.builder, int32_type(), var_value, c_str!("")),
+                        LLVMConstInt(int32_type(), length as u64, 0),
+                        c_str!(""),
+                    );
+                    LLVMBuildCondBr(
+                        self.builder,
+                        loop_condition,
+                        loop_body_block,
+                        loop_exit_block,
+                    );
+            
+                    // Build loop body block
+                    LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
+                    let for_block_cond = self.match_ast(unbox(for_block_expr));
+                    let new_value = LLVMBuildAdd(
+                        self.builder,
+                        LLVMBuildLoad2(self.builder, int32_type(), var_value, c_str!("")),
+                        LLVMConstInt(int32_type(), increment as u64, 0),
+                        c_str!(""),
+                    );
+                    LLVMBuildStore(self.builder, new_value, var_value);
+                    LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
+            
+                    // Position builder at loop exit block
+                    LLVMPositionBuilderAtEnd(self.builder, loop_exit_block);
+                    for_block_cond
             }
+        }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(unbox(input));
                 expression_value.print(self);
@@ -495,16 +503,16 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
         .arg("bin/main")
         .output();
 
-    // match output {
-    //     Ok(ok) => {
-    //         print!("{:?}\n", ok);
-    //     }
-    //     Err(e) => return Err(e),
-    // }
+    match output {
+        Ok(ok) => {
+            print!("{:?}\n", ok);
+        }
+        Err(e) => return Err(e),
+    }
 
-    // // //TODO: add this as a debug line
-    // println!("main executable generated, running bin/main");
-    // let output = Command::new("bin/main").output();
+    // //TODO: add this as a debug line
+    println!("main executable generated, running bin/main");
+    let output = Command::new("bin/main").output();
     return output;
 }
 
