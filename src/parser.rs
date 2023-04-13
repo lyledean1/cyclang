@@ -4,7 +4,7 @@ use pest::Parser;
 use std::num::ParseIntError;
 
 #[derive(Parser)]
-#[grammar = "asharp.pest"]
+#[grammar = "../grammar/asharp.pest"]
 struct ASharpParser;
 
 #[derive(Debug, Clone)]
