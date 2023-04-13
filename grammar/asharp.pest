@@ -9,7 +9,10 @@ operator_sequence = _{ operator ~ WHITESPACE* ~ operand ~ (WHITESPACE* ~ operato
 grouping = { "(" ~ expression ~ ")" }
 while_stmt = {"while" ~ WHITESPACE? ~ "(" ~ (expression | name) ~ ")" ~ WHITESPACE? ~ block_stmt}
 block_stmt = { "{" ~ WHITESPACE? ~ (expression_list_inner | stmt_inner) ~ (WHITESPACE? ~ (expression_list_inner | stmt_inner)*) ~ WHITESPACE? ~ "}" }
-literal = { number | string | bool | nil  }
+literal = { number | string | bool | nil | list | map  }
+list = {"[" ~ WHITESPACE? ~ literal ~ WHITESPACE? ~ (WHITESPACE? ~ comma ~ WHITESPACE? ~ literal)* ~ WHITESPACE? ~ "]" }
+map = {"Map(" ~ inner_map ~ (WHITESPACE? ~ comma ~ WHITESPACE? ~ inner_map ~ WHITESPACE?)* ~ WHITESPACE? ~ ")"}
+inner_map = _{WHITESPACE? ~ literal ~ WHITESPACE? ~ "->" ~ WHITESPACE? ~ literal ~ WHITESPACE?}
 for_stmt = { "for" ~ WHITESPACE? ~ "(" ~ initialization ~ ";" ~ condition ~ ";" ~ iteration ~ ")" ~ block_stmt }
 initialization = { "let" ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ number }
 condition = { name ~ WHITESPACE? ~ "<" ~ WHITESPACE? ~ number }

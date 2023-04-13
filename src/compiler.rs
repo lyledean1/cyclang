@@ -342,6 +342,9 @@ impl ASTContext {
                     }
                 }
             }
+            Expression::List(list) => {
+                unimplemented!()
+            }
             Expression::FuncStmt(name, args, body) => {
                 // save to call stack
                 unimplemented!()
