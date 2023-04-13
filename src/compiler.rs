@@ -187,9 +187,14 @@ impl ASTContext {
                     input.try_into().unwrap(),
                     0,
                 );
+                let ptr = LLVMBuildAlloca(
+                    self.builder,
+                    LLVMInt32TypeInContext(self.context),
+                    c_str!("ptr"),
+                );
                 return Box::new(NumberType {
                     llmv_value: value,
-                    llmv_value_pointer: None,
+                    llmv_value_pointer: ptr,
                 });
             },
             Expression::String(input) => {
@@ -442,25 +447,54 @@ impl ASTContext {
             Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
                 unsafe {
                     // Create basic blocks
-                    let loop_cond_block = LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
-                    let loop_body_block = LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_body"));
-                    let loop_incr_block = LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_incr"));
-                    let loop_exit_block = LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
-            
+                    let loop_cond_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
+                    let loop_body_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_body"));
+                    let loop_incr_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_incr"));
+                    let loop_exit_block =
+                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
+
                     // Initialize the loop variable
-                    let var_value = LLVMConstInt(int32_type(), init as u64, 0);
-                    LLVMBuildStore(self.builder, var_value, var_value);
-            
+                    let init_value = LLVMConstInt(
+                        LLVMInt32TypeInContext(self.context),
+                        init.try_into().unwrap(),
+                        0,
+                    );
+                    let init_ptr = LLVMBuildAlloca(
+                        self.builder,
+                        LLVMInt32TypeInContext(self.context),
+                        c_str!("init_value"),
+                    );
+
+                    // set variable
+                    self.var_cache.set(&var_name.clone(), Box::new(NumberType {
+                        llmv_value: init_value,
+                        llmv_value_pointer: init_ptr,
+                    }));
+
+                    LLVMBuildStore(self.builder, init_value, init_ptr);
+
                     // Branch to loop condition block
                     LLVMBuildBr(self.builder, loop_cond_block);
-            
+
                     // Build loop condition block
                     LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
                     let loop_condition = LLVMBuildICmp(
                         self.builder,
                         LLVMIntPredicate::LLVMIntSLT,
-                        LLVMBuildLoad2(self.builder, int32_type(), var_value, c_str!("")),
-                        LLVMConstInt(int32_type(), length as u64, 0),
+                        LLVMBuildLoad2(
+                            self.builder,
+                            LLVMInt32TypeInContext(self.context),
+                            init_ptr,
+                            c_str!(""),
+                        ),
+                        LLVMConstInt(
+                            LLVMInt32TypeInContext(self.context),
+                            length.try_into().unwrap(),
+                            0,
+                        ),
                         c_str!(""),
                     );
                     LLVMBuildCondBr(
@@ -469,24 +503,30 @@ impl ASTContext {
                         loop_body_block,
                         loop_exit_block,
                     );
-            
+
                     // Build loop body block
                     LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
                     let for_block_cond = self.match_ast(unbox(for_block_expr));
                     let new_value = LLVMBuildAdd(
                         self.builder,
-                        LLVMBuildLoad2(self.builder, int32_type(), var_value, c_str!("")),
-                        LLVMConstInt(int32_type(), increment as u64, 0),
+                        LLVMBuildLoad2(
+                            self.builder,
+                            LLVMInt32TypeInContext(self.context),
+                            init_ptr,
+                            c_str!(""),
+                        ),
+                        LLVMConstInt(LLVMInt32TypeInContext(self.context), increment as u64, 0),
                         c_str!(""),
                     );
-                    LLVMBuildStore(self.builder, new_value, var_value);
+                    LLVMBuildStore(self.builder, new_value, init_ptr);
                     LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
-            
+
                     // Position builder at loop exit block
                     LLVMPositionBuilderAtEnd(self.builder, loop_exit_block);
+                    LLVMBuildRetVoid(self.builder);
                     for_block_cond
+                }
             }
-        }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(unbox(input));
                 expression_value.print(self);
@@ -500,6 +540,7 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
     // output LLVM IR
     llvm_compile_to_ir(input);
     // compile to binary
+
     let output = Command::new("clang")
         .arg("bin/main.bc")
         .arg("-o")
@@ -508,7 +549,11 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
 
     match output {
         Ok(ok) => {
-            print!("{:?}\n", ok);
+            let stdout = String::from_utf8_lossy(&ok.stdout);
+            let stderr = String::from_utf8_lossy(&ok.stderr);
+
+            println!("stdout:\n{}", stdout);
+            println!("stderr:\n{}", stderr);
         }
         Err(e) => return Err(e),
     }
@@ -706,7 +751,7 @@ impl TypeBase for StringType {
 #[derive(Debug, Clone)]
 struct NumberType {
     llmv_value: LLVMValueRef,
-    llmv_value_pointer: Option<LLVMValueRef>,
+    llmv_value_pointer: LLVMValueRef,
 }
 
 impl TypeBase for NumberType {
@@ -726,10 +771,16 @@ impl TypeBase for NumberType {
                         _rhs.get_value(),
                         c_str!("result"),
                     );
+                    let ptr = LLVMBuildAlloca(
+                        _ast_context.builder,
+                        int32_type(),
+                        c_str!("result"),
+                    );
+                    
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
-                        llmv_value_pointer: None,
+                        llmv_value_pointer: ptr,
                     });
                 }
             }
@@ -753,10 +804,15 @@ impl TypeBase for NumberType {
                         _rhs.get_value(),
                         c_str!("result"),
                     );
+                    let ptr = LLVMBuildAlloca(
+                        _builder,
+                        int32_type(),
+                        c_str!("result"),
+                    );
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
-                        llmv_value_pointer: None,
+                        llmv_value_pointer: ptr,
                     });
                 }
             }
@@ -780,10 +836,15 @@ impl TypeBase for NumberType {
                         _rhs.get_value(),
                         c_str!("result"),
                     );
+                    let ptr = LLVMBuildAlloca(
+                        _builder,
+                        int32_type(),
+                        c_str!("result"),
+                    );
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
-                        llmv_value_pointer: None,
+                        llmv_value_pointer: ptr,
                     });
                 }
             }
@@ -807,10 +868,15 @@ impl TypeBase for NumberType {
                         _rhs.get_value(),
                         c_str!("result"),
                     );
+                    let ptr = LLVMBuildAlloca(
+                        _builder,
+                        int32_type(),
+                        c_str!("result"),
+                    );
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
-                        llmv_value_pointer: None,
+                        llmv_value_pointer: ptr,
                     });
                 }
             }
