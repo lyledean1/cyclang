@@ -33,7 +33,7 @@ asharp --file /path/to/file.asharp
     - [x] Division
 - [ ] Grouping
 - [ ] Lists
-- [ ] Dict
+- [ ] Map
 - [x] Boolean
 - [ ] Print Statements
 - [ ] Null Values
@@ -42,7 +42,12 @@ asharp --file /path/to/file.asharp
 - [x] Let Statements
 - [ ] If Statements 
 - [ ] For Loops
+    - [ ] Loop over range
+    - [ ] Loop over values in list 
+    - [ ] Loop over valuei in map
 - [ ] Functions
+    - [ ] Call function ()
+    - [ ] Lambda Functions
     - [ ] Closures
 - [ ] Classes
 

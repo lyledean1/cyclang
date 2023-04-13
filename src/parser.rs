@@ -14,6 +14,7 @@ pub enum Expression {
     Bool(bool),
     Nil,
     Variable(String),
+    List(Box<Vec<Expression>>),
     Binary(Box<Expression>, String, Box<Expression>),
     Grouping(Box<Expression>),
     LetStmt(String, Box<Expression>),
@@ -49,6 +50,10 @@ impl Expression {
 
     fn new_variable(name: String) -> Self {
         Self::Variable(name)
+    }
+
+    fn new_list(exprs: Vec<Expression>) -> Self {
+        Self::List(Box::new(exprs))
     }
 
     fn new_let_stmt(name: String, value: Expression) -> Self {
@@ -132,6 +137,17 @@ fn parse_expression(
             )),
         },
         Rule::nil => Ok(Expression::new_nil()),
+        Rule::list => {
+            let inner_pairs = pair.into_inner();
+            let mut exprs = vec![];
+            for inner_pair in inner_pairs {
+                if inner_pair.as_rule() == Rule::comma {
+                    continue;
+                }
+                exprs.push(parse_expression(inner_pair)?);
+            }
+            Ok(Expression::new_list(exprs))
+        }
         Rule::binary => {
             let mut inner_pairs = pair.into_inner();
             let left = parse_expression(inner_pairs.next().unwrap())?;
@@ -255,7 +271,7 @@ fn parse_expression(
         }
         _ => Err(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
-                message: format!("Invalid expression for rule {:?}", pair.as_rule()),
+                message: format!("Invalid expression for rule {:?} or rule not specified for grammar", pair.as_rule()),
             },
             pair.as_span(),
         )),
@@ -505,6 +521,27 @@ mod test {
     }
 
     #[test]
+    fn test_parse_list() {
+        let input = r#"[1, true, false, "three", nil];"#;
+        assert!(parse_asharp_program(input).is_ok());
+    }
+
+    // TODO: Add Map Type
+    // #[test]
+    // fn test_parse_map() {
+    //     let input = r#"Map(1 -> 2, "three" -> 4, "five" -> 6);"#;
+    //     match parse_asharp_program(input) {
+    //         Err(e) => {
+    //             eprintln!("{}", e);
+    //         }
+    //         _ => {
+
+    //         }
+    //     }
+    //     assert!(parse_asharp_program(input).is_ok());
+    // }
+
+    #[test]
     fn test_parse_bool_equals_string() {
         let input = r#"true == "hello";"#;
         assert!(parse_asharp_program(input).is_ok());
@@ -596,12 +633,6 @@ mod test {
             }
         }
         ";
-        match parse_asharp_program(input) {
-            Err(e) => {
-                println!("{}", e);
-            }
-            _ => {}
-        }
         assert!(parse_asharp_program(input).is_ok());
     }
 
