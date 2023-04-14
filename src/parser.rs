@@ -271,7 +271,10 @@ fn parse_expression(
         }
         _ => Err(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
-                message: format!("Invalid expression for rule {:?} or rule not specified for grammar", pair.as_rule()),
+                message: format!(
+                    "Invalid expression for rule {:?} or rule not specified for grammar",
+                    pair.as_rule()
+                ),
             },
             pair.as_span(),
         )),
