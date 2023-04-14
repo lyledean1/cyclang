@@ -240,8 +240,7 @@ impl ASTContext {
                         builder: self.builder,
                         value: input,
                         llmv_value: alloca,
-                        llmv_value_pointer: None,
-                        alloca: alloca,
+                        llmv_value_pointer: alloca,
                     });
                 }
             }
@@ -323,8 +322,8 @@ impl ASTContext {
                         self.var_cache.set(&var.clone(), lhs.clone());
                         //TODO: figure out best way to handle a let stmt return
                         unsafe {
-                            let alloca = val.get_alloca();
-                            lhs.set_alloca(alloca);
+                            let alloca = val.get_ptr();
+                            lhs.set_ptr(alloca);
                             let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
                             let new_value = LLVMBuildLoad2(
                                 self.builder,
@@ -414,12 +413,12 @@ impl ASTContext {
                     let build_store = LLVMBuildStore(
                         self.builder,
                         value_condition.get_value(),
-                        value_condition.get_alloca(),
+                        value_condition.get_ptr(),
                     );
                     let loop_condition = LLVMBuildLoad2(
                         self.builder,
                         int1_type(),
-                        value_condition.get_alloca(),
+                        value_condition.get_ptr(),
                         var_name,
                     );
 
@@ -579,12 +578,11 @@ trait TypeBase: DynClone {
             self.get_type()
         )
     }
-    fn get_alloca(&self) -> LLVMValueRef {
-        unimplemented!("{:?} type does not implement get_alloca", self.get_type())
+    fn set_ptr(&mut self, _value: LLVMValueRef) {
+        unimplemented!("{:?} type does not implement set_ptr", self.get_type())
     }
-    fn set_alloca(&mut self, _value: LLVMValueRef) {
-        unimplemented!("{:?} type does not implement set_alloca", self.get_type())
-    }
+
+    // TODO: make this a raw value
     fn get_str(&self) -> String {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
     }
@@ -1070,8 +1068,7 @@ unsafe fn get_comparison_number_type(
         builder: _builder,
         value: bool_value,
         llmv_value: bool_cmp,
-        llmv_value_pointer: None,
-        alloca: alloca,
+        llmv_value_pointer: alloca,
     };
 }
 
@@ -1080,8 +1077,7 @@ struct BoolType {
     builder: LLVMBuilderRef,
     value: bool,
     llmv_value: LLVMValueRef,
-    llmv_value_pointer: Option<LLVMValueRef>,
-    alloca: LLVMValueRef,
+    llmv_value_pointer: LLVMValueRef,
 }
 
 impl TypeBase for BoolType {
@@ -1101,11 +1097,11 @@ impl TypeBase for BoolType {
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Bool
     }
-    fn get_alloca(&self) -> LLVMValueRef {
-        self.alloca
+    fn get_ptr(&self) -> LLVMValueRef {
+        self.llmv_value_pointer
     }
-    fn set_alloca(&mut self, _value: LLVMValueRef) {
-        self.alloca = _value;
+    fn set_ptr(&mut self, _value: LLVMValueRef) {
+        self.llmv_value_pointer = _value;
     }
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {

@@ -15,7 +15,7 @@ map = {"Map(" ~ inner_map ~ (WHITESPACE? ~ comma ~ WHITESPACE? ~ inner_map ~ WHI
 inner_map = _{WHITESPACE? ~ literal ~ WHITESPACE? ~ "->" ~ WHITESPACE? ~ literal ~ WHITESPACE?}
 for_stmt = { "for" ~ WHITESPACE? ~ "(" ~ initialization ~ ";" ~ condition ~ ";" ~ iteration ~ ")" ~ block_stmt }
 initialization = { "let" ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ number }
-condition = { name ~ WHITESPACE? ~ "<" ~ WHITESPACE? ~ number }
+condition = { name ~ WHITESPACE? ~ ("<" | "<=" | ">" | ">=" ) ~ WHITESPACE? ~ number }
 iteration = { name ~ WHITESPACE? ~ ("++" | "--") }
 if_stmt = { "if" ~ WHITESPACE? ~ "(" ~ (expression | name ) ~ ")" ~ WHITESPACE? ~ block_stmt ~ (WHITESPACE? ~ "else" ~ block_stmt)? }
 let_stmt = { ("let" ~ WHITESPACE?)? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (expression | grouping | name )}

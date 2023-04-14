@@ -73,6 +73,14 @@ mod test {
     }
 
     #[test]
+    fn test_compile_print_add_string_expression() {
+        let input = r#"print("hello" + " world");"#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "hello world\n");
+    }
+
+    #[test]
     fn test_compile_print_bool_expression() {
         let input = r#"print(true);"#;
         // call print statement for str
@@ -298,5 +306,31 @@ mod test {
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "\n");
+    }
+
+    #[test]
+    fn test_compile_for_loop() {
+        let input = r#"
+        for (let i = 0; i < 10; i++)
+        {  
+            print(i);
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n");
+    }
+
+    #[test]
+    fn test_compile_for_loop_reverse() {
+        let input = r#"
+        for (let i = 10; i > 0; i--)
+        {  
+            print(i);
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "10\n9\n8\n7\n6\n5\n4\n3\n2\n1\n");
     }
 }
