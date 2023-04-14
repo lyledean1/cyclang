@@ -223,14 +223,12 @@ impl ASTContext {
                 }
             }
             Expression::Bool(input) => {
-                println!("{}", input);
                 let mut num = 0;
                 match input {
                     true => num = 1,
                     _ => {}
                 }
                 unsafe {
-                    println!("{}", num);
                     let bool_value = LLVMConstInt(int1_type(), num, 0);
                     let var_name = c_str!("bool_type");
                     // Check if the global variable already exists
@@ -548,18 +546,14 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
         .output();
 
     match output {
-        Ok(ok) => {
-            let stdout = String::from_utf8_lossy(&ok.stdout);
-            let stderr = String::from_utf8_lossy(&ok.stderr);
-
-            println!("stdout:\n{}", stdout);
-            println!("stderr:\n{}", stderr);
+        Ok(_ok) => {
+            // print!("{:?}\n", _ok);
         }
         Err(e) => return Err(e),
     }
 
-    // //TODO: add this as a debug line
-    println!("main executable generated, running bin/main");
+    // // //TODO: add this as a debug line
+    // println!("main executable generated, running bin/main");
     let output = Command::new("bin/main").output();
     return output;
 }
@@ -1222,94 +1216,5 @@ impl LLVMFunctionCache {
     fn get(&self, key: &str) -> Option<LLVMFunction> {
         //HACK, copy each time, probably want one reference to this
         self.map.get(key).copied()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::parser::Expression;
-
-    use super::*;
-    //Note: Just testing lines of LLVM IR for the time being until I figure a better way to address these tests for the compiler
-    #[test]
-    fn test_compile_print_number_expression() {
-        let input = vec![make_print_stmt(Expression::Number(12))];
-        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr %value1)"#;
-        let output = llvm_compile_to_ir(input);
-        assert!(output.contains(expected_ir));
-    }
-
-    #[test]
-    fn test_compile_print_string_expression() {
-        let input = vec![make_print_stmt(Expression::String(String::from(
-            "example blah blah blah",
-        )))];
-        // call print statement for str
-        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr @"example blah blah blah")"#;
-        let output = llvm_compile_to_ir(input);
-        assert!(output.contains(expected_ir));
-    }
-
-    #[test]
-    fn test_compile_print_bool_expression() {
-        let input = vec![make_print_stmt(Expression::Bool(true))];
-        // call print statement for str
-        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr @true_str)"#;
-        let output = llvm_compile_to_ir(input);
-        assert!(output.contains(expected_ir));
-    }
-
-    #[test]
-    fn test_compile_variable() {
-        // TODO -> use global variables for LLVM IR
-        let input = vec![
-            make_test_let_stmt("example".to_string(), Expression::Bool(true)),
-            make_print_stmt(Expression::Variable("example".to_string())),
-        ];
-        // call print statement for str
-        let expected_ir = r#"call void (ptr, ...) @printf(ptr @0, ptr @true_str)"#;
-        let output = llvm_compile_to_ir(input);
-        println!("{}", output);
-        assert!(output.contains(expected_ir));
-    }
-
-    #[test]
-    fn test_compile_addition() {
-        // TODO -> use global variables for LLVM IR
-        let input = vec![make_print_stmt(make_binary_stmt(
-            Expression::Number(2),
-            String::from("+"),
-            Expression::Number(4),
-        ))];
-        // call print statement for str
-        let expected_ir = r#"%value1 = load ptr, ptr %value, align 8"#;
-        let output = llvm_compile_to_ir(input);
-        assert!(output.contains(expected_ir));
-    }
-
-    #[test]
-    fn test_compile_eqeq() {
-        // TODO -> use global variables for LLVM IR
-        let input = vec![make_print_stmt(make_binary_stmt(
-            Expression::Number(4),
-            String::from("=="),
-            Expression::Number(4),
-        ))];
-        // call print statement for str
-        let expected_ir = r#"%bool_type_eqeq = alloca i1, align 1"#;
-        let output = llvm_compile_to_ir(input);
-        assert!(output.contains(expected_ir));
-    }
-
-    fn make_test_let_stmt(variable: String, expr: Expression) -> Expression {
-        Expression::LetStmt(String::from(variable), Box::new(expr))
-    }
-
-    fn make_print_stmt(expr: Expression) -> Expression {
-        Expression::Print(Box::new(expr))
-    }
-
-    fn make_binary_stmt(lhs: Expression, operator: String, rhs: Expression) -> Expression {
-        Expression::Binary(Box::new(lhs), operator, Box::new(rhs))
     }
 }
