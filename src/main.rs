@@ -174,7 +174,7 @@ mod test {
     }
 
     #[test]
-    fn test_compile_eqeq_true() {
+    fn test_compile_eqeq_true_number() {
         let input = r#"
         print(4 == 4);
         "#;
@@ -184,7 +184,7 @@ mod test {
     }
 
     #[test]
-    fn test_compile_eqeq_false() {
+    fn test_compile_eqeq_false_number() {
         let input = r#"
         print(4 == 5);
         "#;
@@ -194,7 +194,93 @@ mod test {
     }
 
     #[test]
-    fn test_compile_eqeq_variables() {
+    fn test_compile_eqeq_true_string() {
+        let input = r#"
+        print("4" == "4");
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
+
+    #[test]
+    fn test_compile_eqeq_false_string() {
+        let input = r#"
+        print("4" == "5");
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_compile_eqeq_bool_false() {
+        let input = r#"
+        print(true == false);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_compile_eqeq_bool_true() {
+        let input = r#"
+        print(true == true);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
+
+    #[test]
+    fn test_compile_ne_bool_false() {
+        let input = r#"
+        print(true != true);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_compile_ne_bool_true() {
+        let input = r#"
+        print(true != false);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
+
+    #[test]
+    fn test_compile_eqeq_variables_number_false() {
+        let input = r#"
+        let one = 1;
+        let two = 2;
+        let three = (two == one);
+        print(three);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_compile_eqeq_variables_number_true() {
+        let input = r#"
+        let one = 2;
+        let two = 2;
+        let three = (two == one);
+        print(three);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
+
+    #[test]
+    fn test_compile_eqeq_variables_bool_false() {
         let input = r#"
         let one = true;
         let two = false;
@@ -204,6 +290,19 @@ mod test {
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_compile_eqeq_variables_bool_true() {
+        let input = r#"
+        let one = true;
+        let two = true;
+        let three = (two == one);
+        print(three);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
     }
 
     #[test]
@@ -219,6 +318,36 @@ mod test {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "\"hello\"\n");
     }
+
+
+    #[test]
+    fn test_if_stmt_with_eqeq_stmt_number() {
+        let input = r#"
+        if (1 == 1)
+        {
+            print("hello");
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"hello\"\n");
+    }
+
+    #[test]
+    fn test_if_stmt_with_ne_stmt_bool() {
+        let input = r#"
+        if (1 != 1)
+        {
+            print("not hello");
+        } else {
+            print("hello");
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"hello\"\n");
+    }
+
 
     #[test]
     fn test_if_else_stmt() {
@@ -267,6 +396,20 @@ mod test {
         let value = true;
         while(value) {
             value = false;
+            print(value);
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_compile_while_stmt_one_pass_grouping() {
+        let input = r#"
+        let value = true;
+        while(value) {
+            value = (1 == 2);
             print(value);
         }
         "#;

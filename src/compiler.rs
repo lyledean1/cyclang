@@ -311,9 +311,7 @@ impl ASTContext {
                     unimplemented!()
                 }
             },
-            Expression::Grouping(_input) => {
-                unimplemented!()
-            }
+            Expression::Grouping(_input) => self.match_ast(unbox(_input)),
             Expression::LetStmt(var, lhs) => {
                 match self.var_cache.get(&var) {
                     Some(val) => {
@@ -466,10 +464,13 @@ impl ASTContext {
                     );
 
                     // set variable
-                    self.var_cache.set(&var_name.clone(), Box::new(NumberType {
-                        llmv_value: init_value,
-                        llmv_value_pointer: init_ptr,
-                    }));
+                    self.var_cache.set(
+                        &var_name.clone(),
+                        Box::new(NumberType {
+                            llmv_value: init_value,
+                            llmv_value_pointer: init_ptr,
+                        }),
+                    );
 
                     LLVMBuildStore(self.builder, init_value, init_ptr);
 
@@ -763,12 +764,8 @@ impl TypeBase for NumberType {
                         _rhs.get_value(),
                         c_str!("result"),
                     );
-                    let ptr = LLVMBuildAlloca(
-                        _ast_context.builder,
-                        int32_type(),
-                        c_str!("result"),
-                    );
-                    
+                    let ptr = LLVMBuildAlloca(_ast_context.builder, int32_type(), c_str!("result"));
+
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
@@ -796,11 +793,7 @@ impl TypeBase for NumberType {
                         _rhs.get_value(),
                         c_str!("result"),
                     );
-                    let ptr = LLVMBuildAlloca(
-                        _builder,
-                        int32_type(),
-                        c_str!("result"),
-                    );
+                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
@@ -828,11 +821,7 @@ impl TypeBase for NumberType {
                         _rhs.get_value(),
                         c_str!("result"),
                     );
-                    let ptr = LLVMBuildAlloca(
-                        _builder,
-                        int32_type(),
-                        c_str!("result"),
-                    );
+                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
@@ -860,11 +849,7 @@ impl TypeBase for NumberType {
                         _rhs.get_value(),
                         c_str!("result"),
                     );
-                    let ptr = LLVMBuildAlloca(
-                        _builder,
-                        int32_type(),
-                        c_str!("result"),
-                    );
+                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
@@ -890,6 +875,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntEQ,
+                    int8_type(),
                 );
                 return Box::new(bool_type);
             },
@@ -911,6 +897,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntNE,
+                    int8_type(),
                 );
                 return Box::new(bool_type);
             },
@@ -932,6 +919,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSGT,
+                    int8_type(),
                 );
                 return Box::new(bool_type);
             },
@@ -953,6 +941,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSGE,
+                    int8_type(),
                 );
                 return Box::new(bool_type);
             },
@@ -974,6 +963,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSLT,
+                    int8_type(),
                 );
                 return Box::new(bool_type);
             },
@@ -995,6 +985,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSLE,
+                    int8_type(),
                 );
                 return Box::new(bool_type);
             },
@@ -1055,10 +1046,11 @@ unsafe fn get_comparison_number_type(
     rhs: LLVMValueRef,
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
+    number_type: LLVMTypeRef,
 ) -> BoolType {
     let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    let bool_cmp = LLVMBuildZExt(_builder, cmp, int8_type(), c_str!("bool_cmp"));
+    let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
     let var_name = c_str!("bool_type_eqeq");
     // Check if the global variable already exists
     let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
@@ -1137,6 +1129,74 @@ impl TypeBase for BoolType {
             }
         }
     }
+
+    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::Bool => unsafe {
+                let bool_type = get_comparison_bool_type(
+                    _builder,
+                    _rhs.get_value(),
+                    self.get_value(),
+                    LLVMIntPredicate::LLVMIntEQ,
+                    int1_type(),
+                );
+                return Box::new(bool_type);
+            },
+            _ => {
+                unreachable!(
+                    "Can't add type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+
+    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::Bool => unsafe {
+                let bool_type = get_comparison_bool_type(
+                    _builder,
+                    _rhs.get_value(),
+                    self.get_value(),
+                    LLVMIntPredicate::LLVMIntNE,
+                    int1_type(),
+                );
+                return Box::new(bool_type);
+            },
+            _ => {
+                unreachable!(
+                    "Can't add type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+}
+
+unsafe fn get_comparison_bool_type(
+    _builder: LLVMBuilderRef,
+    rhs: LLVMValueRef,
+    lhs: LLVMValueRef,
+    comparison: LLVMIntPredicate,
+    number_type: LLVMTypeRef,
+) -> BoolType {
+    // TODO: figure out how to print bool value as string? 
+    let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
+    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
+    let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
+    let var_name = c_str!("bool_type_eqeq");
+    // Check if the global variable already exists
+    let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
+    let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
+    
+    return BoolType {
+        builder: _builder,
+        value: bool_value,
+        llmv_value: cmp,
+        llmv_value_pointer: alloca,
+    };
 }
 
 #[derive(Debug, Clone)]
