@@ -756,7 +756,7 @@ mod test {
     fn test_for_loop_stmt_reverse_with_comment() {
         let input = r#"
         /* this is a comment */
-        for (let i = 40; i < 10; i--)
+        for (let i = 40; i > 10; i--)
         {
             print(i);
         }
