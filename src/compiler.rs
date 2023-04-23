@@ -182,22 +182,9 @@ struct ExprContext {
 impl ASTContext {
     fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
         match input {
-            Expression::Number(input) => unsafe {
-                let value = LLVMConstInt(
-                    LLVMInt32TypeInContext(self.context),
-                    input.try_into().unwrap(),
-                    0,
-                );
-                let ptr = LLVMBuildAlloca(
-                    self.builder,
-                    LLVMInt32TypeInContext(self.context),
-                    c_str!("ptr"),
-                );
-                return Box::new(NumberType {
-                    llmv_value: value,
-                    llmv_value_pointer: ptr,
-                });
-            },
+            Expression::Number(input) => {
+                return NumberType::new(Box::new(input), self);
+            }
             Expression::String(input) => {
                 let string = CString::new(input.clone()).unwrap();
                 unsafe {
@@ -223,7 +210,7 @@ impl ASTContext {
                     });
                 }
             }
-            Expression::Bool(input) => BoolType::new(Box::new(input), self.builder),
+            Expression::Bool(input) => BoolType::new(Box::new(input), self),
             Expression::Variable(input) => match self.var_cache.get(&input) {
                 Some(val) => val,
                 None => {
@@ -242,17 +229,17 @@ impl ASTContext {
                 "-" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.sub(self.builder, rhs)
+                    lhs.sub(self, rhs)
                 }
                 "/" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.div(self.builder, rhs)
+                    lhs.div(self, rhs)
                 }
                 "*" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.mul(self.builder, rhs)
+                    lhs.mul(self, rhs)
                 }
                 "^" => {
                     unimplemented!()
@@ -260,32 +247,32 @@ impl ASTContext {
                 "==" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.eqeq(self.builder, rhs)
+                    lhs.eqeq(self, rhs)
                 }
                 "!=" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.ne(self.builder, rhs)
+                    lhs.ne(self, rhs)
                 }
                 "<" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.lt(self.builder, rhs)
+                    lhs.lt(self, rhs)
                 }
                 "<=" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.lte(self.builder, rhs)
+                    lhs.lte(self, rhs)
                 }
                 ">" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.gt(self.builder, rhs)
+                    lhs.gt(self, rhs)
                 }
                 ">=" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.gte(self.builder, rhs)
+                    lhs.gte(self, rhs)
                 }
                 _ => {
                     unimplemented!()
@@ -547,7 +534,7 @@ enum BaseTypes {
 }
 // Types
 trait TypeBase: DynClone {
-    fn new(_value: Box<dyn Any>, _builder: LLVMBuilderRef) -> Box<dyn TypeBase>
+    fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
         Self: Sized,
     {
@@ -579,31 +566,31 @@ trait TypeBase: DynClone {
     fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement add", self.get_type())
     }
-    fn sub(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn sub(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement sub", self.get_type())
     }
-    fn mul(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn mul(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement mul", self.get_type())
     }
-    fn div(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn div(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement div", self.get_type())
     }
-    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement eqeq", self.get_type())
     }
-    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn ne(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement eqeq", self.get_type())
     }
-    fn gt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn gt(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement gt", self.get_type())
     }
-    fn gte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn gte(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement gte", self.get_type())
     }
-    fn lt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn lt(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement lt", self.get_type())
     }
-    fn lte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn lte(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement lte", self.get_type())
     }
 }
@@ -734,6 +721,28 @@ struct NumberType {
 }
 
 impl TypeBase for NumberType {
+    fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase> {
+        let value_as_i32 = match _value.downcast_ref::<i32>() {
+            Some(val) => *val,
+            None => panic!("The input value must be an i32"),
+        };
+        unsafe {
+            let value = LLVMConstInt(
+                LLVMInt32TypeInContext(_context.context),
+                value_as_i32.try_into().unwrap(),
+                0,
+            );
+            let ptr = LLVMBuildAlloca(
+                _context.builder,
+                LLVMInt32TypeInContext(_context.context),
+                c_str!("ptr"),
+            );
+            return Box::new(NumberType {
+                llmv_value: value,
+                llmv_value_pointer: ptr,
+            });
+        }
+    }
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
@@ -769,17 +778,17 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn sub(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn sub(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => {
                 unsafe {
                     let result = LLVMBuildSub(
-                        _builder,
+                        context.builder,
                         self.get_value(),
                         _rhs.get_value(),
                         c_str!("result"),
                     );
-                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
+                    let ptr = LLVMBuildAlloca(context.builder, int32_type(), c_str!("result"));
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
@@ -797,17 +806,17 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn mul(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn mul(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => {
                 unsafe {
                     let result = LLVMBuildMul(
-                        _builder,
+                        context.builder,
                         self.get_value(),
                         _rhs.get_value(),
                         c_str!("result"),
                     );
-                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
+                    let ptr = LLVMBuildAlloca(context.builder, int32_type(), c_str!("result"));
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
@@ -825,17 +834,17 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn div(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn div(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => {
                 unsafe {
                     let result = LLVMBuildFDiv(
-                        _builder,
+                        context.builder,
                         self.get_value(),
                         _rhs.get_value(),
                         c_str!("result"),
                     );
-                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
+                    let ptr = LLVMBuildAlloca(context.builder, int32_type(), c_str!("result"));
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
                     return Box::new(NumberType {
                         llmv_value: result,
@@ -853,11 +862,11 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
-                    _builder,
+                    context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntEQ,
@@ -874,11 +883,11 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn ne(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
-                    _builder,
+                    context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntNE,
@@ -895,11 +904,11 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn gt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn gt(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
-                    _builder,
+                    context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSGT,
@@ -916,11 +925,11 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn gte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn gte(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
-                    _builder,
+                    context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSGE,
@@ -937,11 +946,11 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn lt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn lt(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
-                    _builder,
+                    context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSLT,
@@ -958,11 +967,11 @@ impl TypeBase for NumberType {
         }
     }
 
-    fn lte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn lte(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
-                    _builder,
+                    context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSLE,
@@ -1022,18 +1031,18 @@ impl TypeBase for NumberType {
 }
 
 unsafe fn get_comparison_number_type(
-    _builder: LLVMBuilderRef,
+    _context: &mut ASTContext,
     rhs: LLVMValueRef,
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
     number_type: LLVMTypeRef,
 ) -> Box<dyn TypeBase> {
-    let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
+    let cmp = LLVMBuildICmp(_context.builder, comparison, lhs, rhs, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
+    let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
     let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
 
-    return BoolType::new(Box::new(bool_value), _builder)
+    return BoolType::new(Box::new(bool_value), _context);
 }
 
 #[derive(Debug, Clone)]
@@ -1045,7 +1054,7 @@ struct BoolType {
 }
 
 impl TypeBase for BoolType {
-    fn new(_value: Box<dyn Any>, _builder: LLVMBuilderRef) -> Box<dyn TypeBase>
+    fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
         Self: Sized,
     {
@@ -1062,9 +1071,9 @@ impl TypeBase for BoolType {
             let bool_value = LLVMConstInt(int1_type(), num, 0);
             let var_name = c_str!("bool_type");
             // Check if the global variable already exists
-            let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
+            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), var_name);
             return Box::new(BoolType {
-                builder: _builder,
+                builder: _context.builder,
                 value: value_as_bool,
                 llmv_value: bool_value,
                 llmv_value_pointer: alloca,
@@ -1121,11 +1130,11 @@ impl TypeBase for BoolType {
         }
     }
 
-    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
                 return get_comparison_bool_type(
-                    _builder,
+                    context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntEQ,
@@ -1142,11 +1151,11 @@ impl TypeBase for BoolType {
         }
     }
 
-    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn ne(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
                 return get_comparison_bool_type(
-                    _builder,
+                    context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntNE,
@@ -1165,18 +1174,18 @@ impl TypeBase for BoolType {
 }
 
 unsafe fn get_comparison_bool_type(
-    _builder: LLVMBuilderRef,
+    _context: &mut ASTContext,
     rhs: LLVMValueRef,
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
     number_type: LLVMTypeRef,
 ) -> Box<dyn TypeBase> {
     // TODO: figure out how to print bool value as string?
-    let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
+    let cmp = LLVMBuildICmp(_context.builder, comparison, lhs, rhs, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
+    let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
     let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
-    return BoolType::new(Box::new(bool_value), _builder);
+    return BoolType::new(Box::new(bool_value), _context);
 }
 
 #[derive(Debug, Clone)]
