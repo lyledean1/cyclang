@@ -1,15 +1,14 @@
 #![allow(dead_code)]
-
-use std::collections::HashMap;
+use crate::types::{TypeBase, NumberType, StringType, BlockType, BoolType};
 use std::ffi::CStr;
-use std::ffi::CString;
+
 use std::io::Error;
 use std::process::Output;
+use crate::context::*;
 
 use crate::parser::Expression;
 
 extern crate llvm_sys;
-use dyn_clone::DynClone;
 use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -43,6 +42,7 @@ fn create_string_type(context: LLVMContextRef) -> LLVMTypeRef {
 unsafe fn int8(val: c_ulonglong) -> LLVMValueRef {
     LLVMConstInt(LLVMInt8Type(), val, LLVM_FALSE)
 }
+
 /// Convert this integer to LLVM's representation of a constant
 /// integer.
 // TODO: this should be a machine word size rather than hard-coding 32-bits.
@@ -162,16 +162,6 @@ fn unbox<T>(value: Box<T>) -> T {
     *value
 }
 
-struct ASTContext {
-    builder: LLVMBuilderRef,
-    module: LLVMModuleRef,
-    context: LLVMContextRef,
-    var_cache: VariableCache,
-    llvm_func_cache: LLVMFunctionCache,
-    current_function: LLVMFunction,
-    current_block: LLVMBasicBlockRef,
-}
-
 struct ExprContext {
     alloca: Option<LLVMValueRef>,
 }
@@ -181,68 +171,13 @@ struct ExprContext {
 impl ASTContext {
     fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
         match input {
-            Expression::Number(input) => unsafe {
-                let value = LLVMConstInt(
-                    LLVMInt32TypeInContext(self.context),
-                    input.try_into().unwrap(),
-                    0,
-                );
-                let ptr = LLVMBuildAlloca(
-                    self.builder,
-                    LLVMInt32TypeInContext(self.context),
-                    c_str!("ptr"),
-                );
-                return Box::new(NumberType {
-                    llmv_value: value,
-                    llmv_value_pointer: ptr,
-                });
-            },
+            Expression::Number(input) => {
+                return NumberType::new(Box::new(input), self);
+            }
             Expression::String(input) => {
-                let string = CString::new(input.clone()).unwrap();
-                unsafe {
-                    let value = LLVMConstStringInContext(
-                        self.context,
-                        string.as_ptr(),
-                        string.as_bytes().len() as u32,
-                        0,
-                    );
-                    let mut len_value: usize = string.as_bytes().len() as usize;
-                    let ptr: *mut usize = (&mut len_value) as *mut usize;
-                    let buffer_ptr = LLVMBuildPointerCast(
-                        self.builder,
-                        value,
-                        LLVMPointerType(LLVMInt8Type(), 0),
-                        c_str!("buffer_ptr"),
-                    );
-                    return Box::new(StringType {
-                        length: ptr,
-                        llmv_value: value,
-                        llmv_value_pointer: Some(buffer_ptr),
-                        str_value: input, // fix
-                    });
-                }
+                return StringType::new(Box::new(input), self)
             }
-            Expression::Bool(input) => {
-                let mut num = 0;
-                match input {
-                    true => num = 1,
-                    _ => {}
-                }
-                unsafe {
-                    let bool_value = LLVMConstInt(int1_type(), num, 0);
-                    let var_name = c_str!("bool_type");
-                    // Check if the global variable already exists
-                    let alloca = LLVMBuildAlloca(self.builder, int1_type(), var_name);
-
-                    let build_store = LLVMBuildStore(self.builder, bool_value, alloca);
-                    return Box::new(BoolType {
-                        builder: self.builder,
-                        value: input,
-                        llmv_value: bool_value,
-                        llmv_value_pointer: alloca,
-                    });
-                }
-            }
+            Expression::Bool(input) => BoolType::new(Box::new(input), self),
             Expression::Variable(input) => match self.var_cache.get(&input) {
                 Some(val) => val,
                 None => {
@@ -261,17 +196,17 @@ impl ASTContext {
                 "-" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.sub(self.builder, rhs)
+                    lhs.sub(self, rhs)
                 }
                 "/" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.div(self.builder, rhs)
+                    lhs.div(self, rhs)
                 }
                 "*" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.mul(self.builder, rhs)
+                    lhs.mul(self, rhs)
                 }
                 "^" => {
                     unimplemented!()
@@ -279,32 +214,32 @@ impl ASTContext {
                 "==" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.eqeq(self.builder, rhs)
+                    lhs.eqeq(self, rhs)
                 }
                 "!=" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.ne(self.builder, rhs)
+                    lhs.ne(self, rhs)
                 }
                 "<" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.lt(self.builder, rhs)
+                    lhs.lt(self, rhs)
                 }
                 "<=" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.lte(self.builder, rhs)
+                    lhs.lte(self, rhs)
                 }
                 ">" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.gt(self.builder, rhs)
+                    lhs.gt(self, rhs)
                 }
                 ">=" => {
                     let lhs = self.match_ast(unbox(lhs));
                     let rhs = self.match_ast(unbox(rhs));
-                    lhs.gte(self.builder, rhs)
+                    lhs.gte(self, rhs)
                 }
                 _ => {
                     unimplemented!()
@@ -557,711 +492,3 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
     return output;
 }
 
-#[derive(Debug)]
-enum BaseTypes {
-    String,
-    Number,
-    Bool,
-    Block,
-}
-// Types
-trait TypeBase: DynClone {
-    fn print(&self, ast_context: &mut ASTContext);
-    fn get_type(&self) -> BaseTypes;
-    fn get_value(&self) -> LLVMValueRef;
-    fn set_value(&mut self, _value: LLVMValueRef) {
-        unimplemented!("{:?} type does not implement set_value", self.get_type())
-    }
-    fn get_ptr(&self) -> LLVMValueRef {
-        unimplemented!(
-            "get_ptr is not implemented for this type {:?}",
-            self.get_type()
-        )
-    }
-    fn set_ptr(&mut self, _value: LLVMValueRef) {
-        unimplemented!("{:?} type does not implement set_ptr", self.get_type())
-    }
-
-    // TODO: make this a raw value
-    fn get_str(&self) -> String {
-        unimplemented!("{:?} type does not implement get_cstr", self.get_type())
-    }
-    fn get_length(&self) -> *mut usize {
-        unimplemented!("{:?} type does not implement get_length", self.get_type())
-    }
-    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement add", self.get_type())
-    }
-    fn sub(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement sub", self.get_type())
-    }
-    fn mul(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement mul", self.get_type())
-    }
-    fn div(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement div", self.get_type())
-    }
-    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement eqeq", self.get_type())
-    }
-    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement eqeq", self.get_type())
-    }
-    fn gt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement gt", self.get_type())
-    }
-    fn gte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement gte", self.get_type())
-    }
-    fn lt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement lt", self.get_type())
-    }
-    fn lte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement lte", self.get_type())
-    }
-}
-
-dyn_clone::clone_trait_object!(TypeBase);
-
-#[derive(Debug, Clone)]
-struct StringType {
-    llmv_value: LLVMValueRef,
-    length: *mut usize,
-    llmv_value_pointer: Option<LLVMValueRef>,
-    str_value: String,
-}
-
-impl TypeBase for StringType {
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::String
-    }
-    fn get_value(&self) -> LLVMValueRef {
-        self.llmv_value
-    }
-    fn get_length(&self) -> *mut usize {
-        self.length
-    }
-    fn get_ptr(&self) -> LLVMValueRef {
-        match self.llmv_value_pointer {
-            Some(v) => {
-                return v;
-            }
-            None => {
-                unreachable!("No pointer for this value")
-            }
-        }
-    }
-    fn get_str(&self) -> String {
-        self.str_value.clone()
-    }
-
-    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::String => match _ast_context.llvm_func_cache.get("sprintf") {
-                Some(_sprintf_func) => unsafe {
-                    // TODO: Use sprintf to concatenate two strings
-                    // Remove extra quotes
-                    let new_string = format!(
-                        "{}{}",
-                        self.get_str().to_string(),
-                        _rhs.get_str().to_string()
-                    )
-                    .replace("\"", "");
-
-                    let string = CString::new(new_string.clone()).unwrap();
-                    let value = LLVMConstStringInContext(
-                        _ast_context.context,
-                        string.as_ptr(),
-                        string.as_bytes().len() as u32,
-                        0,
-                    );
-                    let mut len_value: usize = string.as_bytes().len() as usize;
-                    let ptr: *mut usize = (&mut len_value) as *mut usize;
-                    let buffer_ptr = LLVMBuildPointerCast(
-                        _ast_context.builder,
-                        value,
-                        LLVMPointerType(LLVMInt8Type(), 0),
-                        c_str!("buffer_ptr"),
-                    );
-                    return Box::new(StringType {
-                        length: ptr,
-                        llmv_value: value,
-                        llmv_value_pointer: Some(buffer_ptr),
-                        str_value: new_string,
-                    });
-                },
-                _ => {
-                    unreachable!()
-                }
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-    fn print(&self, ast_context: &mut ASTContext) {
-        unsafe {
-            // Set Value
-            // create string vairables and then function
-            // This is the Main Print Func
-            let llvm_value_to_cstr = LLVMGetAsString(self.llmv_value, self.length);
-
-            let value_is_str =
-                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%s\n"), c_str!(""));
-
-            // Load Value from Value Index Ptr
-            let val = LLVMBuildGlobalStringPtr(
-                ast_context.builder,
-                llvm_value_to_cstr,
-                llvm_value_to_cstr,
-            );
-
-            let print_args = [value_is_str, val].as_mut_ptr();
-            match ast_context.llvm_func_cache.get("printf") {
-                Some(print_func) => {
-                    LLVMBuildCall2(
-                        ast_context.builder,
-                        print_func.func_type,
-                        print_func.function,
-                        print_args,
-                        2,
-                        c_str!(""),
-                    );
-                }
-                _ => {
-                    unreachable!()
-                }
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct NumberType {
-    llmv_value: LLVMValueRef,
-    llmv_value_pointer: LLVMValueRef,
-}
-
-impl TypeBase for NumberType {
-    fn get_value(&self) -> LLVMValueRef {
-        self.llmv_value
-    }
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::Number
-    }
-    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let result = LLVMBuildAdd(
-                        _ast_context.builder,
-                        self.get_value(),
-                        _rhs.get_value(),
-                        c_str!("result"),
-                    );
-                    let ptr = LLVMBuildAlloca(_ast_context.builder, int32_type(), c_str!("result"));
-
-                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-                    return Box::new(NumberType {
-                        llmv_value: result,
-                        llmv_value_pointer: ptr,
-                    });
-                }
-            }
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn sub(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let result = LLVMBuildSub(
-                        _builder,
-                        self.get_value(),
-                        _rhs.get_value(),
-                        c_str!("result"),
-                    );
-                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
-                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-                    return Box::new(NumberType {
-                        llmv_value: result,
-                        llmv_value_pointer: ptr,
-                    });
-                }
-            }
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn mul(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let result = LLVMBuildMul(
-                        _builder,
-                        self.get_value(),
-                        _rhs.get_value(),
-                        c_str!("result"),
-                    );
-                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
-                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-                    return Box::new(NumberType {
-                        llmv_value: result,
-                        llmv_value_pointer: ptr,
-                    });
-                }
-            }
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn div(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let result = LLVMBuildFDiv(
-                        _builder,
-                        self.get_value(),
-                        _rhs.get_value(),
-                        c_str!("result"),
-                    );
-                    let ptr = LLVMBuildAlloca(_builder, int32_type(), c_str!("result"));
-                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-                    return Box::new(NumberType {
-                        llmv_value: result,
-                        llmv_value_pointer: ptr,
-                    });
-                }
-            }
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
-                    _builder,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntEQ,
-                    int8_type(),
-                );
-                return Box::new(bool_type);
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
-                    _builder,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntNE,
-                    int8_type(),
-                );
-                return Box::new(bool_type);
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn gt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
-                    _builder,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntSGT,
-                    int8_type(),
-                );
-                return Box::new(bool_type);
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn gte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
-                    _builder,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntSGE,
-                    int8_type(),
-                );
-                return Box::new(bool_type);
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn lt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
-                    _builder,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntSLT,
-                    int8_type(),
-                );
-                return Box::new(bool_type);
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn lte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
-                    _builder,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntSLE,
-                    int8_type(),
-                );
-                return Box::new(bool_type);
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn print(&self, ast_context: &mut ASTContext) {
-        unsafe {
-            let value_index_ptr =
-                LLVMBuildAlloca(ast_context.builder, int32_type(), c_str!("value"));
-            // First thing is to set initial value
-
-            LLVMBuildStore(ast_context.builder, self.llmv_value, value_index_ptr);
-
-            // Set Value
-            // create string vairables and then function
-            // This is the Main Print Func
-
-            let value_is_str =
-                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%d\n"), c_str!(""));
-            // Load Value from Value Index Ptr
-            let val = LLVMBuildLoad2(
-                ast_context.builder,
-                int8_ptr_type(),
-                value_index_ptr,
-                c_str!("value"),
-            );
-
-            let print_args = [value_is_str, val].as_mut_ptr();
-            match ast_context.llvm_func_cache.get("printf") {
-                Some(print_func) => {
-                    LLVMBuildCall2(
-                        ast_context.builder,
-                        print_func.func_type,
-                        print_func.function,
-                        print_args,
-                        2,
-                        c_str!(""),
-                    );
-                }
-                _ => {
-                    unreachable!()
-                }
-            }
-        }
-    }
-}
-
-unsafe fn get_comparison_number_type(
-    _builder: LLVMBuilderRef,
-    rhs: LLVMValueRef,
-    lhs: LLVMValueRef,
-    comparison: LLVMIntPredicate,
-    number_type: LLVMTypeRef,
-) -> BoolType {
-    let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
-    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
-    let var_name = c_str!("bool_type_eqeq");
-    // Check if the global variable already exists
-    let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
-    let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
-
-    return BoolType {
-        builder: _builder,
-        value: bool_value,
-        llmv_value: bool_cmp,
-        llmv_value_pointer: alloca,
-    };
-}
-
-#[derive(Debug, Clone)]
-struct BoolType {
-    builder: LLVMBuilderRef,
-    value: bool,
-    llmv_value: LLVMValueRef,
-    llmv_value_pointer: LLVMValueRef,
-}
-
-impl TypeBase for BoolType {
-    fn get_value(&self) -> LLVMValueRef {
-        self.llmv_value
-    }
-    fn set_value(&mut self, _value: LLVMValueRef) {
-        self.llmv_value = _value;
-    }
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::Bool
-    }
-    fn get_ptr(&self) -> LLVMValueRef {
-        self.llmv_value_pointer
-    }
-    fn set_ptr(&mut self, _value: LLVMValueRef) {
-        self.llmv_value_pointer = _value;
-    }
-    fn print(&self, ast_context: &mut ASTContext) {
-        unsafe {
-            let mut llvm_value_str =
-                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("true"), c_str!("true_str"));
-            match self.value {
-                false => {
-                    llvm_value_str = LLVMBuildGlobalStringPtr(
-                        ast_context.builder,
-                        c_str!("false"),
-                        c_str!("false_str"),
-                    );
-                }
-                _ => {}
-            }
-            let value_is_str =
-                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%s\n"), c_str!(""));
-            let print_args = [value_is_str, llvm_value_str].as_mut_ptr();
-            match ast_context.llvm_func_cache.get("printf") {
-                Some(print_func) => {
-                    LLVMBuildCall2(
-                        ast_context.builder,
-                        print_func.func_type,
-                        print_func.function,
-                        print_args,
-                        2,
-                        c_str!(""),
-                    );
-                }
-                _ => {
-                    unreachable!()
-                }
-            }
-        }
-    }
-
-    fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Bool => unsafe {
-                let bool_type = get_comparison_bool_type(
-                    _builder,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntEQ,
-                    int1_type(),
-                );
-                return Box::new(bool_type);
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Bool => unsafe {
-                let bool_type = get_comparison_bool_type(
-                    _builder,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntNE,
-                    int1_type(),
-                );
-                return Box::new(bool_type);
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-}
-
-unsafe fn get_comparison_bool_type(
-    _builder: LLVMBuilderRef,
-    rhs: LLVMValueRef,
-    lhs: LLVMValueRef,
-    comparison: LLVMIntPredicate,
-    number_type: LLVMTypeRef,
-) -> BoolType {
-    // TODO: figure out how to print bool value as string?
-    let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
-    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
-    let var_name = c_str!("bool_type_eqeq");
-    // Check if the global variable already exists
-    let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
-    let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
-    return BoolType {
-        builder: _builder,
-        value: bool_value,
-        llmv_value: cmp,
-        llmv_value_pointer: alloca,
-    };
-}
-
-#[derive(Debug, Clone)]
-struct BlockType {
-    values: Vec<Expression>,
-}
-
-impl TypeBase for BlockType {
-    fn get_value(&self) -> LLVMValueRef {
-        unimplemented!("No value ref for block type")
-    }
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::Block
-    }
-    fn print(&self, _ast_context: &mut ASTContext) {
-        unreachable!("Shouldn't be able to print block type")
-    }
-}
-
-#[derive(Clone)]
-struct Container {
-    trait_object: Box<dyn TypeBase>,
-}
-struct VariableCache {
-    map: HashMap<String, Container>,
-}
-
-impl VariableCache {
-    fn new() -> Self {
-        VariableCache {
-            map: HashMap::new(),
-        }
-    }
-
-    fn set(&mut self, key: &str, value: Box<dyn TypeBase>) {
-        self.map.insert(
-            key.to_string(),
-            Container {
-                trait_object: value,
-            },
-        );
-    }
-
-    fn get(&self, key: &str) -> Option<Box<dyn TypeBase>> {
-        match self.map.get(key) {
-            Some(v) => Some(dyn_clone::clone_box(&*v.trait_object)),
-            None => None,
-        }
-    }
-}
-
-struct LLVMFunctionCache {
-    map: HashMap<String, LLVMFunction>,
-}
-
-#[derive(Clone, Copy)]
-struct LLVMFunction {
-    function: LLVMValueRef,
-    func_type: LLVMTypeRef,
-}
-
-impl LLVMFunctionCache {
-    fn new() -> Self {
-        LLVMFunctionCache {
-            map: HashMap::new(),
-        }
-    }
-
-    fn set(&mut self, key: &str, value: LLVMFunction) {
-        self.map.insert(key.to_string(), value);
-    }
-
-    fn get(&self, key: &str) -> Option<LLVMFunction> {
-        //HACK, copy each time, probably want one reference to this
-        self.map.get(key).copied()
-    }
-}
