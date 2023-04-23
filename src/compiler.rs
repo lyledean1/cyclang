@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::any::Any;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -222,27 +223,7 @@ impl ASTContext {
                     });
                 }
             }
-            Expression::Bool(input) => {
-                let mut num = 0;
-                match input {
-                    true => num = 1,
-                    _ => {}
-                }
-                unsafe {
-                    let bool_value = LLVMConstInt(int1_type(), num, 0);
-                    let var_name = c_str!("bool_type");
-                    // Check if the global variable already exists
-                    let alloca = LLVMBuildAlloca(self.builder, int1_type(), var_name);
-
-                    let build_store = LLVMBuildStore(self.builder, bool_value, alloca);
-                    return Box::new(BoolType {
-                        builder: self.builder,
-                        value: input,
-                        llmv_value: bool_value,
-                        llmv_value_pointer: alloca,
-                    });
-                }
-            }
+            Expression::Bool(input) => BoolType::new(Box::new(input), self.builder),
             Expression::Variable(input) => match self.var_cache.get(&input) {
                 Some(val) => val,
                 None => {
@@ -566,6 +547,12 @@ enum BaseTypes {
 }
 // Types
 trait TypeBase: DynClone {
+    fn new(_value: Box<dyn Any>, _builder: LLVMBuilderRef) -> Box<dyn TypeBase>
+    where
+        Self: Sized,
+    {
+        unimplemented!("new has not been implemented for this type");
+    }
     fn print(&self, ast_context: &mut ASTContext);
     fn get_type(&self) -> BaseTypes;
     fn get_value(&self) -> LLVMValueRef;
@@ -869,14 +856,13 @@ impl TypeBase for NumberType {
     fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
+                return get_comparison_number_type(
                     _builder,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntEQ,
                     int8_type(),
                 );
-                return Box::new(bool_type);
             },
             _ => {
                 unreachable!(
@@ -891,14 +877,13 @@ impl TypeBase for NumberType {
     fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
+                return get_comparison_number_type(
                     _builder,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntNE,
                     int8_type(),
                 );
-                return Box::new(bool_type);
             },
             _ => {
                 unreachable!(
@@ -913,14 +898,13 @@ impl TypeBase for NumberType {
     fn gt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
+                return get_comparison_number_type(
                     _builder,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSGT,
                     int8_type(),
                 );
-                return Box::new(bool_type);
             },
             _ => {
                 unreachable!(
@@ -935,14 +919,13 @@ impl TypeBase for NumberType {
     fn gte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
+                return get_comparison_number_type(
                     _builder,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSGE,
                     int8_type(),
                 );
-                return Box::new(bool_type);
             },
             _ => {
                 unreachable!(
@@ -957,14 +940,13 @@ impl TypeBase for NumberType {
     fn lt(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
+                return get_comparison_number_type(
                     _builder,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSLT,
                     int8_type(),
                 );
-                return Box::new(bool_type);
             },
             _ => {
                 unreachable!(
@@ -979,14 +961,13 @@ impl TypeBase for NumberType {
     fn lte(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let bool_type = get_comparison_number_type(
+                return get_comparison_number_type(
                     _builder,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntSLE,
                     int8_type(),
                 );
-                return Box::new(bool_type);
             },
             _ => {
                 unreachable!(
@@ -1046,21 +1027,13 @@ unsafe fn get_comparison_number_type(
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
     number_type: LLVMTypeRef,
-) -> BoolType {
+) -> Box<dyn TypeBase> {
     let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
     let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
-    let var_name = c_str!("bool_type_eqeq");
-    // Check if the global variable already exists
-    let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
     let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
 
-    return BoolType {
-        builder: _builder,
-        value: bool_value,
-        llmv_value: bool_cmp,
-        llmv_value_pointer: alloca,
-    };
+    return BoolType::new(Box::new(bool_value), _builder)
 }
 
 #[derive(Debug, Clone)]
@@ -1072,6 +1045,32 @@ struct BoolType {
 }
 
 impl TypeBase for BoolType {
+    fn new(_value: Box<dyn Any>, _builder: LLVMBuilderRef) -> Box<dyn TypeBase>
+    where
+        Self: Sized,
+    {
+        let value_as_bool = match _value.downcast_ref::<bool>() {
+            Some(val) => *val,
+            None => panic!("The input value must be a bool"),
+        };
+        unsafe {
+            let mut num = 0;
+            match value_as_bool {
+                true => num = 1,
+                _ => {}
+            }
+            let bool_value = LLVMConstInt(int1_type(), num, 0);
+            let var_name = c_str!("bool_type");
+            // Check if the global variable already exists
+            let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
+            return Box::new(BoolType {
+                builder: _builder,
+                value: value_as_bool,
+                llmv_value: bool_value,
+                llmv_value_pointer: alloca,
+            });
+        }
+    }
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
@@ -1125,14 +1124,13 @@ impl TypeBase for BoolType {
     fn eqeq(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
-                let bool_type = get_comparison_bool_type(
+                return get_comparison_bool_type(
                     _builder,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntEQ,
                     int1_type(),
                 );
-                return Box::new(bool_type);
             },
             _ => {
                 unreachable!(
@@ -1147,14 +1145,13 @@ impl TypeBase for BoolType {
     fn ne(&self, _builder: LLVMBuilderRef, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
-                let bool_type = get_comparison_bool_type(
+                return get_comparison_bool_type(
                     _builder,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntNE,
                     int1_type(),
                 );
-                return Box::new(bool_type);
             },
             _ => {
                 unreachable!(
@@ -1173,21 +1170,13 @@ unsafe fn get_comparison_bool_type(
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
     number_type: LLVMTypeRef,
-) -> BoolType {
+) -> Box<dyn TypeBase> {
     // TODO: figure out how to print bool value as string?
     let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
     let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
-    let var_name = c_str!("bool_type_eqeq");
-    // Check if the global variable already exists
-    let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
     let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
-    return BoolType {
-        builder: _builder,
-        value: bool_value,
-        llmv_value: cmp,
-        llmv_value_pointer: alloca,
-    };
+    return BoolType::new(Box::new(bool_value), _builder);
 }
 
 #[derive(Debug, Clone)]
