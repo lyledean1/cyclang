@@ -186,29 +186,7 @@ impl ASTContext {
                 return NumberType::new(Box::new(input), self);
             }
             Expression::String(input) => {
-                let string = CString::new(input.clone()).unwrap();
-                unsafe {
-                    let value = LLVMConstStringInContext(
-                        self.context,
-                        string.as_ptr(),
-                        string.as_bytes().len() as u32,
-                        0,
-                    );
-                    let mut len_value: usize = string.as_bytes().len() as usize;
-                    let ptr: *mut usize = (&mut len_value) as *mut usize;
-                    let buffer_ptr = LLVMBuildPointerCast(
-                        self.builder,
-                        value,
-                        LLVMPointerType(LLVMInt8Type(), 0),
-                        c_str!("buffer_ptr"),
-                    );
-                    return Box::new(StringType {
-                        length: ptr,
-                        llmv_value: value,
-                        llmv_value_pointer: Some(buffer_ptr),
-                        str_value: input, // fix
-                    });
-                }
+                return StringType::new(Box::new(input), self)
             }
             Expression::Bool(input) => BoolType::new(Box::new(input), self),
             Expression::Variable(input) => match self.var_cache.get(&input) {
@@ -606,6 +584,38 @@ struct StringType {
 }
 
 impl TypeBase for StringType {
+    fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
+    where
+        Self: Sized,
+    {
+        let value_as_string = match _value.downcast_ref::<String>() {
+            Some(val) => val.to_string(),
+            None => panic!("The input value must be a bool"),
+        };
+        let string = CString::new(value_as_string.clone()).unwrap();
+        unsafe {
+            let value = LLVMConstStringInContext(
+                _context.context,
+                string.as_ptr(),
+                string.as_bytes().len() as u32,
+                0,
+            );
+            let mut len_value: usize = string.as_bytes().len() as usize;
+            let ptr: *mut usize = (&mut len_value) as *mut usize;
+            let buffer_ptr = LLVMBuildPointerCast(
+                _context.builder,
+                value,
+                LLVMPointerType(LLVMInt8Type(), 0),
+                c_str!("buffer_ptr"),
+            );
+            return Box::new(StringType {
+                length: ptr,
+                llmv_value: value,
+                llmv_value_pointer: Some(buffer_ptr),
+                str_value: value_as_string, // fix
+            });
+        }
+    }
     fn get_type(&self) -> BaseTypes {
         BaseTypes::String
     }
