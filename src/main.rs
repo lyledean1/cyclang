@@ -7,6 +7,8 @@ use std::{fs, process::Output};
 mod compiler;
 mod parser;
 mod repl;
+mod context;
+mod types;
 
 #[derive(Parser, Debug)]
 struct Args {
