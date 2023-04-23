@@ -235,11 +235,10 @@ impl ASTContext {
                     let alloca = LLVMBuildAlloca(self.builder, int1_type(), var_name);
 
                     let build_store = LLVMBuildStore(self.builder, bool_value, alloca);
-
                     return Box::new(BoolType {
                         builder: self.builder,
                         value: input,
-                        llmv_value: alloca,
+                        llmv_value: bool_value,
                         llmv_value_pointer: alloca,
                     });
                 }
@@ -1074,14 +1073,7 @@ struct BoolType {
 
 impl TypeBase for BoolType {
     fn get_value(&self) -> LLVMValueRef {
-        unsafe {
-            LLVMBuildLoad2(
-                self.builder,
-                int1_type(),
-                self.llmv_value,
-                c_str!("bool_type"),
-            )
-        }
+        self.llmv_value
     }
     fn set_value(&mut self, _value: LLVMValueRef) {
         self.llmv_value = _value;
@@ -1182,7 +1174,7 @@ unsafe fn get_comparison_bool_type(
     comparison: LLVMIntPredicate,
     number_type: LLVMTypeRef,
 ) -> BoolType {
-    // TODO: figure out how to print bool value as string? 
+    // TODO: figure out how to print bool value as string?
     let cmp = LLVMBuildICmp(_builder, comparison, lhs, rhs, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
     let bool_cmp = LLVMBuildZExt(_builder, cmp, number_type, c_str!("bool_cmp"));
@@ -1190,7 +1182,6 @@ unsafe fn get_comparison_bool_type(
     // Check if the global variable already exists
     let alloca = LLVMBuildAlloca(_builder, int1_type(), var_name);
     let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
-    
     return BoolType {
         builder: _builder,
         value: bool_value,
