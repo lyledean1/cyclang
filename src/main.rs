@@ -319,7 +319,6 @@ mod test {
         assert_eq!(stdout, "\"hello\"\n");
     }
 
-
     #[test]
     fn test_if_stmt_with_eqeq_stmt_number() {
         let input = r#"
@@ -347,7 +346,6 @@ mod test {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "\"hello\"\n");
     }
-
 
     #[test]
     fn test_if_else_stmt() {
@@ -402,6 +400,20 @@ mod test {
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_compile_while_stmt_no_pass() {
+        let input = r#"
+        let value = true;
+        while(1 == 2) {
+            value = false;
+        }
+        print(value);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
     }
 
     #[test]

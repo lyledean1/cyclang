@@ -1,7 +1,7 @@
 /* this is a while statement */
 /* example */
 
-let is_true = true;
+let is_true = true == true;
 while (is_true) {
     print(is_true);
     print("here");
