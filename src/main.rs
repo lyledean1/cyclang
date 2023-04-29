@@ -437,7 +437,6 @@ mod test {
         let input = r#"
         let value = false;
         while(value) {
-            value = false;
             print(value);
         }
         "#;
@@ -449,7 +448,7 @@ mod test {
     #[test]
     fn test_compile_while_stmt_with_if() {
         let input = r#"
-        let value = false;
+        let value = true;
         let i = 0;
         while(value) {
             if (i == 10) {

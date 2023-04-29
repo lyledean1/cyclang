@@ -105,6 +105,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
             LLVMFunction {
                 function: print_func,
                 func_type: print_func_type,
+                block: main_block,
             },
         );
         //sprintf
@@ -123,6 +124,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
             LLVMFunction {
                 function: sprintf,
                 func_type: sprintf_type,
+                block: main_block,
             },
         );
 
@@ -136,6 +138,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
             current_function: LLVMFunction {
                 function: main_func,
                 func_type: main_func_type,
+                block: main_block,
             },
             current_block: main_block,
         };
@@ -327,16 +330,31 @@ impl ASTContext {
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 unsafe {
+                    // build new function 
+                    let function_name = c_str!("while_loop");
+                    let main_function = self.current_function.function;
+                    let main_func_type = self.current_function.func_type;
+                    let while_function_type = LLVMFunctionType(
+                        LLVMVoidType(), // Change the return type to void
+                        ptr::null_mut(),
+                        0,
+                        0,
+                    );
+                    let while_function = LLVMAddFunction(self.module, function_name, while_function_type);
+                    self.current_function.function = while_function;
+                    self.current_function.func_type = while_function_type;
+
                     let var_name = c_str!("bool_type");
                     // Check if the global variable already exists
 
                     let loop_cond_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
+                        LLVMAppendBasicBlock(while_function, c_str!("loop_cond"));
                     let loop_body_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_body"));
+                        LLVMAppendBasicBlock(while_function, c_str!("loop_body"));
                     let loop_exit_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
+                        LLVMAppendBasicBlock(while_function, c_str!("loop_exit"));
                     LLVMBuildBr(self.builder, loop_cond_block);
+                    LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
                     self.match_ast(unbox(while_block_stmt));
 
                     let value_condition = self.match_ast(unbox(condition));
@@ -368,6 +386,13 @@ impl ASTContext {
 
                     // Position builder at loop exit block
                     LLVMPositionBuilderAtEnd(self.builder, loop_exit_block);
+
+                    //call main function
+                    self.current_function.function = main_function;
+                    self.current_function.func_type = main_func_type;
+                    LLVMPositionBuilderAtEnd(self.builder, self.current_function.block);
+                    LLVMBuildCall2(self.builder, while_function_type, while_function, [].as_mut_ptr(), 0, c_str!(""));
+
                     value_condition
                 }
             }
@@ -469,7 +494,7 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
 
     match output {
         Ok(_ok) => {
-            // print!("{:?}\n", _ok);
+            print!("{:?}\n", _ok);
         }
         Err(e) => return Err(e),
     }
