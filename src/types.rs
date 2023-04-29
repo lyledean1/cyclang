@@ -334,6 +334,11 @@ pub struct NumberType {
     pub llmv_value_pointer: LLVMValueRef,
 }
 
+fn get_i32_value(value: LLVMValueRef) -> i32 {
+    let zext_value: c_ulonglong = unsafe { LLVMConstIntGetZExtValue(value) };
+    zext_value as i32
+}
+
 impl TypeBase for NumberType {
     fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase> {
         let value_as_i32 = match _value.downcast_ref::<i32>() {
@@ -366,25 +371,17 @@ impl TypeBase for NumberType {
     fn get_ptr(&self) -> LLVMValueRef {
         self.llmv_value_pointer
     }
-    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn add(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let result = LLVMBuildAdd(
-                        _ast_context.builder,
-                        self.get_value(),
-                        _rhs.get_value(),
-                        c_str!("result"),
-                    );
-                    let ptr = LLVMBuildAlloca(_ast_context.builder, int32_type(), c_str!("result"));
-
-                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-                    return Box::new(NumberType {
-                        llmv_value: result,
-                        llmv_value_pointer: ptr,
-                    });
-                }
-            }
+            BaseTypes::Number => unsafe {
+                let result = LLVMBuildAdd(
+                    context.builder,
+                    self.get_value(),
+                    _rhs.get_value(),
+                    c_str!("result"),
+                );
+                return NumberType::new(Box::new(get_i32_value(result)), context);
+            },
             _ => {
                 unreachable!(
                     "Can't add type {:?} and type {:?}",
@@ -397,22 +394,16 @@ impl TypeBase for NumberType {
 
     fn sub(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let result = LLVMBuildSub(
-                        context.builder,
-                        self.get_value(),
-                        _rhs.get_value(),
-                        c_str!("result"),
-                    );
-                    let ptr = LLVMBuildAlloca(context.builder, int32_type(), c_str!("result"));
-                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-                    return Box::new(NumberType {
-                        llmv_value: result,
-                        llmv_value_pointer: ptr,
-                    });
-                }
-            }
+            BaseTypes::Number => unsafe {
+                let result = LLVMBuildSub(
+                    context.builder,
+                    self.get_value(),
+                    _rhs.get_value(),
+                    c_str!("result"),
+                );
+
+                return NumberType::new(Box::new(get_i32_value(result)), context);
+            },
             _ => {
                 unreachable!(
                     "Can't add type {:?} and type {:?}",
@@ -425,22 +416,15 @@ impl TypeBase for NumberType {
 
     fn mul(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let result = LLVMBuildMul(
-                        context.builder,
-                        self.get_value(),
-                        _rhs.get_value(),
-                        c_str!("result"),
-                    );
-                    let ptr = LLVMBuildAlloca(context.builder, int32_type(), c_str!("result"));
-                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-                    return Box::new(NumberType {
-                        llmv_value: result,
-                        llmv_value_pointer: ptr,
-                    });
-                }
-            }
+            BaseTypes::Number => unsafe {
+                let result = LLVMBuildMul(
+                    context.builder,
+                    self.get_value(),
+                    _rhs.get_value(),
+                    c_str!("result"),
+                );
+                return NumberType::new(Box::new(get_i32_value(result)), context);
+            },
             _ => {
                 unreachable!(
                     "Can't add type {:?} and type {:?}",
@@ -453,23 +437,15 @@ impl TypeBase for NumberType {
 
     fn div(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let result = LLVMBuildFDiv(
-                        context.builder,
-                        self.get_value(),
-                        _rhs.get_value(),
-                        c_str!("result"),
-                    );
-                    let ptr = LLVMBuildAlloca(context.builder, int32_type(), c_str!("result"));
-                    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-                    
-                    return Box::new(NumberType {
-                        llmv_value: result,
-                        llmv_value_pointer: ptr,
-                    });
-                }
-            }
+            BaseTypes::Number => unsafe {
+                let result = LLVMBuildFDiv(
+                    context.builder,
+                    self.get_value(),
+                    _rhs.get_value(),
+                    c_str!("result"),
+                );
+                return NumberType::new(Box::new(get_i32_value(result)), context);
+            },
             _ => {
                 unreachable!(
                     "Can't add type {:?} and type {:?}",
@@ -614,7 +590,7 @@ impl TypeBase for NumberType {
             let val = LLVMBuildLoad2(
                 ast_context.builder,
                 int8_ptr_type(),
-                self.llmv_value_pointer,
+                self.llmv_value,
                 c_str!("value"),
             );
 
