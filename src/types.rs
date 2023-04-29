@@ -356,6 +356,7 @@ impl TypeBase for NumberType {
                 LLVMInt32TypeInContext(_context.context),
                 c_str!("ptr"),
             );
+            LLVMBuildStore(_context.builder, value, ptr);
             return Box::new(NumberType {
                 llmv_value: value,
                 llmv_value_pointer: ptr,
@@ -438,7 +439,7 @@ impl TypeBase for NumberType {
     fn div(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let result = LLVMBuildFDiv(
+                let result = LLVMBuildSDiv(
                     context.builder,
                     self.get_value(),
                     _rhs.get_value(),
@@ -590,7 +591,7 @@ impl TypeBase for NumberType {
             let val = LLVMBuildLoad2(
                 ast_context.builder,
                 int8_ptr_type(),
-                self.llmv_value,
+                self.llmv_value_pointer,
                 c_str!("value"),
             );
 

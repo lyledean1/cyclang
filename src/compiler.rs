@@ -383,9 +383,7 @@ impl ASTContext {
                     let loop_exit_block =
                         LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
 
-                    let i = NumberType::new(Box::new(init), self);
-
-                    // set variable
+                    let i: Box<dyn TypeBase> = NumberType::new(Box::new(init), self);
 
                     let value = i.clone().get_value();
                     let ptr = i.clone().get_ptr();
@@ -398,18 +396,22 @@ impl ASTContext {
 
                     // Build loop condition block
                     LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
+
+                    let op = LLVMIntPredicate::LLVMIntSLT;
+                    let op_lhs = ptr;
+                    let op_rhs = length;
                     let loop_condition = LLVMBuildICmp(
                         self.builder,
-                        LLVMIntPredicate::LLVMIntSLT,
+                        op,
                         LLVMBuildLoad2(
                             self.builder,
                             LLVMInt32TypeInContext(self.context),
-                            ptr,
+                            op_lhs,
                             c_str!(""),
                         ),
                         LLVMConstInt(
                             LLVMInt32TypeInContext(self.context),
-                            length.try_into().unwrap(),
+                            op_rhs.try_into().unwrap(),
                             0,
                         ),
                         c_str!(""),
@@ -424,6 +426,7 @@ impl ASTContext {
                     // Build loop body block
                     LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
                     let for_block_cond = self.match_ast(unbox(for_block_expr));
+
                     let new_value = LLVMBuildAdd(
                         self.builder,
                         LLVMBuildLoad2(
@@ -435,7 +438,6 @@ impl ASTContext {
                         LLVMConstInt(LLVMInt32TypeInContext(self.context), increment as u64, 0),
                         c_str!(""),
                     );
-
                     LLVMBuildStore(self.builder, new_value, ptr);
                     LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
 
