@@ -19,8 +19,9 @@ asharp --file /path/to/file.asharp
 
 ## Features
 
-- [ ] REPL
-- [ ] CLI Tool
+- [x] cli
+- [ ] repl
+- [ ] JIT
 
 ## Grammar
 
@@ -31,16 +32,18 @@ asharp --file /path/to/file.asharp
     - [x] Subtraction
     - [x] Multiplication
     - [x] Division
-- [ ] Grouping
+- [ ] Boolean
+- [x] Grouping
 - [ ] Lists
 - [ ] Map
 - [x] Boolean
-- [ ] Print Statements
+- [x] Print Statements
 - [ ] Null Values
 - [x] Variables 
     - [x] Reassignment
 - [x] Let Statements
-- [ ] If Statements 
+- [x] If Statements 
+- [ ] While Statements
 - [ ] For Loops
     - [ ] Loop over range
     - [ ] Loop over values in list 

@@ -259,6 +259,40 @@ impl TypeBase for StringType {
             }
         }
     }
+
+    fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::String => {
+                let value = self.get_str() == _rhs.get_str();
+                return BoolType::new(Box::new(value), _context);
+            }   
+            _=> { 
+                unreachable!(
+                    "Can't compare == on dtype {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )   
+            }
+        }
+    }
+
+    fn ne(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::String => {
+                let value = self.get_str() != _rhs.get_str();
+                return BoolType::new(Box::new(value), _context);
+            }
+            _=> { 
+                unreachable!(
+                    "Can't compare != on type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )   
+            }
+        }
+    }
+
+
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
             // Set Value
