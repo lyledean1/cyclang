@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
+use crate::types::TypeBase;
 use std::collections::HashMap;
-use crate::types::{TypeBase};
 extern crate llvm_sys;
 use llvm_sys::prelude::*;
 
