@@ -5,9 +5,9 @@ use std::fmt;
 use std::process::exit;
 use std::{fs, process::Output};
 mod compiler;
+mod context;
 mod parser;
 mod repl;
-mod context;
 mod types;
 
 #[derive(Parser, Debug)]

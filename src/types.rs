@@ -2,11 +2,10 @@
 
 use std::any::Any;
 
-
-use std::ffi::CString;
-use dyn_clone::DynClone;
-use crate::parser::Expression;
 use crate::context::ASTContext;
+use crate::parser::Expression;
+use dyn_clone::DynClone;
+use std::ffi::CString;
 use std::os::raw::c_ulonglong;
 
 extern crate llvm_sys;
@@ -73,7 +72,6 @@ fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
         bool_value
     }
 }
-
 
 #[derive(Debug)]
 pub enum BaseTypes {
@@ -265,13 +263,13 @@ impl TypeBase for StringType {
             BaseTypes::String => {
                 let value = self.get_str() == _rhs.get_str();
                 return BoolType::new(Box::new(value), _context);
-            }   
-            _=> { 
+            }
+            _ => {
                 unreachable!(
                     "Can't compare == on dtype {:?} and type {:?}",
                     self.get_type(),
                     _rhs.get_type()
-                )   
+                )
             }
         }
     }
@@ -282,16 +280,15 @@ impl TypeBase for StringType {
                 let value = self.get_str() != _rhs.get_str();
                 return BoolType::new(Box::new(value), _context);
             }
-            _=> { 
+            _ => {
                 unreachable!(
                     "Can't compare != on type {:?} and type {:?}",
                     self.get_type(),
                     _rhs.get_type()
-                )   
+                )
             }
         }
     }
-
 
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
@@ -365,6 +362,9 @@ impl TypeBase for NumberType {
     }
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Number
+    }
+    fn get_ptr(&self) -> LLVMValueRef {
+        self.llmv_value_pointer
     }
     fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
@@ -463,6 +463,7 @@ impl TypeBase for NumberType {
                     );
                     let ptr = LLVMBuildAlloca(context.builder, int32_type(), c_str!("result"));
                     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
+                    
                     return Box::new(NumberType {
                         llmv_value: result,
                         llmv_value_pointer: ptr,
@@ -607,23 +608,13 @@ impl TypeBase for NumberType {
 
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
-            let value_index_ptr =
-                LLVMBuildAlloca(ast_context.builder, int32_type(), c_str!("value"));
-            // First thing is to set initial value
-
-            LLVMBuildStore(ast_context.builder, self.llmv_value, value_index_ptr);
-
-            // Set Value
-            // create string vairables and then function
-            // This is the Main Print Func
-
             let value_is_str =
                 LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%d\n"), c_str!(""));
             // Load Value from Value Index Ptr
             let val = LLVMBuildLoad2(
                 ast_context.builder,
                 int8_ptr_type(),
-                value_index_ptr,
+                self.llmv_value_pointer,
                 c_str!("value"),
             );
 

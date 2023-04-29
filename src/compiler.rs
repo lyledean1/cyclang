@@ -1,10 +1,10 @@
 #![allow(dead_code)]
-use crate::types::{TypeBase, NumberType, StringType, BlockType, BoolType};
+use crate::types::{BlockType, BoolType, NumberType, StringType, TypeBase};
 use std::ffi::CStr;
 
+use crate::context::*;
 use std::io::Error;
 use std::process::Output;
-use crate::context::*;
 
 use crate::parser::Expression;
 
@@ -174,9 +174,7 @@ impl ASTContext {
             Expression::Number(input) => {
                 return NumberType::new(Box::new(input), self);
             }
-            Expression::String(input) => {
-                return StringType::new(Box::new(input), self)
-            }
+            Expression::String(input) => return StringType::new(Box::new(input), self),
             Expression::Bool(input) => BoolType::new(Box::new(input), self),
             Expression::Variable(input) => match self.var_cache.get(&input) {
                 Some(val) => val,
@@ -385,28 +383,15 @@ impl ASTContext {
                     let loop_exit_block =
                         LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
 
-                    // Initialize the loop variable
-                    let init_value = LLVMConstInt(
-                        LLVMInt32TypeInContext(self.context),
-                        init.try_into().unwrap(),
-                        0,
-                    );
-                    let init_ptr = LLVMBuildAlloca(
-                        self.builder,
-                        LLVMInt32TypeInContext(self.context),
-                        c_str!("init_value"),
-                    );
+                    let i = NumberType::new(Box::new(init), self);
 
                     // set variable
-                    self.var_cache.set(
-                        &var_name.clone(),
-                        Box::new(NumberType {
-                            llmv_value: init_value,
-                            llmv_value_pointer: init_ptr,
-                        }),
-                    );
 
-                    LLVMBuildStore(self.builder, init_value, init_ptr);
+                    let value = i.clone().get_value();
+                    let ptr = i.clone().get_ptr();
+                    self.var_cache.set(&var_name.clone(), i);
+
+                    LLVMBuildStore(self.builder, value, ptr);
 
                     // Branch to loop condition block
                     LLVMBuildBr(self.builder, loop_cond_block);
@@ -419,7 +404,7 @@ impl ASTContext {
                         LLVMBuildLoad2(
                             self.builder,
                             LLVMInt32TypeInContext(self.context),
-                            init_ptr,
+                            ptr,
                             c_str!(""),
                         ),
                         LLVMConstInt(
@@ -444,13 +429,14 @@ impl ASTContext {
                         LLVMBuildLoad2(
                             self.builder,
                             LLVMInt32TypeInContext(self.context),
-                            init_ptr,
+                            ptr,
                             c_str!(""),
                         ),
                         LLVMConstInt(LLVMInt32TypeInContext(self.context), increment as u64, 0),
                         c_str!(""),
                     );
-                    LLVMBuildStore(self.builder, new_value, init_ptr);
+
+                    LLVMBuildStore(self.builder, new_value, ptr);
                     LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
 
                     // Position builder at loop exit block
@@ -491,4 +477,3 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
     let output = Command::new("bin/main").output();
     return output;
 }
-
