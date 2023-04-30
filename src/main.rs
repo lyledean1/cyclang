@@ -28,7 +28,7 @@ impl fmt::Display for ParserError {
 }
 
 fn compile_output_from_string(contents: String) -> Output {
-    match parser::parse_asharp_program(&contents) {
+    match parser::parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
         Ok(exprs) => match compiler::compile(exprs) {
             Ok(output) => output,
@@ -482,7 +482,7 @@ mod test {
     // fn test_compile_for_loop_reverse() {
     //     let input = r#"
     //     for (let i = 10; i > 0; i--)
-    //     {  
+    //     {
     //         print(i);
     //     }
     //     "#;

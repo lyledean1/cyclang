@@ -4,8 +4,8 @@ use pest::Parser;
 use std::num::ParseIntError;
 
 #[derive(Parser)]
-#[grammar = "../grammar/asharp.pest"]
-struct ASharpParser;
+#[grammar = "../grammar/cyclo.pest"]
+struct CycloParser;
 
 #[derive(Debug, Clone)]
 pub enum Expression {
@@ -299,8 +299,8 @@ fn parse_program(
     Ok(expr_vec)
 }
 
-pub fn parse_asharp_program(input: &str) -> Result<Vec<Expression>, pest::error::Error<Rule>> {
-    match ASharpParser::parse(Rule::expression_list, input) {
+pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, pest::error::Error<Rule>> {
+    match CycloParser::parse(Rule::expression_list, input) {
         Ok(pairs) => {
             for pair in pairs {
                 match parse_program(pair) {
@@ -322,218 +322,218 @@ mod test {
     #[test]
     fn test_parse_string_expression() {
         let input = r#""hello";"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_string_expression_err() {
         let input = r#"hello";"#;
-        assert!(parse_asharp_program(input).is_err());
+        assert!(parse_cyclo_program(input).is_err());
     }
 
     #[test]
     fn test_parse_digit() {
         let input = r#"5;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_digit_err() {
         let input = r#"5"#;
-        assert!(parse_asharp_program(input).is_err());
+        assert!(parse_cyclo_program(input).is_err());
     }
 
     #[test]
     fn test_parse_number_expression() {
         let input = r#"555;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_expression_add() {
         let input = r#"555 + 555 + 555;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_expression_add_grouping() {
         let input = r#"(555 + 555) + (555 + 555);"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_minus_negative_number_expression() {
         let input = r#"-555 - 555;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_minus_negative_two_number_expression() {
         let input = r#"-555 - -555;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_negative_digit_expression() {
         let input = r#"-5 - 5;"#;
-        match parse_asharp_program(input) {
+        match parse_cyclo_program(input) {
             Err(e) => {
                 eprintln!("{}", e);
             }
             _ => {}
         }
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_expression_err() {
         let input = r#"555""#;
-        assert!(parse_asharp_program(input).is_err());
+        assert!(parse_cyclo_program(input).is_err());
     }
 
     #[test]
     fn test_parse_nil() {
         let input = r#"nil;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_true_bool() {
         let input = r#"true;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_false_bool() {
         let input = r#"false;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_string_equals() {
         let input = r#""hello" == "hello";"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_bool_equals() {
         let input = r#"true == true;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_nil_equals() {
         let input = r#"nil == nil;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_char_equals() {
         let input = r#""h" == "h";"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_str_equals() {
         let input = r#""hello" == "hello";"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_equals_digit() {
         let input = r#"5 == 5;"#;
-        match parse_asharp_program(input) {
+        match parse_cyclo_program(input) {
             Err(e) => {
                 eprintln!("{}", e);
             }
             _ => {}
         }
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_equals_digit_rhs() {
         let input = r#"55 == 5;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_not_equals_digit() {
         let input = r#"5 != 5;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_lt_digit() {
         let input = r#"5 < 5;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_lte_digit() {
         let input = r#"5 <= 5;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_gt_digit() {
         let input = r#"5 > 5;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_gte_digit() {
         let input = r#"5 >= 5;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_equals() {
         let input = r#"55 == 45;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_less_than() {
         let input = r#"55 < 45;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_less_than_equal() {
         let input = r#"55 <= 45;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_more_than() {
         let input = r#"55 > 45;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_more_than_equal() {
         let input = r#"55 >= 45;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_number_not_equal() {
         let input = r#"55 != 45;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_list() {
         let input = r#"[1, true, false, "three", nil];"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     // TODO: Add Map Type
     // #[test]
     // fn test_parse_map() {
     //     let input = r#"Map(1 -> 2, "three" -> 4, "five" -> 6);"#;
-    //     match parse_asharp_program(input) {
+    //     match parse_cyclo_program(input) {
     //         Err(e) => {
     //             eprintln!("{}", e);
     //         }
@@ -541,73 +541,73 @@ mod test {
 
     //         }
     //     }
-    //     assert!(parse_asharp_program(input).is_ok());
+    //     assert!(parse_cyclo_program(input).is_ok());
     // }
 
     #[test]
     fn test_parse_bool_equals_string() {
         let input = r#"true == "hello";"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_string() {
         let input = r#"let value = "hello";"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_bool() {
         let input = r#"let value = true;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_bool_without_comma() {
         let input = r#"let value = true"#;
-        assert!(parse_asharp_program(input).is_err());
+        assert!(parse_cyclo_program(input).is_err());
     }
 
     #[test]
     fn test_parse_let_stmt_digit() {
         let input = r#"let value = 5;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_number() {
         let input = r#"let value = 555;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_nil() {
         let input = r#"let value = nil;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_grouping() {
         let input = r#"let value = (true == true);"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_assign() {
         let input = r#"let value = other_value;"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_bool_assign() {
         let input = r#"let value = (other_value == first_value);"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_print_stmt_bool_assign() {
         let input = r#"print(other_value == first_value);"#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -617,7 +617,7 @@ mod test {
         let two = false;
         let three = (two == one);
         ";
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -636,7 +636,7 @@ mod test {
             }
         }
         ";
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -653,7 +653,7 @@ mod test {
             print("hello");
         }
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -664,7 +664,7 @@ mod test {
         }
         hello();
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -675,7 +675,7 @@ mod test {
             print("hello");
         }
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -686,7 +686,7 @@ mod test {
             print("hello");
         }
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -697,13 +697,13 @@ mod test {
             print("hello");
         }
         "#;
-        match parse_asharp_program(input) {
+        match parse_cyclo_program(input) {
             Err(e) => {
                 eprintln!("{}", e);
             }
             _ => {}
         }
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -717,7 +717,7 @@ mod test {
             print("else");
         }
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
     #[test]
     fn test_while_stmt() {
@@ -728,7 +728,7 @@ mod test {
             let i = 1;
         }
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
     #[test]
     fn test_for_loop_stmt() {
@@ -738,7 +738,7 @@ mod test {
             print(i);
         }
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -749,7 +749,7 @@ mod test {
             print(i);
         }
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
@@ -761,6 +761,6 @@ mod test {
             print(i);
         }
         "#;
-        assert!(parse_asharp_program(input).is_ok());
+        assert!(parse_cyclo_program(input).is_ok());
     }
 }
