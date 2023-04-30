@@ -366,11 +366,17 @@ impl TypeBase for NumberType {
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
+    fn set_value(&mut self, _value: LLVMValueRef) {
+        self.llmv_value = _value
+    }
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Number
     }
     fn get_ptr(&self) -> LLVMValueRef {
         self.llmv_value_pointer
+    }
+    fn set_ptr(&mut self, _value: LLVMValueRef) {
+        self.llmv_value_pointer = _value;
     }
     fn add(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {

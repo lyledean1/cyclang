@@ -55,6 +55,8 @@ pub struct LLVMFunctionCache {
 pub struct LLVMFunction {
     pub function: LLVMValueRef,
     pub func_type: LLVMTypeRef,
+    pub block: LLVMBasicBlockRef,
+    // var cache?
 }
 
 impl LLVMFunctionCache {

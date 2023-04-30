@@ -27,7 +27,7 @@ pub fn run() {
                     "exit()" => break,
                     _ => {
                         //TODO: to
-                        match parser::parse_asharp_program(&input) {
+                        match parser::parse_cyclo_program(&input) {
                             // add each
                             Ok(exprs) => match compiler::compile(exprs) {
                                 Ok(output) => {

@@ -1,0 +1,6 @@
+let is_true = true;
+while (is_true) {
+    is_true = false;
+    print("here");
+}
+print(is_true);

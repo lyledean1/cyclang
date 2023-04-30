@@ -1,4 +1,4 @@
-# A#
+# Cyclo-lang
 
 A programming language I built in Rust - mainly for fun and my own learning! Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) as the backend to compile to machine code binary.
 
@@ -11,10 +11,10 @@ cargo install --path=./
 
 ## Run
 
-Run the .asharp file 
+Run the .cyclo file 
 
 ```
-asharp --file /path/to/file.asharp
+cyclo --file /path/to/file.cyclo
 ```
 
 ## Features
@@ -68,5 +68,5 @@ export LLVM_SYS_160_PREFIX=/PATH/TO/LLVM16/VERSION
 
 Some examples are in the example folder, just run 
 ```
-cargo run example/fibonacci.asharp
+cargo run example/fibonacci.cyclo
 ```
