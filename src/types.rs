@@ -66,10 +66,8 @@ fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
         let bool_type = LLVMInt1TypeInContext(context);
 
         // Create a LLVM value for the bool
-        let bool_value = LLVMConstInt(bool_type, boolean as u64, 0);
-
         // Return the LLVMValueRef for the bool
-        bool_value
+        LLVMConstInt(bool_type, boolean as u64, 0)
     }
 }
 
@@ -170,7 +168,7 @@ impl TypeBase for StringType {
                 string.as_bytes().len() as u32,
                 0,
             );
-            let mut len_value: usize = string.as_bytes().len() as usize;
+            let mut len_value: usize = string.as_bytes().len();
             let ptr: *mut usize = (&mut len_value) as *mut usize;
             let buffer_ptr = LLVMBuildPointerCast(
                 _context.builder,
@@ -178,12 +176,12 @@ impl TypeBase for StringType {
                 LLVMPointerType(LLVMInt8Type(), 0),
                 c_str!("buffer_ptr"),
             );
-            return Box::new(StringType {
+            Box::new(StringType {
                 length: ptr,
                 llmv_value: value,
                 llmv_value_pointer: Some(buffer_ptr),
                 str_value: value_as_string, // fix
-            });
+            })
         }
     }
     fn get_type(&self) -> BaseTypes {
@@ -197,9 +195,7 @@ impl TypeBase for StringType {
     }
     fn get_ptr(&self) -> LLVMValueRef {
         match self.llmv_value_pointer {
-            Some(v) => {
-                return v;
-            }
+            Some(v) => v,
             None => {
                 unreachable!("No pointer for this value")
             }
@@ -215,12 +211,8 @@ impl TypeBase for StringType {
                 Some(_sprintf_func) => unsafe {
                     // TODO: Use sprintf to concatenate two strings
                     // Remove extra quotes
-                    let new_string = format!(
-                        "{}{}",
-                        self.get_str().to_string(),
-                        _rhs.get_str().to_string()
-                    )
-                    .replace("\"", "");
+                    let new_string =
+                        format!("{}{}", self.get_str(), _rhs.get_str()).replace('\"', "");
 
                     let string = CString::new(new_string.clone()).unwrap();
                     let value = LLVMConstStringInContext(
@@ -229,7 +221,7 @@ impl TypeBase for StringType {
                         string.as_bytes().len() as u32,
                         0,
                     );
-                    let mut len_value: usize = string.as_bytes().len() as usize;
+                    let mut len_value: usize = string.as_bytes().len();
                     let ptr: *mut usize = (&mut len_value) as *mut usize;
                     let buffer_ptr = LLVMBuildPointerCast(
                         _ast_context.builder,
@@ -237,12 +229,12 @@ impl TypeBase for StringType {
                         LLVMPointerType(LLVMInt8Type(), 0),
                         c_str!("buffer_ptr"),
                     );
-                    return Box::new(StringType {
+                    Box::new(StringType {
                         length: ptr,
                         llmv_value: value,
                         llmv_value_pointer: Some(buffer_ptr),
                         str_value: new_string,
-                    });
+                    })
                 },
                 _ => {
                     unreachable!()
@@ -357,10 +349,10 @@ impl TypeBase for NumberType {
                 c_str!("ptr"),
             );
             LLVMBuildStore(_context.builder, value, ptr);
-            return Box::new(NumberType {
+            Box::new(NumberType {
                 llmv_value: value,
                 llmv_value_pointer: ptr,
-            });
+            })
         }
     }
     fn get_value(&self) -> LLVMValueRef {
@@ -655,20 +647,19 @@ impl TypeBase for BoolType {
         };
         unsafe {
             let mut num = 0;
-            match value_as_bool {
-                true => num = 1,
-                _ => {}
+            if let true = value_as_bool {
+                num = 1
             }
             let bool_value = LLVMConstInt(int1_type(), num, 0);
             let var_name = c_str!("bool_type");
             // Check if the global variable already exists
             let alloca = LLVMBuildAlloca(_context.builder, int1_type(), var_name);
-            return Box::new(BoolType {
+            Box::new(BoolType {
                 builder: _context.builder,
                 value: value_as_bool,
                 llmv_value: bool_value,
                 llmv_value_pointer: alloca,
-            });
+            })
         }
     }
     fn get_value(&self) -> LLVMValueRef {
@@ -690,15 +681,12 @@ impl TypeBase for BoolType {
         unsafe {
             let mut llvm_value_str =
                 LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("true"), c_str!("true_str"));
-            match self.value {
-                false => {
-                    llvm_value_str = LLVMBuildGlobalStringPtr(
-                        ast_context.builder,
-                        c_str!("false"),
-                        c_str!("false_str"),
-                    );
-                }
-                _ => {}
+            if let false = self.value {
+                llvm_value_str = LLVMBuildGlobalStringPtr(
+                    ast_context.builder,
+                    c_str!("false"),
+                    c_str!("false_str"),
+                );
             }
             let value_is_str =
                 LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%s\n"), c_str!(""));

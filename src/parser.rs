@@ -239,7 +239,7 @@ fn parse_expression(
             //TODO: improve this logic
             let mut inner_pairs = pair.into_inner();
             let mut var = inner_pairs.next().unwrap().into_inner();
-            let var_name = var.next().unwrap().as_str().to_string().replace(" ", "");
+            let var_name = var.next().unwrap().as_str().to_string().replace(' ', "");
             let start = var.next().unwrap().as_str().parse::<i32>().unwrap();
 
             //TODO: Identify > and < signs
@@ -249,7 +249,7 @@ fn parse_expression(
                 .unwrap()
                 .as_str()
                 .to_string()
-                .replace(" ", "");
+                .replace(' ', "");
             let end = cond_stmt.next().unwrap().as_str().parse::<i32>().unwrap();
 
             let mut step = 1;

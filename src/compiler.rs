@@ -71,10 +71,8 @@ fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
         let bool_type = LLVMInt1TypeInContext(context);
 
         // Create a LLVM value for the bool
-        let bool_value = LLVMConstInt(bool_type, boolean as u64, 0);
-
         // Return the LLVMValueRef for the bool
-        bool_value
+        LLVMConstInt(bool_type, boolean as u64, 0)
     }
 }
 
@@ -130,11 +128,11 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
 
         let var_cache = VariableCache::new();
         let mut ast_ctx = ASTContext {
-            builder: builder,
-            module: module,
-            context: context,
-            llvm_func_cache: llvm_func_cache,
-            var_cache: var_cache,
+            builder,
+            module,
+            context,
+            llvm_func_cache,
+            var_cache,
             current_function: LLVMFunction {
                 function: main_func,
                 func_type: main_func_type,
@@ -159,10 +157,6 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         LLVMContextDispose(context);
         module_string
     }
-}
-
-fn unbox<T>(value: Box<T>) -> T {
-    *value
 }
 
 struct ExprContext {
@@ -190,68 +184,68 @@ impl ASTContext {
             }
             Expression::Binary(lhs, op, rhs) => match op.as_str() {
                 "+" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.add(self, rhs)
                 }
                 "-" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.sub(self, rhs)
                 }
                 "/" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.div(self, rhs)
                 }
                 "*" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.mul(self, rhs)
                 }
                 "^" => {
                     unimplemented!()
                 }
                 "==" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.eqeq(self, rhs)
                 }
                 "!=" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.ne(self, rhs)
                 }
                 "<" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.lt(self, rhs)
                 }
                 "<=" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.lte(self, rhs)
                 }
                 ">" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.gt(self, rhs)
                 }
                 ">=" => {
-                    let lhs = self.match_ast(unbox(lhs));
-                    let rhs = self.match_ast(unbox(rhs));
+                    let lhs = self.match_ast(*lhs);
+                    let rhs = self.match_ast(*rhs);
                     lhs.gte(self, rhs)
                 }
                 _ => {
                     unimplemented!()
                 }
             },
-            Expression::Grouping(_input) => self.match_ast(unbox(_input)),
+            Expression::Grouping(_input) => self.match_ast(*_input),
             Expression::LetStmt(var, lhs) => {
                 match self.var_cache.get(&var) {
                     Some(val) => {
                         // combine alloca to reassign variable
-                        let mut lhs = self.match_ast(unbox(lhs));
+                        let mut lhs = self.match_ast(*lhs);
                         self.var_cache.set(&var.clone(), lhs.clone());
                         //TODO: figure out best way to handle a let stmt return
                         unsafe {
@@ -270,7 +264,7 @@ impl ASTContext {
                         }
                     }
                     _ => {
-                        let lhs = self.match_ast(unbox(lhs));
+                        let lhs = self.match_ast(*lhs);
                         self.var_cache.set(&var.clone(), lhs.clone());
                         //TODO: figure out best way to handle a let stmt return
                         lhs
@@ -288,15 +282,15 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::BlockStmt(exprs) => {
-                for expr in unbox(exprs.clone()) {
+                for expr in *exprs.clone() {
                     self.match_ast(expr);
                 }
                 Box::new(BlockType {
-                    values: unbox(exprs),
+                    values: *exprs,
                 })
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                let cond = self.match_ast(unbox(condition));
+                let cond = self.match_ast(*condition);
                 unsafe {
                     // Build If Block
                     let then_block =
@@ -309,12 +303,12 @@ impl ASTContext {
                     LLVMBuildCondBr(self.builder, cond.get_value(), then_block, else_block);
 
                     LLVMPositionBuilderAtEnd(self.builder, then_block);
-                    let then_result = self.match_ast(unbox(if_stmt));
+                    let then_result = self.match_ast(*if_stmt);
                     LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
 
                     // Build Else Block
                     LLVMPositionBuilderAtEnd(self.builder, else_block);
-                    match unbox(else_stmt) {
+                    match *else_stmt {
                         Some(v_stmt) => {
                             let else_result = self.match_ast(v_stmt);
                             LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
@@ -350,12 +344,12 @@ impl ASTContext {
                     // Set bool type in entry block
                     let var_name = c_str!("bool_type");
                     let bool_type_ptr = LLVMBuildAlloca(self.builder, int1_type(), var_name);
-                    let value_condition = self.match_ast(unbox(condition));
+                    let value_condition = self.match_ast(*condition);
                     let build_store =
                         LLVMBuildStore(self.builder, value_condition.get_value(), bool_type_ptr);
                     let bool_type_val =
                         LLVMBuildLoad2(self.builder, int1_type(), bool_type_ptr, var_name);
-                
+
                     LLVMBuildBr(self.builder, loop_cond_block);
 
                     LLVMBuildRetVoid(self.builder);
@@ -364,7 +358,7 @@ impl ASTContext {
 
                     // Check if the global variable already exists
 
-                    self.match_ast(unbox(while_block_stmt));
+                    self.match_ast(*while_block_stmt);
 
                     // Build loop condition block
                     LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
@@ -415,7 +409,7 @@ impl ASTContext {
 
                     let value = i.clone().get_value();
                     let ptr = i.clone().get_ptr();
-                    self.var_cache.set(&var_name.clone(), i);
+                    self.var_cache.set(&var_name, i);
 
                     LLVMBuildStore(self.builder, value, ptr);
 
@@ -453,7 +447,7 @@ impl ASTContext {
 
                     // Build loop body block
                     LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
-                    let for_block_cond = self.match_ast(unbox(for_block_expr));
+                    let for_block_cond = self.match_ast(*for_block_expr);
 
                     let new_value = LLVMBuildAdd(
                         self.builder,
@@ -476,9 +470,9 @@ impl ASTContext {
                 }
             }
             Expression::Print(input) => {
-                let expression_value = self.match_ast(unbox(input));
+                let expression_value = self.match_ast(*input);
                 expression_value.print(self);
-                return expression_value;
+                expression_value
             }
         }
     }
@@ -497,13 +491,12 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
 
     match output {
         Ok(_ok) => {
-            print!("{:?}\n", _ok);
+            println!("{:?}", _ok);
         }
         Err(e) => return Err(e),
     }
 
     // // //TODO: add this as a debug line
     // println!("main executable generated, running bin/main");
-    let output = Command::new("bin/main").output();
-    return output;
+    Command::new("bin/main").output()
 }

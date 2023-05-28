@@ -23,6 +23,12 @@ pub struct VariableCache {
     map: HashMap<String, Container>,
 }
 
+impl Default for VariableCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VariableCache {
     pub fn new() -> Self {
         VariableCache {
@@ -49,6 +55,12 @@ impl VariableCache {
 
 pub struct LLVMFunctionCache {
     map: HashMap<String, LLVMFunction>,
+}
+
+impl Default for LLVMFunctionCache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Clone, Copy)]

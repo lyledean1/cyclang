@@ -8,11 +8,11 @@ pub fn run() {
     let version: &str = env!("CARGO_PKG_VERSION");
 
     println!("{} version: {}", "a#".bold(), version.italic());
-    println!("");
+    println!();
 
     let mut rl = DefaultEditor::new().unwrap();
     if rl.load_history("history.txt").is_err() {
-        println!("");
+        println!();
     }
     loop {
         let readline = rl.readline(">> ");
