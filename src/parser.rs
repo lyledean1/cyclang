@@ -14,11 +14,11 @@ pub enum Expression {
     Bool(bool),
     Nil,
     Variable(String),
-    List(Box<Vec<Expression>>),
+    List(Vec<Expression>),
     Binary(Box<Expression>, String, Box<Expression>),
     Grouping(Box<Expression>),
     LetStmt(String, Box<Expression>),
-    BlockStmt(Box<Vec<Expression>>),
+    BlockStmt(Vec<Expression>),
     FuncStmt(String, Vec<String>, Box<Expression>),
     CallStmt(String, Vec<String>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
@@ -53,7 +53,7 @@ impl Expression {
     }
 
     fn new_list(exprs: Vec<Expression>) -> Self {
-        Self::List(Box::new(exprs))
+        Self::List(exprs)
     }
 
     fn new_let_stmt(name: String, value: Expression) -> Self {
@@ -61,7 +61,7 @@ impl Expression {
     }
 
     fn new_block_stmt(exprs: Vec<Expression>) -> Self {
-        Self::BlockStmt(Box::new(exprs))
+        Self::BlockStmt(exprs)
     }
 
     fn new_if_stmt(
@@ -105,7 +105,7 @@ impl Expression {
 
 fn parse_expression(
     pair: pest::iterators::Pair<Rule>,
-) -> Result<Expression, pest::error::Error<Rule>> {
+) -> Result<Expression, Box<pest::error::Error<Rule>>> {
     match pair.as_rule() {
         Rule::number => {
             let n = pair.as_str().parse().map_err(|e: ParseIntError| {
@@ -129,12 +129,12 @@ fn parse_expression(
         Rule::bool => match pair.as_str() {
             "true" => Ok(Expression::new_bool(true)),
             "false" => Ok(Expression::new_bool(false)),
-            _ => Err(pest::error::Error::new_from_span(
+            _ => Err(Box::new(pest::error::Error::new_from_span(
                 pest::error::ErrorVariant::CustomError {
                     message: "Invalid boolean value".to_string(),
                 },
                 pair.as_span(),
-            )),
+            ))),
         },
         Rule::nil => Ok(Expression::new_nil()),
         Rule::list => {
@@ -269,7 +269,7 @@ fn parse_expression(
             let while_block_expr = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_while_stmt(cond, while_block_expr))
         }
-        _ => Err(pest::error::Error::new_from_span(
+        _ => Err(Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
                 message: format!(
                     "Invalid expression for rule {:?} or rule not specified for grammar",
@@ -277,13 +277,13 @@ fn parse_expression(
                 ),
             },
             pair.as_span(),
-        )),
+        ))),
     }
 }
 
 fn parse_program(
     pair: pest::iterators::Pair<Rule>,
-) -> Result<Vec<Expression>, pest::error::Error<Rule>> {
+) -> Result<Vec<Expression>, Box<pest::error::Error<Rule>>> {
     let mut expr_vec = vec![];
     for stmt_pair in pair.into_inner() {
         match stmt_pair.as_rule() {
@@ -299,10 +299,12 @@ fn parse_program(
     Ok(expr_vec)
 }
 
-pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, pest::error::Error<Rule>> {
+pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::error::Error<Rule>>> {
     match CycloParser::parse(Rule::expression_list, input) {
-        Ok(pairs) => {
-            for pair in pairs {
+        Ok(mut pairs) => {
+            // TODO: only returns first pair
+            // should this iterate through all pairs?
+            if let Some(pair) = pairs.next() {
                 match parse_program(pair) {
                     Ok(pair) => {
                         return Ok(pair);
@@ -311,7 +313,7 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, pest::error::
                 }
             }
         }
-        Err(e) => return Err(e),
+        Err(e) => return Err(Box::new(e)),
     };
     unreachable!("parse function program")
 }

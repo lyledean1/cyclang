@@ -282,11 +282,11 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::BlockStmt(exprs) => {
-                for expr in *exprs.clone() {
+                for expr in exprs.clone() {
                     self.match_ast(expr);
                 }
                 Box::new(BlockType {
-                    values: *exprs,
+                    values: exprs,
                 })
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {

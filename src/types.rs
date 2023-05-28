@@ -80,6 +80,8 @@ pub enum BaseTypes {
 }
 // Types
 pub trait TypeBase: DynClone {
+    // TODO: remove on implementation
+    #[allow(clippy::all)] 
     fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
         Self: Sized,

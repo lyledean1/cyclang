@@ -18,11 +18,12 @@ pub fn run() {
         let readline = rl.readline(">> ");
         match readline {
             Ok(input) => {
-                let history_err = rl.add_history_entry(input.as_str());
-                match history_err {
-                    //TODO: decide how to handle
-                    _ => {}
-                }
+                // TODO: readd history
+                // let history_err = rl.add_history_entry(input.as_str());
+                // match history_err {
+                //     //TODO: decide how to handle
+                //     _ => {}
+                // }
                 match input.trim() {
                     "exit()" => break,
                     _ => {
