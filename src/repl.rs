@@ -8,21 +8,22 @@ pub fn run() {
     let version: &str = env!("CARGO_PKG_VERSION");
 
     println!("{} version: {}", "a#".bold(), version.italic());
-    println!("");
+    println!();
 
     let mut rl = DefaultEditor::new().unwrap();
     if rl.load_history("history.txt").is_err() {
-        println!("");
+        println!();
     }
     loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(input) => {
-                let history_err = rl.add_history_entry(input.as_str());
-                match history_err {
-                    //TODO: decide how to handle
-                    _ => {}
-                }
+                // TODO: readd history
+                // let history_err = rl.add_history_entry(input.as_str());
+                // match history_err {
+                //     //TODO: decide how to handle
+                //     _ => {}
+                // }
                 match input.trim() {
                     "exit()" => break,
                     _ => {
