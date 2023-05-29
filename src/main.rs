@@ -477,6 +477,20 @@ mod test {
         assert_eq!(stdout, "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n");
     }
 
+    #[test]
+    fn test_compile_block_stmt() {
+        let input = r#"
+        let is_true = true;
+        {
+            is_true = false;
+        }
+        print(is_true);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
+
     // TODO: decide if this should be a feature of the language
     // #[test]
     // fn test_compile_for_loop_reverse() {
