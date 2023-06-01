@@ -81,7 +81,7 @@ pub enum BaseTypes {
 // Types
 pub trait TypeBase: DynClone {
     // TODO: remove on implementation
-    #[allow(clippy::all)] 
+    #[allow(clippy::all)]
     fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
         Self: Sized,
@@ -348,7 +348,7 @@ impl TypeBase for NumberType {
             let ptr = LLVMBuildAlloca(
                 _context.builder,
                 LLVMInt32TypeInContext(_context.context),
-                c_str!("ptr"),
+                c_str!("number_type_ptr"),
             );
             LLVMBuildStore(_context.builder, value, ptr);
             Box::new(NumberType {
@@ -653,7 +653,7 @@ impl TypeBase for BoolType {
                 num = 1
             }
             let bool_value = LLVMConstInt(int1_type(), num, 0);
-            let var_name = c_str!("bool_type");
+            let var_name = c_str!("bool_type_ptr");
             // Check if the global variable already exists
             let alloca = LLVMBuildAlloca(_context.builder, int1_type(), var_name);
             Box::new(BoolType {

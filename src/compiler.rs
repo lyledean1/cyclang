@@ -244,24 +244,24 @@ impl ASTContext {
             Expression::LetStmt(var, lhs) => {
                 match self.var_cache.get(&var) {
                     Some(val) => {
-                        // combine alloca to reassign variable
-                        let mut lhs = self.match_ast(*lhs);
+                        // reassign variable
+                        let lhs = self.match_ast(*lhs);
                         self.var_cache.set(&var.clone(), lhs.clone());
                         //TODO: figure out best way to handle a let stmt return
-                        unsafe {
-                            let alloca = val.get_ptr();
-                            lhs.set_ptr(alloca);
-                            let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
-                            let new_value = LLVMBuildLoad2(
-                                self.builder,
-                                int1_type(),
-                                alloca,
-                                c_str!("bool_type"),
-                            );
-                            lhs.set_value(new_value);
+                        // unsafe {
+                        //     // let alloca = val.get_ptr();
+                        //     // lhs.set_ptr(alloca);
+                        //     // let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
+                        //     // let new_value = LLVMBuildLoad2(
+                        //     //     self.builder,
+                        //     //     int1_type(),
+                        //     //     alloca,
+                        //     //     c_str!("bool_type"),
+                        //     // );
+                        //     // lhs.set_value(new_value);
 
-                            lhs
-                        }
+                        // }
+                        lhs
                     }
                     _ => {
                         let lhs = self.match_ast(*lhs);
@@ -275,39 +275,105 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::FuncStmt(name, args, body) => {
-                // save to call stack
-                unimplemented!()
+                unimplemented!("{:?}", body);
             }
             Expression::CallStmt(name, args) => {
                 unimplemented!()
             }
             Expression::BlockStmt(exprs) => {
+                // TODO: call block within block, make this recursive
+                // let function_name = c_str!("block_stmt");
+                // let current_function = self.current_function.function;
+                // let current_func_type = self.current_function.func_type;
+                // let current_block = self.current_function.block;
+                // unsafe {
+                //     let basic_function_type =
+                //         LLVMFunctionType(LLVMVoidType(), ptr::null_mut(), 0, 0);
+                //     let basic_function =
+                //         LLVMAddFunction(self.module, function_name, basic_function_type);
+                //     let basic_block = LLVMAppendBasicBlock(basic_function, c_str!("entry"));
+
+                //     self.current_function.function = basic_function;
+                //     self.current_function.func_type = basic_function_type;
+                //     self.current_function.block = basic_block;
+
+                //     LLVMPositionBuilderAtEnd(self.builder, basic_block);
+
                 for expr in exprs.clone() {
                     self.match_ast(expr);
                 }
-                Box::new(BlockType {
-                    values: exprs,
-                })
+
+                //     LLVMBuildRetVoid(self.builder);
+
+                //     //call main function
+                //     self.current_function.function = current_function;
+                //     self.current_function.func_type = current_func_type;
+                //     self.current_function.block = current_block;
+                //     LLVMPositionBuilderAtEnd(self.builder, self.current_function.block);
+
+                //     LLVMBuildCall2(
+                //         self.builder,
+                //         basic_function_type,
+                //         basic_function,
+                //         [].as_mut_ptr(),
+                //         0,
+                //         c_str!(""),
+                //     );
+
+                // }
+                Box::new(BlockType { values: exprs })
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                let cond = self.match_ast(*condition);
                 unsafe {
+                    let function_name = c_str!("if_stmt");
+                    let current_function = self.current_function.function;
+                    let current_func_type = self.current_function.func_type;
+                    let current_block = self.current_function.block;
+                    let if_function_type = LLVMFunctionType(LLVMVoidType(), ptr::null_mut(), 0, 0);
+                    let if_function = LLVMAddFunction(self.module, function_name, if_function_type);
+                    let if_block = LLVMAppendBasicBlock(if_function, c_str!("entry"));
+
+                    self.current_function.function = if_function;
+                    self.current_function.func_type = if_function_type;
+                    self.current_function.block = if_block;
+
+                    LLVMBuildCall2(
+                        self.builder,
+                        if_function_type,
+                        if_function,
+                        [].as_mut_ptr(),
+                        0,
+                        c_str!(""),
+                    );
+
+                    LLVMPositionBuilderAtEnd(self.builder, if_block);
+
+                    let cond = self.match_ast(*condition);
                     // Build If Block
-                    let then_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("then_block"));
-                    let else_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("else_block"));
-                    let merge_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("merge_block"));
+                    let then_block = LLVMAppendBasicBlock(if_function, c_str!("then_block"));
+                    let else_block = LLVMAppendBasicBlock(if_function, c_str!("else_block"));
+                    let merge_block = LLVMAppendBasicBlock(if_function, c_str!("merge_block"));
 
                     LLVMBuildCondBr(self.builder, cond.get_value(), then_block, else_block);
 
                     LLVMPositionBuilderAtEnd(self.builder, then_block);
-                    let then_result = self.match_ast(*if_stmt);
-                    LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
+
+                    self.current_function.block = then_block;
+                    match *if_stmt {
+                        Expression::BlockStmt(_) => {
+                            let then_result = self.match_ast(*if_stmt);
+                            LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
+                        }
+                        _ => {
+                            println!("{:?}", if_stmt);
+                            let then_result = self.match_ast(*if_stmt);
+                            LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
+                        }
+                    }
 
                     // Build Else Block
                     LLVMPositionBuilderAtEnd(self.builder, else_block);
+                    self.current_function.block = else_block;
                     match *else_stmt {
                         Some(v_stmt) => {
                             let else_result = self.match_ast(v_stmt);
@@ -319,8 +385,19 @@ impl ASTContext {
                         }
                     }
                     LLVMPositionBuilderAtEnd(self.builder, merge_block);
+                    self.current_function.block = merge_block;
+
+                    LLVMBuildRetVoid(self.builder);
+
+                    LLVMPositionBuilderAtEnd(self.builder, current_block);
+                    self.current_function.block = current_block;
+                    //call main function
+
+                    self.current_function.function = current_function;
+                    self.current_function.func_type = current_func_type;
+                    self.current_block = current_block;
+                    cond
                 }
-                cond
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 unsafe {
