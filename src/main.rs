@@ -370,6 +370,24 @@ mod test {
         let input = r#"
         if (true) {
             if (true) {
+                print("yep");
+            } else {
+                print("nope");
+            }
+        } else {
+            print("don't print this");
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"yep\"\n");
+    }
+
+    #[test]
+    fn test_nested_if_stmts_deeper() {
+        let input = r#"
+        if (true) {
+            if (true) {
                 print(1);
                 if (false) {
                     print("error");
@@ -475,6 +493,60 @@ mod test {
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n");
+    }
+
+    #[test]
+    fn test_compile_block_stmt_bool() {
+        let input = r#"
+        let is_true = false;
+        {
+            is_true = true;
+        }
+        print(is_true);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
+
+    #[test]
+    fn test_compile_block_stmt_bool_err() {
+        let input = r#"
+        {
+            is_true = true;
+        }
+        print(is_true);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\n");
+    }
+
+    #[test]
+    fn test_compile_block_stmt_number() {
+        let input = r#"
+        let value = "example";
+        {
+            value = "example_two";
+        }
+        print(value);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"example_two\"\n");
+    }
+
+    #[test]
+    fn test_compile_function_stmt_no_args() {
+        let input = r#"
+        fn hello() {
+            print("hello world");
+        }
+        hello();
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"hello world\"\n");
     }
 
     // TODO: decide if this should be a feature of the language

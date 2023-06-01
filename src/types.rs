@@ -77,11 +77,12 @@ pub enum BaseTypes {
     Number,
     Bool,
     Block,
+    Func,
 }
 // Types
 pub trait TypeBase: DynClone {
     // TODO: remove on implementation
-    #[allow(clippy::all)] 
+    #[allow(clippy::all)]
     fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
         Self: Sized,
@@ -90,6 +91,12 @@ pub trait TypeBase: DynClone {
     }
     fn print(&self, ast_context: &mut ASTContext);
     fn get_type(&self) -> BaseTypes;
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        unimplemented!(
+            "{:?} type does not implement get_llvm_type",
+            self.get_type()
+        )
+    }
     fn get_value(&self) -> LLVMValueRef;
     fn set_value(&mut self, _value: LLVMValueRef) {
         unimplemented!("{:?} type does not implement set_value", self.get_type())
@@ -348,7 +355,7 @@ impl TypeBase for NumberType {
             let ptr = LLVMBuildAlloca(
                 _context.builder,
                 LLVMInt32TypeInContext(_context.context),
-                c_str!("ptr"),
+                c_str!("number_type_ptr"),
             );
             LLVMBuildStore(_context.builder, value, ptr);
             Box::new(NumberType {
@@ -653,7 +660,7 @@ impl TypeBase for BoolType {
                 num = 1
             }
             let bool_value = LLVMConstInt(int1_type(), num, 0);
-            let var_name = c_str!("bool_type");
+            let var_name = c_str!("bool_type_ptr");
             // Check if the global variable already exists
             let alloca = LLVMBuildAlloca(_context.builder, int1_type(), var_name);
             Box::new(BoolType {
@@ -784,5 +791,29 @@ impl TypeBase for BlockType {
     }
     fn print(&self, _ast_context: &mut ASTContext) {
         unreachable!("Shouldn't be able to print block type")
+    }
+}
+
+//TODO: create new functon
+#[derive(Debug, Clone)]
+pub struct FuncType {
+    pub body: Expression,
+    pub args: Option<Vec<String>>,
+    pub llvm_type: LLVMTypeRef,
+    pub llvm_func: LLVMValueRef,
+}
+
+impl TypeBase for FuncType {
+    fn get_value(&self) -> LLVMValueRef {
+        self.llvm_func
+    }
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        self.llvm_type
+    }
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Func
+    }
+    fn print(&self, _ast_context: &mut ASTContext) {
+        unreachable!("Shouldn't be able to print func type")
     }
 }

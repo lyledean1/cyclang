@@ -623,6 +623,16 @@ mod test {
     }
 
     #[test]
+    fn test_empty_block_stmt() {
+        let input = "
+        {
+            
+        }
+        ";
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
     fn test_block_stmt() {
         let input = "
         {
