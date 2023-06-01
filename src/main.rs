@@ -536,6 +536,19 @@ mod test {
         assert_eq!(stdout, "\"example_two\"\n");
     }
 
+    #[test]
+    fn test_compile_function_stmt_no_args() {
+        let input = r#"
+        fn hello() {
+            print("hello world");
+        }
+        hello();
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"hello world\"\n");
+    }
+
     // TODO: decide if this should be a feature of the language
     // #[test]
     // fn test_compile_for_loop_reverse() {

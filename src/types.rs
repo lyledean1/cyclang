@@ -77,6 +77,7 @@ pub enum BaseTypes {
     Number,
     Bool,
     Block,
+    Func,
 }
 // Types
 pub trait TypeBase: DynClone {
@@ -90,6 +91,12 @@ pub trait TypeBase: DynClone {
     }
     fn print(&self, ast_context: &mut ASTContext);
     fn get_type(&self) -> BaseTypes;
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        unimplemented!(
+            "{:?} type does not implement get_llvm_type",
+            self.get_type()
+        )
+    }
     fn get_value(&self) -> LLVMValueRef;
     fn set_value(&mut self, _value: LLVMValueRef) {
         unimplemented!("{:?} type does not implement set_value", self.get_type())
@@ -784,5 +791,29 @@ impl TypeBase for BlockType {
     }
     fn print(&self, _ast_context: &mut ASTContext) {
         unreachable!("Shouldn't be able to print block type")
+    }
+}
+
+//TODO: create new functon
+#[derive(Debug, Clone)]
+pub struct FuncType {
+    pub body: Expression,
+    pub args: Option<Vec<String>>,
+    pub llvm_type: LLVMTypeRef,
+    pub llvm_func: LLVMValueRef,
+}
+
+impl TypeBase for FuncType {
+    fn get_value(&self) -> LLVMValueRef {
+        self.llvm_func
+    }
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        self.llvm_type
+    }
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Func
+    }
+    fn print(&self, _ast_context: &mut ASTContext) {
+        unreachable!("Shouldn't be able to print func type")
     }
 }
