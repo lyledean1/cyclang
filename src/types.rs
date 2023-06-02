@@ -69,6 +69,11 @@ fn c_str(format_str: &str) -> *const i8 {
     format_str.as_ptr() as *const i8
 }
 
+fn c_str_with_type(name: &str, type_name: &str) -> *const i8 {
+    let type_name_str = name.to_owned() + type_name;
+    c_str(&type_name_str)
+}
+
 fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
     unsafe {
         let bool_type = LLVMInt1TypeInContext(context);
@@ -91,7 +96,7 @@ pub enum BaseTypes {
 pub trait TypeBase: DynClone {
     // TODO: remove on implementation
     #[allow(clippy::all)]
-    fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
+    fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
         Self: Sized,
     {
@@ -162,6 +167,7 @@ dyn_clone::clone_trait_object!(TypeBase);
 
 #[derive(Debug, Clone)]
 pub struct StringType {
+    name: String,
     llmv_value: LLVMValueRef,
     length: *mut usize,
     llmv_value_pointer: Option<LLVMValueRef>,
@@ -169,7 +175,7 @@ pub struct StringType {
 }
 
 impl TypeBase for StringType {
-    fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
+    fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
         Self: Sized,
     {
@@ -191,9 +197,10 @@ impl TypeBase for StringType {
                 _context.builder,
                 value,
                 LLVMPointerType(LLVMInt8Type(), 0),
-                c_str!("buffer_ptr"),
+                c_str(_name.as_str()),
             );
             Box::new(StringType {
+                name: _name,
                 length: ptr,
                 llmv_value: value,
                 llmv_value_pointer: Some(buffer_ptr),
@@ -250,6 +257,7 @@ impl TypeBase for StringType {
                         c_str("buffer_ptr"),
                     );
                     Box::new(StringType {
+                        name: self.name.clone(),
                         length: ptr,
                         llmv_value: value,
                         llmv_value_pointer: Some(buffer_ptr),
@@ -274,7 +282,7 @@ impl TypeBase for StringType {
         match _rhs.get_type() {
             BaseTypes::String => {
                 let value = self.get_str() == _rhs.get_str();
-                return BoolType::new(Box::new(value), _context);
+                return BoolType::new(Box::new(value), self.name.clone(), _context);
             }
             _ => {
                 unreachable!(
@@ -290,7 +298,7 @@ impl TypeBase for StringType {
         match _rhs.get_type() {
             BaseTypes::String => {
                 let value = self.get_str() != _rhs.get_str();
-                return BoolType::new(Box::new(value), _context);
+                return BoolType::new(Box::new(value), self.name.clone(),_context);
             }
             _ => {
                 unreachable!(
@@ -344,6 +352,7 @@ pub struct NumberType {
     //TODO: remove pub use of these
     pub llmv_value: LLVMValueRef,
     pub llmv_value_pointer: LLVMValueRef,
+    name: String,
 }
 
 fn get_i32_value(value: LLVMValueRef) -> i32 {
@@ -352,24 +361,21 @@ fn get_i32_value(value: LLVMValueRef) -> i32 {
 }
 
 impl TypeBase for NumberType {
-    fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase> {
+    fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase> {
         let value_as_i32 = match _value.downcast_ref::<i32>() {
             Some(val) => *val,
             None => panic!("The input value must be an i32"),
         };
         unsafe {
-            let value = LLVMConstInt(
-                int32_type(),
-                value_as_i32.try_into().unwrap(),
-                0,
-            );
+            let value = LLVMConstInt(int32_type(), value_as_i32.try_into().unwrap(), 0);
             let ptr = LLVMBuildAlloca(
                 _context.builder,
                 int32_ptr_type(),
-                c_str!("number_type_ptr"),
+                c_str(_name.as_str()),
             );
             LLVMBuildStore(_context.builder, value, ptr);
             Box::new(NumberType {
+                name: _name,
                 llmv_value: value,
                 llmv_value_pointer: ptr,
             })
@@ -399,7 +405,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     c_str!("result"),
                 );
-                return NumberType::new(Box::new(get_i32_value(result)), context);
+                return NumberType::new(Box::new(get_i32_value(result)),self.name.clone(), context);
             },
             _ => {
                 unreachable!(
@@ -421,7 +427,7 @@ impl TypeBase for NumberType {
                     c_str!("result"),
                 );
 
-                return NumberType::new(Box::new(get_i32_value(result)), context);
+                return NumberType::new(Box::new(get_i32_value(result)), self.name.clone(), context);
             },
             _ => {
                 unreachable!(
@@ -442,7 +448,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     c_str!("result"),
                 );
-                return NumberType::new(Box::new(get_i32_value(result)), context);
+                return NumberType::new(Box::new(get_i32_value(result)), self.name.clone(), context);
             },
             _ => {
                 unreachable!(
@@ -463,7 +469,7 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     c_str!("result"),
                 );
-                return NumberType::new(Box::new(get_i32_value(result)), context);
+                return NumberType::new(Box::new(get_i32_value(result)),self.name.clone(), context);
             },
             _ => {
                 unreachable!(
@@ -479,6 +485,7 @@ impl TypeBase for NumberType {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
+                    self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
@@ -500,6 +507,7 @@ impl TypeBase for NumberType {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
+                    self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
@@ -521,6 +529,7 @@ impl TypeBase for NumberType {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
+                    self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
@@ -542,6 +551,7 @@ impl TypeBase for NumberType {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
+                    self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
@@ -563,6 +573,7 @@ impl TypeBase for NumberType {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
+                    self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
@@ -584,6 +595,7 @@ impl TypeBase for NumberType {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
                 return get_comparison_number_type(
+                    self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
@@ -604,14 +616,17 @@ impl TypeBase for NumberType {
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
             let format_str = "%d\n\0";
-            let value_is_str =
-                LLVMBuildGlobalStringPtr(ast_context.builder, format_str.as_ptr() as *const i8, c_str!(""));
+            let value_is_str = LLVMBuildGlobalStringPtr(
+                ast_context.builder,
+                format_str.as_ptr() as *const i8,
+                c_str!(""),
+            );
             // Load Value from Value Index Ptr
             let val = LLVMBuildLoad2(
                 ast_context.builder,
                 int32_ptr_type(),
                 self.get_ptr(),
-                c_str!("how"),
+                c_str!("load_number_ptr"),
             );
 
             let print_args = [value_is_str, val].as_mut_ptr();
@@ -635,6 +650,7 @@ impl TypeBase for NumberType {
 }
 
 unsafe fn get_comparison_number_type(
+    _name: String,
     _context: &mut ASTContext,
     rhs: LLVMValueRef,
     lhs: LLVMValueRef,
@@ -646,7 +662,7 @@ unsafe fn get_comparison_number_type(
     let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
     let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
 
-    return BoolType::new(Box::new(bool_value), _context);
+    return BoolType::new(Box::new(bool_value), _name, _context);
 }
 
 #[derive(Debug, Clone)]
@@ -655,10 +671,11 @@ pub struct BoolType {
     value: bool,
     llmv_value: LLVMValueRef,
     llmv_value_pointer: LLVMValueRef,
+    name: String,
 }
 
 impl TypeBase for BoolType {
-    fn new(_value: Box<dyn Any>, _context: &mut ASTContext) -> Box<dyn TypeBase>
+    fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
         Self: Sized,
     {
@@ -672,11 +689,12 @@ impl TypeBase for BoolType {
                 num = 1
             }
             let bool_value = LLVMConstInt(int1_type(), num, 0);
-            let var_name = c_str!("bool_type_ptr");
+            let var_name = c_str(_name.as_str());
             // Check if the global variable already exists
             let alloca = LLVMBuildAlloca(_context.builder, int1_type(), var_name);
             LLVMBuildStore(_context.builder, bool_value, alloca);
             Box::new(BoolType {
+                name: _name,
                 builder: _context.builder,
                 value: value_as_bool,
                 llmv_value: bool_value,
@@ -735,6 +753,7 @@ impl TypeBase for BoolType {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
                 return get_comparison_bool_type(
+                    self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
@@ -756,6 +775,7 @@ impl TypeBase for BoolType {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
                 return get_comparison_bool_type(
+                    self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
@@ -775,6 +795,7 @@ impl TypeBase for BoolType {
 }
 
 unsafe fn get_comparison_bool_type(
+    _name: String,
     _context: &mut ASTContext,
     rhs: LLVMValueRef,
     lhs: LLVMValueRef,
@@ -786,7 +807,7 @@ unsafe fn get_comparison_bool_type(
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
     let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
     let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
-    return BoolType::new(Box::new(bool_value), _context);
+    return BoolType::new(Box::new(bool_value), _name, _context);
 }
 
 //TODO: create new functon

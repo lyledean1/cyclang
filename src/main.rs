@@ -116,9 +116,9 @@ mod test {
     #[test]
     fn test_compile_variable_number_and_add() {
         let input = r#"
-        let variable = 2;
-        let variable = variable + 1;
-        print(variable);
+        let number = 2;
+        number = number + 1;
+        print(number);
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -322,8 +322,8 @@ mod test {
     #[test]
     fn test_if_stmt_with_let_stmt() {
         let input = r#"
-        let value = true;
-        if (value)
+        let is_value = true;
+        if (is_value)
         {
             print("hello");
         }
@@ -500,15 +500,18 @@ mod test {
     fn test_compile_while_stmt_with_if() {
         let input = r#"
         let value = true;
-        let i = 0;
+        let number = 0;
+        let string = "";
         while(value) {
-            if (i == 10) {
+            number = number + 1;
+            print(number);
+            if (number == 10) {
                 value = false;
-                print(value);
-            } else {
-                i = i + 1;
+                string = "yes";
             }
         }
+        print(string);
+        print(value);
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -572,14 +575,30 @@ mod test {
     #[test]
     fn test_compile_function_stmt_no_args() {
         let input = r#"
-        fn hello() {
+        fn hello_world() {
             print("hello world");
         }
-        hello();
+        hello_world();
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "\"hello world\"\n");
+    }
+
+    #[test]
+    fn test_compile_function_stmt_print_if() {
+        let input = r#"
+        fn hello_world() {
+            let value = true;
+            if (value) {
+                print(value);
+            }
+        }
+        hello_world();
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
     }
 
     // TODO: decide if this should be a feature of the language
