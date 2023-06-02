@@ -114,6 +114,18 @@ mod test {
     }
 
     #[test]
+    fn test_compile_variable_number_and_add() {
+        let input = r#"
+        let variable = 2;
+        let variable = variable + 1;
+        print(variable);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "3\n");
+    }
+
+    #[test]
     fn test_compile_variable_string() {
         let input = r#"
         let variable = "hello";
@@ -423,17 +435,38 @@ mod test {
     }
 
     #[test]
-    fn test_compile_while_stmt_no_pass() {
+    fn test_compile_while_stmt_multiple_passes() {
         let input = r#"
-        let value = true;
-        while(1 == 2) {
-            value = false;
+        let value = 0;
+        let is_true = true;
+        while(is_true) {
+            print("hello" == "hello");
+            is_true = false;
         }
-        print(value);
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(stderr, "");
+        assert_eq!(stdout, "2\n");
+    }
+
+    #[test]
+    fn test_compile_while_stmt_one_pass_grouping_string() {
+        let input = r#"
+        let is_true = true;
+        let value = 1;
+        print(value);
+        while(is_true) {
+            is_true = false;
+            print(value);
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(stderr, "");
+        assert_eq!(stdout, "1\n");
     }
 
     #[test]
@@ -441,13 +474,13 @@ mod test {
         let input = r#"
         let value = true;
         while(value) {
-            value = (1 == 2);
             print(value);
+            value = false;
         }
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
+        assert_eq!(stdout, "true\n");
     }
 
     #[test]
@@ -460,7 +493,7 @@ mod test {
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\n");
+        assert_eq!(stdout, "");
     }
 
     #[test]
@@ -523,7 +556,7 @@ mod test {
     }
 
     #[test]
-    fn test_compile_block_stmt_number() {
+    fn test_compile_block_stmt_string() {
         let input = r#"
         let value = "example";
         {

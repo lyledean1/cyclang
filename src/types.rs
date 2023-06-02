@@ -57,8 +57,16 @@ fn int32_type() -> LLVMTypeRef {
     unsafe { LLVMInt32Type() }
 }
 
+fn int32_ptr_type() -> LLVMTypeRef {
+    unsafe { LLVMPointerType(LLVMInt32Type(), 0) }
+}
+
 fn int8_ptr_type() -> LLVMTypeRef {
     unsafe { LLVMPointerType(LLVMInt8Type(), 0) }
+}
+
+fn c_str(format_str: &str) -> *const i8 {
+    format_str.as_ptr() as *const i8
 }
 
 fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
@@ -199,6 +207,9 @@ impl TypeBase for StringType {
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
+    fn set_value(&mut self, _value: LLVMValueRef) {
+        self.llmv_value = _value;
+    }
     fn get_length(&self) -> *mut usize {
         self.length
     }
@@ -236,7 +247,7 @@ impl TypeBase for StringType {
                         _ast_context.builder,
                         value,
                         LLVMPointerType(LLVMInt8Type(), 0),
-                        c_str!("buffer_ptr"),
+                        c_str("buffer_ptr"),
                     );
                     Box::new(StringType {
                         length: ptr,
@@ -348,13 +359,13 @@ impl TypeBase for NumberType {
         };
         unsafe {
             let value = LLVMConstInt(
-                LLVMInt32TypeInContext(_context.context),
+                int32_type(),
                 value_as_i32.try_into().unwrap(),
                 0,
             );
             let ptr = LLVMBuildAlloca(
                 _context.builder,
-                LLVMInt32TypeInContext(_context.context),
+                int32_ptr_type(),
                 c_str!("number_type_ptr"),
             );
             LLVMBuildStore(_context.builder, value, ptr);
@@ -592,14 +603,15 @@ impl TypeBase for NumberType {
 
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
+            let format_str = "%d\n\0";
             let value_is_str =
-                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%d\n"), c_str!(""));
+                LLVMBuildGlobalStringPtr(ast_context.builder, format_str.as_ptr() as *const i8, c_str!(""));
             // Load Value from Value Index Ptr
             let val = LLVMBuildLoad2(
                 ast_context.builder,
-                int8_ptr_type(),
-                self.llmv_value_pointer,
-                c_str!("value"),
+                int32_ptr_type(),
+                self.get_ptr(),
+                c_str!("how"),
             );
 
             let print_args = [value_is_str, val].as_mut_ptr();
@@ -663,6 +675,7 @@ impl TypeBase for BoolType {
             let var_name = c_str!("bool_type_ptr");
             // Check if the global variable already exists
             let alloca = LLVMBuildAlloca(_context.builder, int1_type(), var_name);
+            LLVMBuildStore(_context.builder, bool_value, alloca);
             Box::new(BoolType {
                 builder: _context.builder,
                 value: value_as_bool,

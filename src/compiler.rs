@@ -251,22 +251,20 @@ impl ASTContext {
                 match self.var_cache.get(&var) {
                     Some(val) => {
                         // reassign variable
-                        let lhs = self.match_ast(*lhs);
+                        let mut lhs = self.match_ast(*lhs);
                         self.var_cache.set(&var.clone(), lhs.clone());
-                        //TODO: figure out best way to handle a let stmt return
-                        // unsafe {
-                        //     // let alloca = val.get_ptr();
-                        //     // lhs.set_ptr(alloca);
-                        //     // let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
-                        //     // let new_value = LLVMBuildLoad2(
-                        //     //     self.builder,
-                        //     //     int1_type(),
-                        //     //     alloca,
-                        //     //     c_str!("bool_type"),
-                        //     // );
-                        //     // lhs.set_value(new_value);
-
-                        // }
+                        // TODO: figure out best way to handle a let stmt return
+                        unsafe {
+                            let alloca = val.get_ptr();
+                            let new_value = LLVMBuildLoad2(
+                                self.builder,
+                                int1_type(),
+                                alloca,
+                                c_str!("bool_type"),
+                            );
+                            let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
+                            lhs.set_value(new_value);
+                        }
                         lhs
                     }
                     _ => {
@@ -433,15 +431,13 @@ impl ASTContext {
                     // Set bool type in entry block
                     let var_name = c_str!("bool_type");
                     let bool_type_ptr = LLVMBuildAlloca(self.builder, int1_type(), var_name);
-                    let value_condition = self.match_ast(*condition);
+                    let value_condition = self.match_ast(*condition.clone());
                     let build_store =
-                        LLVMBuildStore(self.builder, value_condition.get_value(), bool_type_ptr);
+                        LLVMBuildStore(self.builder, value_condition.get_ptr(), bool_type_ptr);
                     let bool_type_val =
                         LLVMBuildLoad2(self.builder, int1_type(), bool_type_ptr, var_name);
 
                     LLVMBuildBr(self.builder, loop_cond_block);
-
-                    LLVMBuildRetVoid(self.builder);
 
                     LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
 
@@ -451,12 +447,19 @@ impl ASTContext {
 
                     // Build loop condition block
                     LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
-                    LLVMBuildCondBr(
+
+                    let bool_type_val =
+                        LLVMBuildLoad2(self.builder, int1_type(), bool_type_ptr, var_name);
+
+                    let true_val = BoolType::new(Box::new(true), self);
+                    let cmp = LLVMBuildICmp(
                         self.builder,
+                        LLVMIntPredicate::LLVMIntEQ,
+                        true_val.get_value(),
                         bool_type_val,
-                        loop_body_block,
-                        loop_exit_block,
+                        c_str!("result"),
                     );
+                    LLVMBuildCondBr(self.builder, cmp, loop_body_block, loop_exit_block);
 
                     // Build loop body block
                     LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
