@@ -295,10 +295,13 @@ impl ASTContext {
             Expression::LetStmt(var, lhs) => {
                 match self.var_cache.get(&var) {
                     Some(val) => {
+                        // Check Variables are the same Type
+                        // Then Update the value of the old variable
                         // reassign variable
                         let mut lhs: Box<dyn TypeBase> = self.try_match_with_var(var.clone(), *lhs);
                         self.var_cache.set(&var.clone(), lhs.clone());
                         // TODO: figure out best way to handle a let stmt return
+                        // Should this be handled inside the types
                         unsafe {
                             let alloca = val.get_ptr();
                             let new_value = LLVMBuildLoad2(

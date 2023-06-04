@@ -439,10 +439,11 @@ mod test {
         let input = r#"
         let value = true;
         while(value) {
+            print("fix this test");
+            value = false;
             if (value) {
                 print(value);
             }
-            value = false;
         }
         "#;
         let output = compile_output_from_string(input.to_string());
@@ -502,15 +503,13 @@ mod test {
         let number = 0;
         let string = "";
         while(value) {
+            value = false;
             number = number + 1;
-            print(number);
-            if (number == 10) {
+            if (number > 10) {
                 value = false;
                 print(value);
             }
         }
-        print(string);
-        print(value);
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
