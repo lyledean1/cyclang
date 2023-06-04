@@ -1,10 +1,16 @@
+#![allow(deprecated)]
 #![allow(dead_code)]
-pub mod num;
-pub mod string;
+//TODO: address these lints
+
+pub mod block;
 pub mod bool;
 pub mod func;
-pub mod block;
 pub mod llvm;
+pub mod num;
+pub mod string;
+
+//TODO: Upgrade to LLVMGetValueName2
+use llvm_sys::core::LLVMGetValueName;
 use std::any::Any;
 
 use crate::context::ASTContext;
@@ -22,7 +28,11 @@ pub enum BaseTypes {
     Func,
 }
 
-pub trait TypeBase: DynClone {
+pub trait Base: DynClone {
+    fn get_type(&self) -> BaseTypes;
+}
+
+pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug {
     // TODO: remove on implementation
     #[allow(clippy::all)]
     fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
@@ -31,8 +41,12 @@ pub trait TypeBase: DynClone {
     {
         unimplemented!("new has not been implemented for this type");
     }
-    fn print(&self, ast_context: &mut ASTContext);
-    fn get_type(&self) -> BaseTypes;
+    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+        unimplemented!("{:?} type does not implement assign", self.get_type())
+    }
+    fn get_name(&self) -> *const i8 {
+        unsafe { LLVMGetValueName(self.get_value()) }
+    }
     fn get_llvm_type(&self) -> LLVMTypeRef {
         unimplemented!(
             "{:?} type does not implement get_llvm_type",
@@ -40,26 +54,25 @@ pub trait TypeBase: DynClone {
         )
     }
     fn get_value(&self) -> LLVMValueRef;
-    fn set_value(&mut self, _value: LLVMValueRef) {
-        unimplemented!("{:?} type does not implement set_value", self.get_type())
-    }
     fn get_ptr(&self) -> LLVMValueRef {
         unimplemented!(
             "get_ptr is not implemented for this type {:?}",
             self.get_type()
         )
     }
-    fn set_ptr(&mut self, _value: LLVMValueRef) {
-        unimplemented!("{:?} type does not implement set_ptr", self.get_type())
-    }
-
     // TODO: make this a raw value
     fn get_str(&self) -> String {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
     }
-    fn get_length(&self) -> *mut usize {
-        unimplemented!("{:?} type does not implement get_length", self.get_type())
+}
+
+pub trait Debug: Base {
+    fn print(&self, _ast_context: &mut ASTContext) {
+        unimplemented!("{:?} type does not implement print", self.get_type())
     }
+}
+
+pub trait Arithmetic: Base {
     fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement add", self.get_type())
     }
@@ -72,6 +85,9 @@ pub trait TypeBase: DynClone {
     fn div(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement div", self.get_type())
     }
+}
+
+pub trait Comparison: Base {
     fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement eqeq", self.get_type())
     }

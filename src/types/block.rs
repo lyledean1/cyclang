@@ -1,8 +1,7 @@
-use crate::context::ASTContext;
 extern crate llvm_sys;
-use llvm_sys::prelude::*;
-use crate::types::{BaseTypes, TypeBase};
 use crate::parser::Expression;
+use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase};
+use llvm_sys::prelude::*;
 
 //TODO: create new functon
 #[derive(Debug, Clone)]
@@ -10,14 +9,20 @@ pub struct BlockType {
     pub values: Vec<Expression>,
 }
 
-impl TypeBase for BlockType {
-    fn get_value(&self) -> LLVMValueRef {
-        unimplemented!("No value ref for block type")
-    }
+impl Base for BlockType {
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Block
     }
-    fn print(&self, _ast_context: &mut ASTContext) {
-        unreachable!("Shouldn't be able to print block type")
+}
+
+impl Arithmetic for BlockType {}
+
+impl Comparison for BlockType {}
+
+impl Debug for BlockType {}
+
+impl TypeBase for BlockType {
+    fn get_value(&self) -> LLVMValueRef {
+        unimplemented!("No value ref for block type")
     }
 }
