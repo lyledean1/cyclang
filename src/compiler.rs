@@ -1,6 +1,10 @@
 #![allow(dead_code)]
+use crate::types::num::NumberType;
+use crate::types::string::StringType;
 use crate::types::FuncType;
-use crate::types::{BlockType, BoolType, NumberType, StringType, TypeBase};
+use crate::types::{BlockType, BoolType, TypeBase};
+use crate::types::llvm::*;
+
 use std::ffi::CStr;
 
 use crate::context::*;
@@ -14,7 +18,6 @@ use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMIntPredicate;
-use std::os::raw::c_ulonglong;
 use std::process::Command;
 use std::ptr;
 
@@ -24,70 +27,6 @@ macro_rules! c_str {
     };
 }
 
-fn c_str(format_str: &str) -> *const i8 {
-    format_str.as_ptr() as *const i8
-}
-
-fn var_type_str(name: String, type_name: String) -> String {
-    name + "_" + &type_name
-}
-
-const LLVM_FALSE: LLVMBool = 0;
-const LLVM_TRUE: LLVMBool = 1;
-
-// Types
-
-fn create_string_type(context: LLVMContextRef) -> LLVMTypeRef {
-    unsafe {
-        // Create an LLVM 8-bit integer type (i8) to represent a character
-        let i8_type = LLVMInt8TypeInContext(context);
-
-        // Create a pointer type to the i8 type to represent a string
-        LLVMPointerType(i8_type, 0)
-    }
-}
-/// Convert this integer to LLVM's representation of a constant
-/// integer.
-unsafe fn int8(val: c_ulonglong) -> LLVMValueRef {
-    LLVMConstInt(LLVMInt8Type(), val, LLVM_FALSE)
-}
-
-/// Convert this integer to LLVM's representation of a constant
-/// integer.
-// TODO: this should be a machine word size rather than hard-coding 32-bits.
-fn int32(val: c_ulonglong) -> LLVMValueRef {
-    unsafe { LLVMConstInt(LLVMInt32Type(), val, LLVM_FALSE) }
-}
-
-fn int1_type() -> LLVMTypeRef {
-    unsafe { LLVMInt1Type() }
-}
-
-fn int1_ptr_type() -> LLVMTypeRef {
-    unsafe { LLVMPointerType(LLVMInt1Type(), 0) }
-}
-
-fn int8_type() -> LLVMTypeRef {
-    unsafe { LLVMInt8Type() }
-}
-
-fn int32_type() -> LLVMTypeRef {
-    unsafe { LLVMInt32Type() }
-}
-
-fn int8_ptr_type() -> LLVMTypeRef {
-    unsafe { LLVMPointerType(LLVMInt8Type(), 0) }
-}
-
-fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
-    unsafe {
-        let bool_type = LLVMInt1TypeInContext(context);
-
-        // Create a LLVM value for the bool
-        // Return the LLVMValueRef for the bool
-        LLVMConstInt(bool_type, boolean as u64, 0)
-    }
-}
 
 fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
     unsafe {
@@ -360,7 +299,7 @@ impl ASTContext {
                         }),
                     );
                     Box::new(FuncType {
-                        body: *body.clone(),
+                        body: *body,
                         args: None,
                         llvm_type: function_type,
                         llvm_func: function,
@@ -479,7 +418,7 @@ impl ASTContext {
                     // Set bool type in entry block
                     let var_name = c_str!("value_bool_var");
                     let bool_type_ptr = LLVMBuildAlloca(self.builder, int1_type(), var_name);
-                    let value_condition = self.match_ast(*condition.clone());
+                    let value_condition = self.match_ast(*condition);
 
                     LLVMBuildStore(self.builder, value_condition.get_value(), bool_type_ptr);
 
