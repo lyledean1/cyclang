@@ -1,10 +1,11 @@
 #![allow(dead_code)]
-pub mod num;
-pub mod string;
+pub mod block;
 pub mod bool;
 pub mod func;
-pub mod block;
 pub mod llvm;
+pub mod num;
+pub mod string;
+use llvm_sys::core::LLVMGetValueName;
 use std::any::Any;
 
 use crate::context::ASTContext;
@@ -32,7 +33,13 @@ pub trait TypeBase: DynClone {
         unimplemented!("new has not been implemented for this type");
     }
     fn print(&self, ast_context: &mut ASTContext);
+    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+        unimplemented!("{:?} type does not implement assign", self.get_type())
+    }
     fn get_type(&self) -> BaseTypes;
+    fn get_name(&self) -> *const i8 {
+        unsafe { LLVMGetValueName(self.get_value()) }
+    }
     fn get_llvm_type(&self) -> LLVMTypeRef {
         unimplemented!(
             "{:?} type does not implement get_llvm_type",

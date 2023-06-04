@@ -1,6 +1,6 @@
 use crate::context::ASTContext;
-use crate::types::{BaseTypes, TypeBase};
 use crate::types::bool::BoolType;
+use crate::types::{BaseTypes, TypeBase};
 
 use std::any::Any;
 use std::ffi::CString;
@@ -34,7 +34,7 @@ impl TypeBase for StringType {
             Some(val) => val.to_string(),
             None => panic!("The input value must be a bool"),
         };
-        let string = CString::new(value_as_string.clone()).unwrap();
+        let string: CString = CString::new(value_as_string.clone()).unwrap();
         unsafe {
             let value = LLVMConstStringInContext(
                 _context.context,
@@ -57,6 +57,24 @@ impl TypeBase for StringType {
                 llmv_value_pointer: Some(buffer_ptr),
                 str_value: value_as_string, // fix
             })
+        }
+    }
+    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+        match _rhs.get_type() {
+            BaseTypes::String => unsafe {
+                let alloca = self.get_ptr();
+                let name = LLVMGetValueName(self.get_value());
+                let new_value = LLVMBuildLoad2(_ast_context.builder, int8_type(), alloca, name);
+                LLVMBuildStore(_ast_context.builder, new_value, alloca);
+            },
+            _ => {
+                unreachable!(
+                    "Can't reassign variable {:?} that has type {:?} to type {:?}",
+                    self.name,
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
         }
     }
     fn get_type(&self) -> BaseTypes {

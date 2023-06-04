@@ -1,8 +1,8 @@
 use crate::context::ASTContext;
 use crate::parser::Expression;
 extern crate llvm_sys;
-use llvm_sys::prelude::*;
 use crate::types::{BaseTypes, TypeBase};
+use llvm_sys::prelude::*;
 
 //TODO: create new functon
 #[derive(Debug, Clone)]

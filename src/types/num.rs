@@ -2,8 +2,8 @@ use crate::types::llvm::*;
 use std::any::Any;
 
 use crate::context::ASTContext;
-use crate::types::{BaseTypes, TypeBase};
 use crate::types::bool::BoolType;
+use crate::types::{BaseTypes, TypeBase};
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
@@ -41,6 +41,25 @@ impl TypeBase for NumberType {
             })
         }
     }
+    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+        match _rhs.get_type() {
+            BaseTypes::Number => unsafe {
+                let alloca = self.get_ptr();
+                let name = LLVMGetValueName(self.get_value());
+                let new_value = LLVMBuildLoad2(_ast_context.builder, int32_type(), alloca, name);
+                LLVMBuildStore(_ast_context.builder, new_value, alloca);
+            },
+            _ => {
+                unreachable!(
+                    "Can't reassign variable {:?} that has type {:?} to type {:?}",
+                    self.name,
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
@@ -63,8 +82,9 @@ impl TypeBase for NumberType {
                     context.builder,
                     self.get_value(),
                     _rhs.get_value(),
-                    c_str!("result"),
+                    self.get_name(),
                 );
+                LLVMBuildStore(context.builder, result, self.get_ptr());
                 return NumberType::new(
                     Box::new(get_i32_value(result)),
                     self.name.clone(),
@@ -302,7 +322,7 @@ impl TypeBase for NumberType {
                 ast_context.builder,
                 int32_ptr_type(),
                 self.get_ptr(),
-                c_str!("load_number_ptr"),
+                self.get_name(),
             );
 
             let print_args = [value_is_str, val].as_mut_ptr();

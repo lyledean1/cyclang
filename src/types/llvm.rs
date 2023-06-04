@@ -1,3 +1,5 @@
+use crate::context::LLVMFunction;
+use std::ffi::CString;
 use std::os::raw::c_ulonglong;
 
 extern crate llvm_sys;
@@ -6,6 +8,12 @@ use llvm_sys::prelude::*;
 
 const LLVM_FALSE: LLVMBool = 0;
 const LLVM_TRUE: LLVMBool = 1;
+
+macro_rules! c_str {
+    ($s:expr) => {
+        concat!($s, "\0").as_ptr() as *const i8
+    };
+}
 
 // Types
 
@@ -80,4 +88,62 @@ pub fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
 pub fn get_i32_value(value: LLVMValueRef) -> i32 {
     let zext_value: c_ulonglong = unsafe { LLVMConstIntGetZExtValue(value) };
     zext_value as i32
+}
+
+pub fn build_bool_to_str_func(
+    module: LLVMModuleRef,
+    builder: LLVMBuilderRef,
+    context: LLVMContextRef,
+    block: LLVMBasicBlockRef,
+) -> LLVMFunction {
+    // Create the function
+    let char_ptr_type = unsafe { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
+    let function_type = unsafe { LLVMFunctionType(char_ptr_type, &mut int1_type(), 1, 0) };
+    let function = unsafe {
+        LLVMAddFunction(
+            module,
+            CString::new("bool_to_str").unwrap().as_ptr(),
+            function_type,
+        )
+    };
+
+    // Create the basic blocks
+    let entry = unsafe {
+        LLVMAppendBasicBlockInContext(context, function, CString::new("entry").unwrap().as_ptr())
+    };
+    let then_block = unsafe {
+        LLVMAppendBasicBlockInContext(context, function, CString::new("then").unwrap().as_ptr())
+    };
+    let else_block = unsafe {
+        LLVMAppendBasicBlockInContext(context, function, CString::new("else").unwrap().as_ptr())
+    };
+
+    // Build the entry block
+    let builder = unsafe { LLVMCreateBuilderInContext(context) };
+    unsafe {
+        LLVMPositionBuilderAtEnd(builder, entry);
+        let condition = LLVMGetParam(function, 0);
+        LLVMBuildCondBr(builder, condition, then_block, else_block);
+    }
+
+    // Build the 'then' block (return "true")
+    unsafe {
+        let true_global = LLVMBuildGlobalStringPtr(builder, c_str!("true\n"), c_str!("true_str"));
+
+        LLVMPositionBuilderAtEnd(builder, then_block);
+        LLVMBuildRet(builder, true_global);
+    }
+
+    // Build the 'else' block (return "false")
+    unsafe {
+        let false_global = LLVMBuildGlobalStringPtr(builder, c_str!("false\n"), c_str!("false_str"));
+        LLVMPositionBuilderAtEnd(builder, else_block);
+        LLVMBuildRet(builder, false_global);
+    }
+
+    LLVMFunction {
+        function: function,
+        func_type: function_type,
+        block: block,
+    }
 }

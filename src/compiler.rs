@@ -1,11 +1,11 @@
 #![allow(dead_code)]
+use crate::types::block::BlockType;
+use crate::types::bool::BoolType;
+use crate::types::func::FuncType;
+use crate::types::llvm::*;
 use crate::types::num::NumberType;
 use crate::types::string::StringType;
-use crate::types::func::FuncType;
-use crate::types::bool::BoolType;
-use crate::types::block::BlockType;
 use crate::types::TypeBase;
-use crate::types::llvm::*;
 
 use std::ffi::CStr;
 
@@ -28,7 +28,6 @@ macro_rules! c_str {
     };
 }
 
-
 fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
     unsafe {
         // setup
@@ -47,6 +46,9 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         LLVMPositionBuilderAtEnd(builder, main_block);
 
         // Define common functions
+
+        let bool_to_str_func = build_bool_to_str_func(module, builder, context, main_block);
+        llvm_func_cache.set("bool_to_str", bool_to_str_func);
 
         //printf
         let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
@@ -239,22 +241,13 @@ impl ASTContext {
                         // Check Variables are the same Type
                         // Then Update the value of the old variable
                         // reassign variable
-                        let mut lhs: Box<dyn TypeBase> = self.try_match_with_var(var.clone(), *lhs);
-                        self.var_cache.set(&var.clone(), lhs.clone());
-                        // TODO: figure out best way to handle a let stmt return
-                        // Should this be handled inside the types
-                        unsafe {
-                            let alloca = val.get_ptr();
-                            let new_value = LLVMBuildLoad2(
-                                self.builder,
-                                int1_type(),
-                                alloca,
-                                c_str(var.as_str()),
-                            );
-                            let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
-                            lhs.set_value(new_value);
-                        }
-                        lhs
+
+                        // Assign a temp variable to the stack
+                        let lhs: Box<dyn TypeBase> = self.match_ast(*lhs);
+
+                        // Assign this new value
+                        val.assign(self, lhs);
+                        val
                     }
                     _ => {
                         let lhs = self.try_match_with_var(var.clone(), *lhs);
