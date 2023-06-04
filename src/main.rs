@@ -381,6 +381,7 @@ mod test {
         } else {
             print("hello");
         }
+        print(other_value);
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);

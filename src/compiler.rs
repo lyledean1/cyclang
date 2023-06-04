@@ -94,6 +94,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 block: main_block,
             },
             current_block: main_block,
+            depth: 0,
         };
         for expr in exprs {
             ast_ctx.match_ast(expr);
@@ -251,7 +252,7 @@ impl ASTContext {
                     }
                     _ => {
                         let lhs = self.try_match_with_var(var.clone(), *lhs);
-                        self.var_cache.set(&var.clone(), lhs.clone());
+                        self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
                         //TODO: figure out best way to handle a let stmt return
                         lhs
                     }
@@ -292,6 +293,7 @@ impl ASTContext {
                             llvm_type: function_type,
                             llvm_func: function,
                         }),
+                        self.depth,
                     );
                     Box::new(FuncType {
                         body: *body,
@@ -320,10 +322,16 @@ impl ASTContext {
                 }
             },
             Expression::BlockStmt(exprs) => {
+                // Set Variable Depth
+                // Each Block Stmt, Incr and Decr
+                // Clearing all the "Local" Variables That Have Been Assigned
+                self.incr();
                 for expr in exprs.clone() {
                     self.match_ast(expr);
                 }
-
+                // Delete Variables
+                self.var_cache.del_locals(self.get_depth());
+                self.decr();
                 Box::new(BlockType { values: exprs })
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
@@ -506,7 +514,7 @@ impl ASTContext {
 
                     let value = i.get_value();
                     let ptr = i.get_ptr();
-                    self.var_cache.set(&var_name, i);
+                    self.var_cache.set(&var_name, i, self.depth);
 
                     LLVMBuildStore(self.builder, value, ptr);
 
