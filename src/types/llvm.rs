@@ -4,12 +4,6 @@ extern crate llvm_sys;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
-
 const LLVM_FALSE: LLVMBool = 0;
 const LLVM_TRUE: LLVMBool = 1;
 

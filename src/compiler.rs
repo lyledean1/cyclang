@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 use crate::types::num::NumberType;
 use crate::types::string::StringType;
-use crate::types::FuncType;
-use crate::types::{BlockType, BoolType, TypeBase};
+use crate::types::func::FuncType;
+use crate::types::bool::BoolType;
+use crate::types::block::BlockType;
+use crate::types::TypeBase;
 use crate::types::llvm::*;
 
 use std::ffi::CStr;
@@ -14,7 +16,6 @@ use std::process::Output;
 use crate::parser::Expression;
 
 extern crate llvm_sys;
-use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMIntPredicate;
@@ -99,7 +100,8 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         // write our bitcode file to arm64
         LLVMSetTarget(module, c_str!("arm64"));
         LLVMPrintModuleToFile(module, c_str!("bin/main.ll"), ptr::null_mut());
-        LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
+        // Use Clang to output LLVM IR -> Binary
+        // LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
         let module_cstr = CStr::from_ptr(LLVMPrintModuleToString(module));
         let module_string = module_cstr.to_string_lossy().into_owned();
 

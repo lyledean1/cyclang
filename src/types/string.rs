@@ -1,5 +1,7 @@
 use crate::context::ASTContext;
-use crate::types::{BaseTypes, BoolType, TypeBase};
+use crate::types::{BaseTypes, TypeBase};
+use crate::types::bool::BoolType;
+
 use std::any::Any;
 use std::ffi::CString;
 

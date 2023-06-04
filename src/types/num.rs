@@ -2,7 +2,8 @@ use crate::types::llvm::*;
 use std::any::Any;
 
 use crate::context::ASTContext;
-use crate::types::{BaseTypes, BoolType, TypeBase};
+use crate::types::{BaseTypes, TypeBase};
+use crate::types::bool::BoolType;
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
