@@ -1,6 +1,12 @@
 #![allow(dead_code)]
-use crate::types::FuncType;
-use crate::types::{BlockType, BoolType, NumberType, StringType, TypeBase};
+use crate::types::num::NumberType;
+use crate::types::string::StringType;
+use crate::types::func::FuncType;
+use crate::types::bool::BoolType;
+use crate::types::block::BlockType;
+use crate::types::TypeBase;
+use crate::types::llvm::*;
+
 use std::ffi::CStr;
 
 use crate::context::*;
@@ -10,11 +16,9 @@ use std::process::Output;
 use crate::parser::Expression;
 
 extern crate llvm_sys;
-use llvm_sys::bit_writer::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMIntPredicate;
-use std::os::raw::c_ulonglong;
 use std::process::Command;
 use std::ptr;
 
@@ -24,58 +28,6 @@ macro_rules! c_str {
     };
 }
 
-const LLVM_FALSE: LLVMBool = 0;
-const LLVM_TRUE: LLVMBool = 1;
-
-// Types
-
-fn create_string_type(context: LLVMContextRef) -> LLVMTypeRef {
-    unsafe {
-        // Create an LLVM 8-bit integer type (i8) to represent a character
-        let i8_type = LLVMInt8TypeInContext(context);
-
-        // Create a pointer type to the i8 type to represent a string
-        LLVMPointerType(i8_type, 0)
-    }
-}
-/// Convert this integer to LLVM's representation of a constant
-/// integer.
-unsafe fn int8(val: c_ulonglong) -> LLVMValueRef {
-    LLVMConstInt(LLVMInt8Type(), val, LLVM_FALSE)
-}
-
-/// Convert this integer to LLVM's representation of a constant
-/// integer.
-// TODO: this should be a machine word size rather than hard-coding 32-bits.
-fn int32(val: c_ulonglong) -> LLVMValueRef {
-    unsafe { LLVMConstInt(LLVMInt32Type(), val, LLVM_FALSE) }
-}
-
-fn int1_type() -> LLVMTypeRef {
-    unsafe { LLVMInt1Type() }
-}
-
-fn int8_type() -> LLVMTypeRef {
-    unsafe { LLVMInt8Type() }
-}
-
-fn int32_type() -> LLVMTypeRef {
-    unsafe { LLVMInt32Type() }
-}
-
-fn int8_ptr_type() -> LLVMTypeRef {
-    unsafe { LLVMPointerType(LLVMInt8Type(), 0) }
-}
-
-fn bool_type(context: LLVMContextRef, boolean: bool) -> LLVMValueRef {
-    unsafe {
-        let bool_type = LLVMInt1TypeInContext(context);
-
-        // Create a LLVM value for the bool
-        // Return the LLVMValueRef for the bool
-        LLVMConstInt(bool_type, boolean as u64, 0)
-    }
-}
 
 fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
     unsafe {
@@ -148,7 +100,8 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         // write our bitcode file to arm64
         LLVMSetTarget(module, c_str!("arm64"));
         LLVMPrintModuleToFile(module, c_str!("bin/main.ll"), ptr::null_mut());
-        LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
+        // Use Clang to output LLVM IR -> Binary
+        // LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
         let module_cstr = CStr::from_ptr(LLVMPrintModuleToString(module));
         let module_string = module_cstr.to_string_lossy().into_owned();
 
@@ -172,13 +125,46 @@ impl ASTContext {
         self.current_function.block = block;
     }
 
+    //TODO: figure a better way to create a named variable in the LLVM IR
+    fn try_match_with_var(&mut self, name: String, input: Expression) -> Box<dyn TypeBase> {
+        match input {
+            Expression::Number(input) => {
+                return NumberType::new(
+                    Box::new(input),
+                    var_type_str(name, "num_var".to_string()),
+                    self,
+                )
+            }
+            Expression::String(input) => {
+                return StringType::new(
+                    Box::new(input),
+                    var_type_str(name, "str_var".to_string()),
+                    self,
+                )
+            }
+            Expression::Bool(input) => {
+                return BoolType::new(
+                    Box::new(input),
+                    var_type_str(name, "bool_var".to_string()),
+                    self,
+                )
+            }
+            _ => {
+                // just return without var
+                return self.match_ast(input);
+            }
+        }
+    }
+
     fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
         match input {
             Expression::Number(input) => {
-                return NumberType::new(Box::new(input), self);
+                return NumberType::new(Box::new(input), "num".to_string(), self);
             }
-            Expression::String(input) => return StringType::new(Box::new(input), self),
-            Expression::Bool(input) => BoolType::new(Box::new(input), self),
+            Expression::String(input) => {
+                return StringType::new(Box::new(input), "str".to_string(), self)
+            }
+            Expression::Bool(input) => BoolType::new(Box::new(input), "bool".to_string(), self),
             Expression::Variable(input) => match self.var_cache.get(&input) {
                 Some(val) => val,
                 None => {
@@ -250,27 +236,28 @@ impl ASTContext {
             Expression::LetStmt(var, lhs) => {
                 match self.var_cache.get(&var) {
                     Some(val) => {
+                        // Check Variables are the same Type
+                        // Then Update the value of the old variable
                         // reassign variable
-                        let lhs = self.match_ast(*lhs);
+                        let mut lhs: Box<dyn TypeBase> = self.try_match_with_var(var.clone(), *lhs);
                         self.var_cache.set(&var.clone(), lhs.clone());
-                        //TODO: figure out best way to handle a let stmt return
-                        // unsafe {
-                        //     // let alloca = val.get_ptr();
-                        //     // lhs.set_ptr(alloca);
-                        //     // let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
-                        //     // let new_value = LLVMBuildLoad2(
-                        //     //     self.builder,
-                        //     //     int1_type(),
-                        //     //     alloca,
-                        //     //     c_str!("bool_type"),
-                        //     // );
-                        //     // lhs.set_value(new_value);
-
-                        // }
+                        // TODO: figure out best way to handle a let stmt return
+                        // Should this be handled inside the types
+                        unsafe {
+                            let alloca = val.get_ptr();
+                            let new_value = LLVMBuildLoad2(
+                                self.builder,
+                                int1_type(),
+                                alloca,
+                                c_str(var.as_str()),
+                            );
+                            let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
+                            lhs.set_value(new_value);
+                        }
                         lhs
                     }
                     _ => {
-                        let lhs = self.match_ast(*lhs);
+                        let lhs = self.try_match_with_var(var.clone(), *lhs);
                         self.var_cache.set(&var.clone(), lhs.clone());
                         //TODO: figure out best way to handle a let stmt return
                         lhs
@@ -282,7 +269,7 @@ impl ASTContext {
             }
             Expression::FuncStmt(name, args, body) => {
                 unsafe {
-                    let function_name = c_str!("func_stmt");
+                    let function_name = c_str(&name);
                     let current_function = self.current_function.function;
                     let current_func_type = self.current_function.func_type;
                     let current_block: *mut llvm_sys::LLVMBasicBlock = self.current_function.block;
@@ -314,7 +301,7 @@ impl ASTContext {
                         }),
                     );
                     Box::new(FuncType {
-                        body: *body.clone(),
+                        body: *body,
                         args: None,
                         llvm_type: function_type,
                         llvm_func: function,
@@ -431,17 +418,13 @@ impl ASTContext {
 
                     LLVMPositionBuilderAtEnd(self.builder, entry_block);
                     // Set bool type in entry block
-                    let var_name = c_str!("bool_type");
+                    let var_name = c_str!("value_bool_var");
                     let bool_type_ptr = LLVMBuildAlloca(self.builder, int1_type(), var_name);
                     let value_condition = self.match_ast(*condition);
-                    let build_store =
-                        LLVMBuildStore(self.builder, value_condition.get_value(), bool_type_ptr);
-                    let bool_type_val =
-                        LLVMBuildLoad2(self.builder, int1_type(), bool_type_ptr, var_name);
+
+                    LLVMBuildStore(self.builder, value_condition.get_value(), bool_type_ptr);
 
                     LLVMBuildBr(self.builder, loop_cond_block);
-
-                    LLVMBuildRetVoid(self.builder);
 
                     LLVMPositionBuilderAtEnd(self.builder, loop_body_block);
 
@@ -451,9 +434,17 @@ impl ASTContext {
 
                     // Build loop condition block
                     LLVMPositionBuilderAtEnd(self.builder, loop_cond_block);
+
+                    let value_cond_load = LLVMBuildLoad2(
+                        self.builder,
+                        int1_type(),
+                        value_condition.get_ptr(),
+                        c_str!("value_bool_var"),
+                    );
+
                     LLVMBuildCondBr(
                         self.builder,
-                        bool_type_val,
+                        value_cond_load,
                         loop_body_block,
                         loop_exit_block,
                     );
@@ -517,7 +508,8 @@ impl ASTContext {
                     let loop_exit_block =
                         LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
 
-                    let i: Box<dyn TypeBase> = NumberType::new(Box::new(init), self);
+                    let i: Box<dyn TypeBase> =
+                        NumberType::new(Box::new(init), "i".to_string(), self);
 
                     let value = i.clone().get_value();
                     let ptr = i.clone().get_ptr();
@@ -601,7 +593,7 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
     // compile to binary
 
     let output = Command::new("clang")
-        .arg("bin/main.bc")
+        .arg("bin/main.ll")
         .arg("-o")
         .arg("bin/main")
         .output();
