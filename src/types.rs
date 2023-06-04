@@ -49,6 +49,10 @@ fn int1_type() -> LLVMTypeRef {
     unsafe { LLVMInt1Type() }
 }
 
+fn int1_ptr_type() -> LLVMTypeRef {
+    unsafe { LLVMPointerType(LLVMInt1Type(), 0) }
+}
+
 fn int8_type() -> LLVMTypeRef {
     unsafe { LLVMInt8Type() }
 }
@@ -298,7 +302,7 @@ impl TypeBase for StringType {
         match _rhs.get_type() {
             BaseTypes::String => {
                 let value = self.get_str() != _rhs.get_str();
-                return BoolType::new(Box::new(value), self.name.clone(),_context);
+                return BoolType::new(Box::new(value), self.name.clone(), _context);
             }
             _ => {
                 unreachable!(
@@ -368,11 +372,7 @@ impl TypeBase for NumberType {
         };
         unsafe {
             let value = LLVMConstInt(int32_type(), value_as_i32.try_into().unwrap(), 0);
-            let ptr = LLVMBuildAlloca(
-                _context.builder,
-                int32_ptr_type(),
-                c_str(_name.as_str()),
-            );
+            let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_str(_name.as_str()));
             LLVMBuildStore(_context.builder, value, ptr);
             Box::new(NumberType {
                 name: _name,
@@ -405,7 +405,11 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     c_str!("result"),
                 );
-                return NumberType::new(Box::new(get_i32_value(result)),self.name.clone(), context);
+                return NumberType::new(
+                    Box::new(get_i32_value(result)),
+                    self.name.clone(),
+                    context,
+                );
             },
             _ => {
                 unreachable!(
@@ -427,7 +431,11 @@ impl TypeBase for NumberType {
                     c_str!("result"),
                 );
 
-                return NumberType::new(Box::new(get_i32_value(result)), self.name.clone(), context);
+                return NumberType::new(
+                    Box::new(get_i32_value(result)),
+                    self.name.clone(),
+                    context,
+                );
             },
             _ => {
                 unreachable!(
@@ -448,7 +456,11 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     c_str!("result"),
                 );
-                return NumberType::new(Box::new(get_i32_value(result)), self.name.clone(), context);
+                return NumberType::new(
+                    Box::new(get_i32_value(result)),
+                    self.name.clone(),
+                    context,
+                );
             },
             _ => {
                 unreachable!(
@@ -469,7 +481,11 @@ impl TypeBase for NumberType {
                     _rhs.get_value(),
                     c_str!("result"),
                 );
-                return NumberType::new(Box::new(get_i32_value(result)),self.name.clone(), context);
+                return NumberType::new(
+                    Box::new(get_i32_value(result)),
+                    self.name.clone(),
+                    context,
+                );
             },
             _ => {
                 unreachable!(
