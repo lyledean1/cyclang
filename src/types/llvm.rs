@@ -97,24 +97,12 @@ pub fn build_bool_to_str_func(
     // Create the function
     let char_ptr_type = unsafe { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
     let func_type = unsafe { LLVMFunctionType(char_ptr_type, &mut int1_type(), 1, 0) };
-    let function = unsafe {
-        LLVMAddFunction(
-            module,
-            c_str!("bool_to_str"),
-            func_type,
-        )
-    };
+    let function = unsafe { LLVMAddFunction(module, c_str!("bool_to_str"), func_type) };
 
     // Create the basic blocks
-    let entry = unsafe {
-        LLVMAppendBasicBlockInContext(context, function, c_str!("entry"))
-    };
-    let then_block = unsafe {
-        LLVMAppendBasicBlockInContext(context, function, c_str!("then"))
-    };
-    let else_block = unsafe {
-        LLVMAppendBasicBlockInContext(context, function, c_str!("else"))
-    };
+    let entry = unsafe { LLVMAppendBasicBlockInContext(context, function, c_str!("entry")) };
+    let then_block = unsafe { LLVMAppendBasicBlockInContext(context, function, c_str!("then")) };
+    let else_block = unsafe { LLVMAppendBasicBlockInContext(context, function, c_str!("else")) };
 
     // Build the entry block
     let builder = unsafe { LLVMCreateBuilderInContext(context) };
@@ -134,7 +122,8 @@ pub fn build_bool_to_str_func(
 
     // Build the 'else' block (return "false")
     unsafe {
-        let false_global = LLVMBuildGlobalStringPtr(builder, c_str!("false\n"), c_str!("false_str"));
+        let false_global =
+            LLVMBuildGlobalStringPtr(builder, c_str!("false\n"), c_str!("false_str"));
         LLVMPositionBuilderAtEnd(builder, else_block);
         LLVMBuildRet(builder, false_global);
     }

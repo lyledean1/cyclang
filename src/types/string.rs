@@ -1,6 +1,6 @@
 use crate::context::ASTContext;
 use crate::types::bool::BoolType;
-use crate::types::{BaseTypes, TypeBase};
+use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase};
 
 use std::any::Any;
 use std::ffi::CString;
@@ -25,77 +25,47 @@ pub struct StringType {
     str_value: String,
 }
 
-impl TypeBase for StringType {
-    fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
-    where
-        Self: Sized,
-    {
-        let value_as_string = match _value.downcast_ref::<String>() {
-            Some(val) => val.to_string(),
-            None => panic!("The input value must be a bool"),
-        };
-        let string: CString = CString::new(value_as_string.clone()).unwrap();
-        unsafe {
-            let value = LLVMConstStringInContext(
-                _context.context,
-                string.as_ptr(),
-                string.as_bytes().len() as u32,
-                0,
-            );
-            let mut len_value: usize = string.as_bytes().len();
-            let ptr: *mut usize = (&mut len_value) as *mut usize;
-            let buffer_ptr = LLVMBuildPointerCast(
-                _context.builder,
-                value,
-                LLVMPointerType(LLVMInt8Type(), 0),
-                c_str(_name.as_str()),
-            );
-            Box::new(StringType {
-                name: _name,
-                length: ptr,
-                llmv_value: value,
-                llmv_value_pointer: Some(buffer_ptr),
-                str_value: value_as_string, // fix
-            })
-        }
+impl Base for StringType {
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::String
     }
-    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+}
+
+impl Comparison for StringType {
+    fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::String => {
-                //TODO: need to revisit implementation of strings
-                unimplemented!()
-            },
+                let value = self.get_str() == _rhs.get_str();
+                return BoolType::new(Box::new(value), self.name.clone(), _context);
+            }
             _ => {
                 unreachable!(
-                    "Can't reassign variable {:?} that has type {:?} to type {:?}",
-                    self.name,
+                    "Can't compare == on dtype {:?} and type {:?}",
                     self.get_type(),
                     _rhs.get_type()
                 )
             }
         }
     }
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::String
-    }
-    fn get_value(&self) -> LLVMValueRef {
-        self.llmv_value
-    }
-    fn set_value(&mut self, _value: LLVMValueRef) {
-        self.llmv_value = _value;
-    }
-    fn get_ptr(&self) -> LLVMValueRef {
-        match self.llmv_value_pointer {
-            Some(v) => v,
-            None => {
-                unreachable!("No pointer for this value")
+
+    fn ne(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+        match _rhs.get_type() {
+            BaseTypes::String => {
+                let value = self.get_str() != _rhs.get_str();
+                return BoolType::new(Box::new(value), self.name.clone(), _context);
+            }
+            _ => {
+                unreachable!(
+                    "Can't compare != on type {:?} and type {:?}",
+                    self.get_type(),
+                    _rhs.get_type()
+                )
             }
         }
     }
-    fn get_str(&self) -> String {
-        self.str_value.clone()
-    }
+}
 
+impl Arithmetic for StringType {
     fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::String => match _ast_context.llvm_func_cache.get("sprintf") {
@@ -141,39 +111,9 @@ impl TypeBase for StringType {
             }
         }
     }
+}
 
-    fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::String => {
-                let value = self.get_str() == _rhs.get_str();
-                return BoolType::new(Box::new(value), self.name.clone(), _context);
-            }
-            _ => {
-                unreachable!(
-                    "Can't compare == on dtype {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn ne(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::String => {
-                let value = self.get_str() != _rhs.get_str();
-                return BoolType::new(Box::new(value), self.name.clone(), _context);
-            }
-            _ => {
-                unreachable!(
-                    "Can't compare != on type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
+impl Debug for StringType {
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
             // Set Value
@@ -208,5 +148,71 @@ impl TypeBase for StringType {
                 }
             }
         }
+    }
+}
+
+impl TypeBase for StringType {
+    fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
+    where
+        Self: Sized,
+    {
+        let value_as_string = match _value.downcast_ref::<String>() {
+            Some(val) => val.to_string(),
+            None => panic!("The input value must be a bool"),
+        };
+        let string: CString = CString::new(value_as_string.clone()).unwrap();
+        unsafe {
+            let value = LLVMConstStringInContext(
+                _context.context,
+                string.as_ptr(),
+                string.as_bytes().len() as u32,
+                0,
+            );
+            let mut len_value: usize = string.as_bytes().len();
+            let ptr: *mut usize = (&mut len_value) as *mut usize;
+            let buffer_ptr = LLVMBuildPointerCast(
+                _context.builder,
+                value,
+                LLVMPointerType(LLVMInt8Type(), 0),
+                c_str(_name.as_str()),
+            );
+            Box::new(StringType {
+                name: _name,
+                length: ptr,
+                llmv_value: value,
+                llmv_value_pointer: Some(buffer_ptr),
+                str_value: value_as_string, // fix
+            })
+        }
+    }
+    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+        match _rhs.get_type() {
+            BaseTypes::String => {
+                //TODO: need to revisit implementation of strings
+                unimplemented!()
+            }
+            _ => {
+                unreachable!(
+                    "Can't reassign variable {:?} that has type {:?} to type {:?}",
+                    self.name,
+                    self.get_type(),
+                    _rhs.get_type()
+                )
+            }
+        }
+    }
+    fn get_value(&self) -> LLVMValueRef {
+        self.llmv_value
+    }
+    fn get_ptr(&self) -> LLVMValueRef {
+        match self.llmv_value_pointer {
+            Some(v) => v,
+            None => {
+                unreachable!("No pointer for this value")
+            }
+        }
+    }
+    fn get_str(&self) -> String {
+        self.str_value.clone()
     }
 }
