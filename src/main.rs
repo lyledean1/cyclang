@@ -435,38 +435,37 @@ mod test {
     }
 
     #[test]
-    fn test_compile_while_stmt_multiple_passes() {
+    fn test_compile_while_stmt_with_if_true() {
         let input = r#"
-        let value = 0;
-        let is_true = true;
-        while(is_true) {
-            print("hello" == "hello");
-            is_true = false;
+        let value = true;
+        while(value) {
+            if (value) {
+                print(value);
+            }
+            value = false;
         }
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert_eq!(stderr, "");
-        assert_eq!(stdout, "2\n");
+        assert_eq!(stdout, "true\n");
     }
 
     #[test]
     fn test_compile_while_stmt_one_pass_grouping_string() {
         let input = r#"
-        let is_true = true;
-        let value = 1;
-        print(value);
-        while(is_true) {
-            is_true = false;
-            print(value);
+        let value = true;
+        while(value) {
+            value = false;
+            print("here");
         }
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert_eq!(stderr, "");
-        assert_eq!(stdout, "1\n");
+        assert_eq!(stdout, "\"here\"\n");
     }
 
     #[test]
@@ -507,7 +506,7 @@ mod test {
             print(number);
             if (number == 10) {
                 value = false;
-                string = "yes";
+                print(value);
             }
         }
         print(string);

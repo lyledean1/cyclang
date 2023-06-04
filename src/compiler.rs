@@ -301,14 +301,14 @@ impl ASTContext {
                         // TODO: figure out best way to handle a let stmt return
                         unsafe {
                             let alloca = val.get_ptr();
-                            // let new_value = LLVMBuildLoad2(
-                            //     self.builder,
-                            //     int1_type(),
-                            //     alloca,
-                            //     c_str(var.as_str()),
-                            // );
+                            let new_value = LLVMBuildLoad2(
+                                self.builder,
+                                int1_type(),
+                                alloca,
+                                c_str(var.as_str()),
+                            );
                             let build_store = LLVMBuildStore(self.builder, lhs.get_value(), alloca);
-                            // lhs.set_value(new_value);
+                            lhs.set_value(new_value);
                         }
                         lhs
                     }
@@ -649,7 +649,7 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
     // compile to binary
 
     let output = Command::new("clang")
-        .arg("bin/main.bc")
+        .arg("bin/main.ll")
         .arg("-o")
         .arg("bin/main")
         .output();
