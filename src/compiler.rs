@@ -47,7 +47,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
 
         // Define common functions
 
-        let bool_to_str_func = build_bool_to_str_func(module, builder, context, main_block);
+        let bool_to_str_func = build_bool_to_str_func(module, context, main_block);
         llvm_func_cache.set("bool_to_str", bool_to_str_func);
 
         //printf
@@ -170,7 +170,7 @@ impl ASTContext {
             Expression::Variable(input) => match self.var_cache.get(&input) {
                 Some(val) => val,
                 None => {
-                    panic!("var not found")
+                    panic!("var {:?} not found", input)
                 }
             },
             Expression::Nil => {
@@ -504,8 +504,8 @@ impl ASTContext {
                     let i: Box<dyn TypeBase> =
                         NumberType::new(Box::new(init), "i".to_string(), self);
 
-                    let value = i.clone().get_value();
-                    let ptr = i.clone().get_ptr();
+                    let value = i.get_value();
+                    let ptr = i.get_ptr();
                     self.var_cache.set(&var_name, i);
 
                     LLVMBuildStore(self.builder, value, ptr);

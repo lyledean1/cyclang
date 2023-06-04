@@ -72,24 +72,24 @@ impl TypeBase for NumberType {
     fn get_ptr(&self) -> LLVMValueRef {
         self.llmv_value_pointer
     }
-    fn set_ptr(&mut self, _value: LLVMValueRef) {
-        self.llmv_value_pointer = _value;
-    }
     fn add(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
+                let lhs_value = LLVMBuildLoad2(context.builder, int32_type(), self.get_ptr(), self.get_name());
+                let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(context.builder, int32_type(), _rhs.get_ptr(), _rhs.get_name());
                 let result = LLVMBuildAdd(
                     context.builder,
-                    self.get_value(),
-                    _rhs.get_value(),
-                    self.get_name(),
+                    lhs_value,
+                    rhs_value,
+                    c_str!("add_num"),
                 );
                 LLVMBuildStore(context.builder, result, self.get_ptr());
-                return NumberType::new(
-                    Box::new(get_i32_value(result)),
-                    self.name.clone(),
-                    context,
-                );
+                //TODO: fix the new instruction
+                Box::new(NumberType {
+                    name: self.name.clone(),
+                    llmv_value: self.llmv_value,
+                    llmv_value_pointer: self.llmv_value_pointer,
+                })
             },
             _ => {
                 unreachable!(
@@ -104,18 +104,21 @@ impl TypeBase for NumberType {
     fn sub(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
+                let lhs_value = LLVMBuildLoad2(context.builder, int32_type(), self.get_ptr(), self.get_name());
+                let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(context.builder, int32_type(), _rhs.get_ptr(), _rhs.get_name());
                 let result = LLVMBuildSub(
                     context.builder,
-                    self.get_value(),
-                    _rhs.get_value(),
-                    c_str!("result"),
+                    lhs_value,
+                    rhs_value,
+                    c_str!("sub_num"),
                 );
-
-                return NumberType::new(
-                    Box::new(get_i32_value(result)),
-                    self.name.clone(),
-                    context,
-                );
+                LLVMBuildStore(context.builder, result, self.get_ptr());
+                //TODO: fix the new instruction
+                Box::new(NumberType {
+                    name: self.name.clone(),
+                    llmv_value: self.llmv_value,
+                    llmv_value_pointer: self.llmv_value_pointer,
+                })
             },
             _ => {
                 unreachable!(
@@ -130,17 +133,21 @@ impl TypeBase for NumberType {
     fn mul(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
+                let lhs_value = LLVMBuildLoad2(context.builder, int32_type(), self.get_ptr(), self.get_name());
+                let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(context.builder, int32_type(), _rhs.get_ptr(), _rhs.get_name());
                 let result = LLVMBuildMul(
                     context.builder,
-                    self.get_value(),
-                    _rhs.get_value(),
+                    lhs_value,
+                    rhs_value,
                     c_str!("result"),
                 );
-                return NumberType::new(
-                    Box::new(get_i32_value(result)),
-                    self.name.clone(),
-                    context,
-                );
+                LLVMBuildStore(context.builder, result, self.get_ptr());
+                //TODO: fix the new instruction
+                Box::new(NumberType {
+                    name: self.name.clone(),
+                    llmv_value: self.llmv_value,
+                    llmv_value_pointer: self.llmv_value_pointer,
+                })
             },
             _ => {
                 unreachable!(
@@ -155,17 +162,21 @@ impl TypeBase for NumberType {
     fn div(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
+                let lhs_value = LLVMBuildLoad2(context.builder, int32_type(), self.get_ptr(), self.get_name());
+                let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(context.builder, int32_type(), _rhs.get_ptr(), _rhs.get_name());
                 let result = LLVMBuildSDiv(
                     context.builder,
-                    self.get_value(),
-                    _rhs.get_value(),
+                    lhs_value,
+                    rhs_value,
                     c_str!("result"),
                 );
-                return NumberType::new(
-                    Box::new(get_i32_value(result)),
-                    self.name.clone(),
-                    context,
-                );
+                LLVMBuildStore(context.builder, result, self.get_ptr());
+                //TODO: fix the new instruction
+                Box::new(NumberType {
+                    name: self.name.clone(),
+                    llmv_value: self.llmv_value,
+                    llmv_value_pointer: self.llmv_value_pointer,
+                })
             },
             _ => {
                 unreachable!(

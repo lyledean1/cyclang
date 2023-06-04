@@ -61,11 +61,9 @@ impl TypeBase for StringType {
     }
     fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
-            BaseTypes::String => unsafe {
-                let alloca = self.get_ptr();
-                let name = LLVMGetValueName(self.get_value());
-                let new_value = LLVMBuildLoad2(_ast_context.builder, int8_type(), alloca, name);
-                LLVMBuildStore(_ast_context.builder, new_value, alloca);
+            BaseTypes::String => {
+                //TODO: need to revisit implementation of strings
+                unimplemented!()
             },
             _ => {
                 unreachable!(
@@ -85,9 +83,6 @@ impl TypeBase for StringType {
     }
     fn set_value(&mut self, _value: LLVMValueRef) {
         self.llmv_value = _value;
-    }
-    fn get_length(&self) -> *mut usize {
-        self.length
     }
     fn get_ptr(&self) -> LLVMValueRef {
         match self.llmv_value_pointer {

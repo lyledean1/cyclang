@@ -77,9 +77,6 @@ impl TypeBase for BoolType {
     fn get_ptr(&self) -> LLVMValueRef {
         self.llmv_value_pointer
     }
-    fn set_ptr(&mut self, _value: LLVMValueRef) {
-        self.llmv_value_pointer = _value;
-    }
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
             let value = LLVMBuildLoad2(self.builder, int1_ptr_type(), self.get_ptr(), self.get_name());

@@ -24,6 +24,7 @@ impl TypeBase for FuncType {
         BaseTypes::Func
     }
     fn print(&self, _ast_context: &mut ASTContext) {
+        //TODO: Print func name as <function Name>
         unreachable!("Shouldn't be able to print func type")
     }
 }

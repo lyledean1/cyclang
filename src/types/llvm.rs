@@ -1,5 +1,4 @@
 use crate::context::LLVMFunction;
-use std::ffi::CString;
 use std::os::raw::c_ulonglong;
 
 extern crate llvm_sys;
@@ -92,30 +91,29 @@ pub fn get_i32_value(value: LLVMValueRef) -> i32 {
 
 pub fn build_bool_to_str_func(
     module: LLVMModuleRef,
-    builder: LLVMBuilderRef,
     context: LLVMContextRef,
     block: LLVMBasicBlockRef,
 ) -> LLVMFunction {
     // Create the function
     let char_ptr_type = unsafe { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
-    let function_type = unsafe { LLVMFunctionType(char_ptr_type, &mut int1_type(), 1, 0) };
+    let func_type = unsafe { LLVMFunctionType(char_ptr_type, &mut int1_type(), 1, 0) };
     let function = unsafe {
         LLVMAddFunction(
             module,
-            CString::new("bool_to_str").unwrap().as_ptr(),
-            function_type,
+            c_str!("bool_to_str"),
+            func_type,
         )
     };
 
     // Create the basic blocks
     let entry = unsafe {
-        LLVMAppendBasicBlockInContext(context, function, CString::new("entry").unwrap().as_ptr())
+        LLVMAppendBasicBlockInContext(context, function, c_str!("entry"))
     };
     let then_block = unsafe {
-        LLVMAppendBasicBlockInContext(context, function, CString::new("then").unwrap().as_ptr())
+        LLVMAppendBasicBlockInContext(context, function, c_str!("then"))
     };
     let else_block = unsafe {
-        LLVMAppendBasicBlockInContext(context, function, CString::new("else").unwrap().as_ptr())
+        LLVMAppendBasicBlockInContext(context, function, c_str!("else"))
     };
 
     // Build the entry block
@@ -142,8 +140,8 @@ pub fn build_bool_to_str_func(
     }
 
     LLVMFunction {
-        function: function,
-        func_type: function_type,
-        block: block,
+        function,
+        func_type,
+        block,
     }
 }
