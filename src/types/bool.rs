@@ -142,7 +142,6 @@ impl Debug for BoolType {
     }
 }
 
-
 impl TypeBase for BoolType {
     fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where

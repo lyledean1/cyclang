@@ -166,7 +166,6 @@ impl Arithmetic for NumberType {
             }
         }
     }
-
 }
 
 impl Debug for NumberType {
