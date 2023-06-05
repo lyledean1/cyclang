@@ -44,8 +44,8 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug {
     fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         unimplemented!("{:?} type does not implement assign", self.get_type())
     }
-    fn get_name(&self) -> *const i8 {
-        unsafe { LLVMGetValueName(self.get_value()) }
+    unsafe fn get_name(&self) -> *const i8 {
+        LLVMGetValueName(self.get_value())
     }
     fn get_llvm_type(&self) -> LLVMTypeRef {
         unimplemented!(
