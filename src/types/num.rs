@@ -219,7 +219,7 @@ impl TypeBase for NumberType {
                 name: _name,
                 llmv_value: value,
                 llmv_value_pointer: ptr,
-                cname: cname,
+                cname,
             })
         }
     }

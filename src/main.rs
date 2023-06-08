@@ -675,16 +675,18 @@ mod test {
     }
 
     #[test]
-    fn test_compile_for_loop_reverse() {
+    fn test_compile_for_loop_reverse_with_num() {
         let input = r#"
+        let val = 0;
         for (let i = 10; i > 0; i--)
         {
-            print(i);
+            val = val + i;
+            print(val);
         }
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "10\n9\n8\n7\n6\n5\n4\n3\n2\n1\n");
+        assert_eq!(stdout, "10\n19\n27\n34\n40\n45\n49\n52\n54\n55\n");
     }
 
 }
