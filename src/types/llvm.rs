@@ -1,4 +1,5 @@
 use crate::context::LLVMFunction;
+use std::collections::HashMap;
 use std::os::raw::c_ulonglong;
 
 extern crate llvm_sys;
@@ -125,5 +126,6 @@ pub unsafe fn build_bool_to_str_func(
         func_type,
         entry_block,
         block: entry_block,
+        symbol_table: HashMap::new(),
     }
 }

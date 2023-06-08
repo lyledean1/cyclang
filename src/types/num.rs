@@ -22,6 +22,7 @@ pub struct NumberType {
     pub llmv_value: LLVMValueRef,
     pub llmv_value_pointer: LLVMValueRef,
     name: String,
+    cname: *const i8,
 }
 
 impl Base for NumberType {
@@ -53,6 +54,7 @@ impl Arithmetic for NumberType {
                     name: self.name.clone(),
                     llmv_value: self.llmv_value,
                     llmv_value_pointer: self.llmv_value_pointer,
+                    cname: self.get_name(),
                 })
             },
             _ => {
@@ -87,6 +89,7 @@ impl Arithmetic for NumberType {
                     name: self.name.clone(),
                     llmv_value: self.llmv_value,
                     llmv_value_pointer: self.llmv_value_pointer,
+                    cname: self.get_name(),
                 })
             },
             _ => {
@@ -121,6 +124,7 @@ impl Arithmetic for NumberType {
                     name: self.name.clone(),
                     llmv_value: self.llmv_value,
                     llmv_value_pointer: self.llmv_value_pointer,
+                    cname: self.get_name(),
                 })
             },
             _ => {
@@ -155,6 +159,7 @@ impl Arithmetic for NumberType {
                     name: self.name.clone(),
                     llmv_value: self.llmv_value,
                     llmv_value_pointer: self.llmv_value_pointer,
+                    cname: self.get_name(),
                 })
             },
             _ => {
@@ -171,21 +176,15 @@ impl Arithmetic for NumberType {
 impl Debug for NumberType {
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
-            let format_str = "%d\n\0";
-            let value_is_str = LLVMBuildGlobalStringPtr(
-                ast_context.builder,
-                format_str.as_ptr() as *const i8,
-                c_str!(""),
-            );
             // Load Value from Value Index Ptr
             let val = LLVMBuildLoad2(
                 ast_context.builder,
                 int32_ptr_type(),
                 self.get_ptr(),
-                self.get_name(),
+                c_str!("num_printf_ptr_val"),
             );
 
-            let print_args = [value_is_str, val].as_mut_ptr();
+            let print_args = [ast_context.printf_str_num_value, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
                     LLVMBuildCall2(
@@ -215,12 +214,17 @@ impl TypeBase for NumberType {
             let value = LLVMConstInt(int32_type(), value_as_i32.try_into().unwrap(), 0);
             let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_str(_name.as_str()));
             LLVMBuildStore(_context.builder, value, ptr);
+            let cname = c_str!("var_num_var");
             Box::new(NumberType {
                 name: _name,
                 llmv_value: value,
                 llmv_value_pointer: ptr,
+                cname: cname,
             })
         }
+    }
+    unsafe fn get_name(&self) -> *const i8 {
+        self.cname
     }
     fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
@@ -246,6 +250,9 @@ impl TypeBase for NumberType {
     }
     fn get_ptr(&self) -> LLVMValueRef {
         self.llmv_value_pointer
+    }
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        int32_ptr_type()
     }
 }
 

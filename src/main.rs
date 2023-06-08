@@ -406,6 +406,25 @@ mod test {
     }
 
     #[test]
+    fn test_nested_if_stmts_with_print_after() {
+        let input = r#"
+        if (true) {
+            if (true) {
+                print("yep");
+            } else {
+                print("nope");
+            }
+            print("yep");
+        } else {
+            print("don't print this");
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"yep\"\n\"yep\"\n");
+    }
+
+    #[test]
     fn test_nested_if_stmts_deeper() {
         let input = r#"
         if (true) {
@@ -417,6 +436,8 @@ mod test {
                     print(2);
                     if (true) {
                         print(3);
+                    } else {
+                        print("nothing");
                     }
                 }
             }
@@ -428,6 +449,37 @@ mod test {
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "1\n2\n3\n4\n");
+    }
+
+    #[test]
+    fn test_nested_if_stmts_with_top_level_var() {
+        let input = r#"
+        let var = 3;
+        if (true) {
+            if (true) {
+                print(1);
+                if (false) {
+                    print("error");
+                } else {
+                    print(2);
+                    if (true) {
+                        print(var);
+                        var = var + 1;
+                        print(var);
+                        var = var + 1;
+                    } else {
+                        print("nope");
+                    }
+                }
+            }
+        } else {
+            print("don't print this");
+        }
+        print(var);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "1\n2\n3\n4\n5\n");
     }
 
     #[test]
@@ -444,25 +496,23 @@ mod test {
         assert_eq!(stdout, "false\n");
     }
 
-    // TODO: readd this test
-    // #[test]
-    // fn test_compile_while_stmt_with_if_true() {
-    //     let input = r#"
-    //     let value = true;
-    //     while(value) {
-    //         print("fix this test");
-    //         value = false;
-    //         if (value) {
-    //             print(value);
-    //         }
-    //     }
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
-    //     let stderr = String::from_utf8_lossy(&output.stderr);
-    //     assert_eq!(stderr, "");
-    //     assert_eq!(stdout, "true\n");
-    // }
+    #[test]
+    fn test_compile_while_stmt_with_if_true() {
+        let input = r#"
+        let value = true;
+        while(value) {
+            if (value == true) {
+                print(value);
+            }
+            value = false;
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(stderr, "");
+        assert_eq!(stdout, "true\n");
+    }
 
     #[test]
     fn test_compile_while_stmt_one_pass_grouping_string() {
@@ -513,14 +563,15 @@ mod test {
         let value = true;
         let number = 0;
         while(value) {
-            print(value);
+            let other_value = true;
+            let value = false;
             number = number + 1;
             print(number);
         }
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\n");
+        assert_eq!(stdout, "1\n");
     }
 
     #[test]
@@ -534,21 +585,6 @@ mod test {
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n");
-    }
-
-    #[test]
-    fn test_compile_for_loop_with_num() {
-        let input = r#"
-        let val = 0;
-        for (let i = 0; i < 10; i++)
-        {  
-            val = val + i;
-            print(val);
-        }
-        "#;
-        let output = compile_output_from_string(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "0\n1\n3\n6\n10\n15\n21\n28\n36\n45\n");
     }
 
     #[test]
@@ -623,17 +659,32 @@ mod test {
         assert_eq!(stdout, "true\n");
     }
 
-    // TODO: decide if this should be a feature of the language
-    // #[test]
-    // fn test_compile_for_loop_reverse() {
-    //     let input = r#"
-    //     for (let i = 10; i > 0; i--)
-    //     {
-    //         print(i);
-    //     }
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "10\n9\n8\n7\n6\n5\n4\n3\n2\n1\n");
-    // }
+    #[test]
+    fn test_compile_for_loop_with_num() {
+        let input = r#"
+        let val = 0;
+        for (let i = 0; i < 10; i++)
+        {  
+            val = val + i;
+            print(val);
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "0\n1\n3\n6\n10\n15\n21\n28\n36\n45\n");
+    }
+
+    #[test]
+    fn test_compile_for_loop_reverse() {
+        let input = r#"
+        for (let i = 10; i > 0; i--)
+        {
+            print(i);
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "10\n9\n8\n7\n6\n5\n4\n3\n2\n1\n");
+    }
+
 }
