@@ -142,14 +142,14 @@ impl LLVMFunction {
             LLVMAppendBasicBlock(function, c_str!("entry"));
 
         let new_function = LLVMFunction {
-            function: function,
+            function,
             func_type: function_type,
             entry_block: function_entry_block,
             block: function_entry_block,
             symbol_table: HashMap::new(),
         };
 
-        context.current_function = new_function.clone();
+        context.current_function = new_function;
 
         LLVMPositionBuilderAtEnd(context.builder, function_entry_block);
 
@@ -160,7 +160,7 @@ impl LLVMFunction {
         context.var_cache.set(
             name.as_str(),
             Box::new(FuncType {
-                body: body,
+                body,
                 args: vec![],
                 llvm_type: function_type,
                 llvm_func: function,
