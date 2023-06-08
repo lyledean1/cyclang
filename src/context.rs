@@ -3,7 +3,19 @@
 use crate::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
+use crate::parser::Expression;
+use crate::types::func::FuncType;
+use crate::types::llvm::c_str;
+use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+
+use std::ptr;
+
+macro_rules! c_str {
+    ($s:expr) => {
+        concat!($s, "\0").as_ptr() as *const i8
+    };
+}
 
 pub struct ASTContext {
     pub builder: LLVMBuilderRef,
@@ -12,8 +24,9 @@ pub struct ASTContext {
     pub var_cache: VariableCache,
     pub llvm_func_cache: LLVMFunctionCache,
     pub current_function: LLVMFunction,
-    pub current_block: LLVMBasicBlockRef,
     pub depth: i32,
+    pub printf_str_value: LLVMValueRef,
+    pub printf_str_num_value: LLVMValueRef,
 }
 
 impl ASTContext {
@@ -21,15 +34,16 @@ impl ASTContext {
         self.depth
     }
     pub fn incr(&mut self) {
-        self.depth = self.depth + 1;
+        self.depth += 1;
     }
     pub fn decr(&mut self) {
-        self.depth = self.depth - 1;
+        self.depth -= 1;
     }
 }
 
 #[derive(Clone)]
 struct Container {
+    pub locals: HashMap<i32, bool>,
     pub trait_object: Box<dyn TypeBase>,
 }
 pub struct VariableCache {
@@ -51,11 +65,14 @@ impl VariableCache {
         }
     }
 
-    pub fn set(&mut self, key: &str, value: Box<dyn TypeBase>, depth: i32) {
+    pub fn set(&mut self, key: &str, trait_object: Box<dyn TypeBase>, depth: i32) {
+        let mut locals: HashMap<i32, bool> = HashMap::new();
+        locals.insert(depth, true);
         self.map.insert(
             key.to_string(),
             Container {
-                trait_object: value,
+                locals,
+                trait_object,
             },
         );
         match self.local.get(&depth) {
@@ -82,16 +99,11 @@ impl VariableCache {
     }
 
     pub fn del_locals(&mut self, depth: i32) {
-        match self.local.get(&depth) {
-            Some(v) => {
-                for local in v.iter() {
-                    self.map.remove(&local.to_string());
-                }
-                self.local.remove(&depth);
-            },
-            None => {
-
-            },
+        if let Some(v) = self.local.get(&depth) {
+            for local in v.iter() {
+                self.map.remove(&local.to_string());
+            }
+            self.local.remove(&depth);
         }
     }
 }
@@ -106,12 +118,57 @@ impl Default for LLVMFunctionCache {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct LLVMFunction {
     pub function: LLVMValueRef,
     pub func_type: LLVMTypeRef,
+    pub entry_block: LLVMBasicBlockRef,
     pub block: LLVMBasicBlockRef,
-    // var cache?
+    pub symbol_table: HashMap<String, bool>,
+}
+
+impl LLVMFunction {
+    pub unsafe fn new(
+        context: &mut ASTContext,
+        name: String,
+        body: Expression,
+        block: LLVMBasicBlockRef,
+    ) -> Self {
+        let function_name = c_str(&name);
+
+        let function_type = LLVMFunctionType(LLVMVoidType(), ptr::null_mut(), 0, 0);
+        let function = LLVMAddFunction(context.module, function_name, function_type);
+        let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
+            LLVMAppendBasicBlock(function, c_str!("entry"));
+
+        let new_function = LLVMFunction {
+            function: function,
+            func_type: function_type,
+            entry_block: function_entry_block,
+            block: function_entry_block,
+            symbol_table: HashMap::new(),
+        };
+
+        context.current_function = new_function.clone();
+
+        LLVMPositionBuilderAtEnd(context.builder, function_entry_block);
+
+        context.match_ast(body.clone());
+        LLVMBuildRetVoid(context.builder);
+
+        context.set_current_block(block);
+        context.var_cache.set(
+            name.as_str(),
+            Box::new(FuncType {
+                body: body,
+                args: vec![],
+                llvm_type: function_type,
+                llvm_func: function,
+            }),
+            context.depth,
+        );
+        context.current_function.clone()
+    }
 }
 
 impl LLVMFunctionCache {
@@ -127,6 +184,6 @@ impl LLVMFunctionCache {
 
     pub fn get(&self, key: &str) -> Option<LLVMFunction> {
         //HACK, copy each time, probably want one reference to this
-        self.map.get(key).copied()
+        self.map.get(key).cloned()
     }
 }

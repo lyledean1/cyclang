@@ -7,7 +7,7 @@ use llvm_sys::prelude::*;
 #[derive(Debug, Clone)]
 pub struct FuncType {
     pub body: Expression,
-    pub args: Option<Vec<String>>,
+    pub args: Vec<String>,
     pub llvm_type: LLVMTypeRef,
     pub llvm_func: LLVMValueRef,
 }

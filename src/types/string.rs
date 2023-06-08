@@ -120,10 +120,6 @@ impl Debug for StringType {
             // create string vairables and then function
             // This is the Main Print Func
             let llvm_value_to_cstr = LLVMGetAsString(self.llmv_value, self.length);
-
-            let value_is_str =
-                LLVMBuildGlobalStringPtr(ast_context.builder, c_str!("%s\n"), c_str!(""));
-
             // Load Value from Value Index Ptr
             let val = LLVMBuildGlobalStringPtr(
                 ast_context.builder,
@@ -131,7 +127,7 @@ impl Debug for StringType {
                 llvm_value_to_cstr,
             );
 
-            let print_args = [value_is_str, val].as_mut_ptr();
+            let print_args = [ast_context.printf_str_value, val].as_mut_ptr();
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
                     LLVMBuildCall2(
