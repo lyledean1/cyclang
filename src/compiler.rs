@@ -298,11 +298,22 @@ impl ASTContext {
             Expression::CallStmt(name, args) => match self.var_cache.get(&name) {
                 Some(val) => {
                     unsafe {
+                        let mut func_args = vec![];
+                        let func_name_args = val.get_args();
+                        println!("args: {:?}", func_name_args);
+                        for (i, arg) in args.iter().enumerate() {
+                            let arg_value = self.match_ast(arg.clone());
+                            // match up args from call statement with args provided in func
+                            // and set depth to +1 since its in a block stmt
+                            self.var_cache.set(&func_name_args[i], arg_value.clone(), self.depth + 1);
+                            func_args.push(arg_value.get_value());
+                        }
+
                         LLVMBuildCall2(
                             self.builder,
                             val.get_llvm_type(),
                             val.get_value(),
-                            [].as_mut_ptr(),
+                            func_args.as_mut_ptr(),
                             0,
                             c_str!(""),
                         );
@@ -315,16 +326,15 @@ impl ASTContext {
             },
             Expression::FuncStmt(name, args, body) => unsafe {
                 let func =
-                    LLVMFunction::new(self, name, *body.clone(), self.current_function.block);
+                    LLVMFunction::new(self, name, args.clone(), *body.clone(), self.current_function.block);
                 Box::new(FuncType {
                     body: *body,
-                    args: vec![],
+                    args: args,
                     llvm_type: func.func_type,
                     llvm_func: func.function,
                 })
             },
             Expression::IfStmt(condition, if_stmt, else_stmt) => unsafe {
-
                 let function = self.current_function.function;
                 let if_entry_block: *mut llvm_sys::LLVMBasicBlock = self.current_function.block;
 
@@ -365,14 +375,12 @@ impl ASTContext {
                 LLVMBuildCondBr(self.builder, cond.get_value(), then_block, else_block);
 
                 self.set_current_block(merge_block);
-                Box::new(BlockType {
-                    values: vec![],
-                })
+                Box::new(BlockType { values: vec![] })
             },
             Expression::WhileStmt(condition, while_block_stmt) => {
                 unsafe {
-  
-                    let while_entry_block: *mut llvm_sys::LLVMBasicBlock = self.current_function.block;
+                    let while_entry_block: *mut llvm_sys::LLVMBasicBlock =
+                        self.current_function.block;
                     let function = self.current_function.function;
 
                     let loop_cond_block = LLVMAppendBasicBlock(function, c_str!("loop_cond"));
@@ -385,7 +393,7 @@ impl ASTContext {
                     let value_condition = self.match_ast(*condition);
 
                     LLVMBuildStore(self.builder, value_condition.get_value(), bool_type_ptr);
-                    
+
                     LLVMBuildBr(self.builder, loop_cond_block);
 
                     self.set_current_block(loop_body_block);
@@ -422,7 +430,6 @@ impl ASTContext {
                     let function = self.current_function.function;
                     let for_block = self.current_function.block;
 
-
                     self.set_current_block(for_block);
                     let loop_cond_block =
                         LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
@@ -451,10 +458,10 @@ impl ASTContext {
 
                     // TODO: improve this logic for identifying for and reverse fors
                     let mut op = LLVMIntPredicate::LLVMIntSLT;
-                    if increment < 0 { 
+                    if increment < 0 {
                         op = LLVMIntPredicate::LLVMIntSGT;
                     }
-                    
+
                     let op_lhs = ptr;
                     let op_rhs = length;
                     let loop_condition = LLVMBuildICmp(
@@ -508,6 +515,9 @@ impl ASTContext {
                 let expression_value = self.match_ast(*input);
                 expression_value.print(self);
                 expression_value
+            }
+            Expression::ReturnStmt(input) => {
+                unimplemented!()
             }
         }
     }

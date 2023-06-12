@@ -131,6 +131,8 @@ impl LLVMFunction {
     pub unsafe fn new(
         context: &mut ASTContext,
         name: String,
+        //TODO: check these arguments? Check the type?
+        _args: Vec<String>,
         body: Expression,
         block: LLVMBasicBlockRef,
     ) -> Self {

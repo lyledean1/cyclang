@@ -20,9 +20,10 @@ pub enum Expression {
     LetStmt(String, Box<Expression>),
     BlockStmt(Vec<Expression>),
     FuncStmt(String, Vec<String>, Box<Expression>),
-    CallStmt(String, Vec<String>),
+    CallStmt(String, Vec<Expression>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
     WhileStmt(Box<Expression>, Box<Expression>),
+    ReturnStmt(Box<Expression>),
     ForStmt(String, i32, i32, i32, Box<Expression>),
     Print(Box<Expression>),
 }
@@ -94,12 +95,16 @@ impl Expression {
         Self::FuncStmt(name, args, Box::new(body))
     }
 
-    fn new_call_stmt(name: String, args: Vec<String>) -> Self {
+    fn new_call_stmt(name: String, args: Vec<Expression>) -> Self {
         Self::CallStmt(name, args)
     }
 
     fn new_print_stmt(value: Expression) -> Self {
         Self::Print(Box::new(value))
+    }
+
+    fn new_return_stmt(value: Expression) -> Self {
+        Self::ReturnStmt(Box::new(value))
     }
 }
 
@@ -186,30 +191,36 @@ fn parse_expression(
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
             let mut args = vec![];
-            while inner_pairs
-                .peek()
-                .map_or(false, |p| p.as_rule() == Rule::comma)
-            {
-                inner_pairs.next(); // skip the comma
-                let arg_name = inner_pairs.next().unwrap().as_str().to_string();
-                args.push(arg_name);
+            while inner_pairs.peek().map_or(false, |p| {
+                p.as_rule() == Rule::comma || p.as_rule() == Rule::name
+            }) {
+                let next = inner_pairs.next().unwrap();
+                if next.as_rule() == Rule::name {
+                    let arg_name = next.as_str().to_string();
+                    args.push(arg_name);
+                }
             }
-            let body = parse_expression(inner_pairs.next().unwrap())?;
-            Ok(Expression::new_func_stmt(name, args, body))
+            let inner = inner_pairs.next().unwrap();
+            let body = parse_expression(inner)?;
+            let func = Expression::new_func_stmt(name, args, body);
+            Ok(func)
         }
         Rule::call_stmt => {
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
             let mut args = vec![];
-            while inner_pairs
-                .peek()
-                .map_or(false, |p| p.as_rule() == Rule::comma)
-            {
-                inner_pairs.next(); // skip the comma
-                let arg_name = inner_pairs.next().unwrap().as_str().to_string();
-                args.push(arg_name);
+            // TODO: fix this so it handles the different cases properly instead of this hack
+            while inner_pairs.peek().map_or(false, |p| {
+                p.as_rule() == Rule::comma || p.as_rule() == Rule::binary || p.as_rule() == Rule::literal || p.as_rule() == Rule::name
+            }) {
+                let next = inner_pairs.next().unwrap();
+                if next.as_rule() != Rule::comma {
+                    let arg_expr = parse_expression(next)?;
+                    args.push(arg_expr);
+                }
             }
-            Ok(Expression::new_call_stmt(name, args))
+            let call = Expression::new_call_stmt(name, args);
+            Ok(call)
         }
         Rule::block_stmt => {
             let inner_pairs = pair.into_inner();
@@ -263,6 +274,11 @@ fn parse_expression(
                 var_name, start, end, step, block_stmt,
             ))
         }
+        Rule::return_stmt => {
+            let inner_pairs = pair.into_inner().next().unwrap();
+            let expr = parse_expression(inner_pairs)?;
+            Ok(Expression::new_return_stmt(expr))
+        }
         Rule::while_stmt => {
             let mut inner_pairs = pair.into_inner();
             let cond = parse_expression(inner_pairs.next().unwrap())?;
@@ -307,6 +323,7 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
             if let Some(pair) = pairs.next() {
                 match parse_program(pair) {
                     Ok(pair) => {
+                        println!("{:?}", pair);
                         return Ok(pair);
                     }
                     Err(e) => return Err(e),
@@ -658,12 +675,37 @@ mod test {
             print(1);
         }
         fn example_two(arg1, arg2) {
-            let a = 5;
-            print(a);
+            return arg1 + arg2;
         }
         fn hello() {
             print("hello");
         }
+        "#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    //TODO: fix return calls
+    #[test]
+    fn test_return_fn() {
+        let input = r#"
+        fn add(x,y) {
+            return x+y;
+        }
+        add(2,5);
+        "#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_fibonacci_fn() {
+        let input = r#"
+        fn fib(val, two) {
+            if (val < 2) {
+                return 0;
+            }
+            return fib(val-1) + fib(val-2);
+        }
+        fib(20);
         "#;
         assert!(parse_cyclo_program(input).is_ok());
     }

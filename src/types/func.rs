@@ -31,4 +31,7 @@ impl TypeBase for FuncType {
     fn get_llvm_type(&self) -> LLVMTypeRef {
         self.llvm_type
     }
+    fn get_args(&self) -> Vec<String> {
+        self.args.clone()
+    }
 }
