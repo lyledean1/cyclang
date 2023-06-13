@@ -66,7 +66,11 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug {
     }
     
     fn get_args(&self) -> Vec<String> {
-        vec![]
+        unimplemented!("{:?} type does not implement get_args", self.get_type())
+    }
+
+    fn set_args(&mut self, _args: Vec<String>) {
+        unimplemented!("{:?} type does not implement set_args", self.get_type())
     }
 }
 

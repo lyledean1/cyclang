@@ -300,7 +300,6 @@ impl ASTContext {
                     unsafe {
                         let mut func_args = vec![];
                         let func_name_args = val.get_args();
-                        println!("args: {:?}", func_name_args);
                         for (i, arg) in args.iter().enumerate() {
                             let arg_value = self.match_ast(arg.clone());
                             // match up args from call statement with args provided in func
@@ -325,14 +324,18 @@ impl ASTContext {
                 }
             },
             Expression::FuncStmt(name, args, body) => unsafe {
-                let func =
-                    LLVMFunction::new(self, name, args.clone(), *body.clone(), self.current_function.block);
-                Box::new(FuncType {
+                let llvm_func =
+                    LLVMFunction::new(self, name.clone(), args.clone(), *body.clone(), self.current_function.block);
+                let mut func = FuncType {
                     body: *body,
-                    args: args,
-                    llvm_type: func.func_type,
-                    llvm_func: func.function,
-                })
+                    args: args.clone(),
+                    llvm_type: llvm_func.func_type,
+                    llvm_func: llvm_func.function,
+                };
+                func.set_args(args);
+                // Set Func as a variable
+                self.var_cache.set(&name, Box::new(func.clone()), self.depth);
+                Box::new(func)
             },
             Expression::IfStmt(condition, if_stmt, else_stmt) => unsafe {
                 let function = self.current_function.function;
