@@ -643,20 +643,39 @@ mod test {
         assert_eq!(stdout, "\"hello world\"\n");
     }
 
-    //TODO: readd for function arguments
-    // #[test]
-    // fn test_compile_function_stmt_args() {
-    //     let input = r#"
-    //     let val = "hello_world";
-    //     fn hello_world(val) {
-    //         print(val);
-    //     }
-    //     hello_world("hello world");
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "\"hello world\"\n");
-    // }
+    #[test]
+    fn test_compile_function_stmt_no_args_with_if() {
+        let input = r#"
+        fn hello_world() {
+            print("hello world");
+        }
+        fn not_executed() {
+            print("not executed");
+        }
+        if (true) {
+            hello_world();
+        } else {
+            not_executed();
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"hello world\"\n");
+    }
+
+    #[test]
+    fn test_compile_function_stmt_args() {
+        let input = r#"
+        let val = "hello";
+        fn hello_world(val) {
+            print(val);
+        }
+        hello_world(val);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"hello world\"\n");
+    }
 
     #[test]
     fn test_compile_function_stmt_print_if() {

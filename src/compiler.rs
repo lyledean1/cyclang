@@ -62,6 +62,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 block: main_block,
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
+                args: vec![],
             },
         );
         //sprintf
@@ -83,6 +84,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 block: main_block,
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
+                args: vec![],
             },
         );
 
@@ -108,6 +110,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 block: main_block,
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
+                args: vec![],
             },
             depth: 0,
             printf_str_value,
@@ -297,26 +300,7 @@ impl ASTContext {
             }
             Expression::CallStmt(name, args) => match self.var_cache.get(&name) {
                 Some(val) => {
-                    unsafe {
-                        let mut func_args = vec![];
-                        let func_name_args = val.get_args();
-                        for (i, arg) in args.iter().enumerate() {
-                            let arg_value = self.match_ast(arg.clone());
-                            // match up args from call statement with args provided in func
-                            // and set depth to +1 since its in a block stmt
-                            self.var_cache.set(&func_name_args[i], arg_value.clone(), self.depth + 1);
-                            func_args.push(arg_value.get_value());
-                        }
-
-                        LLVMBuildCall2(
-                            self.builder,
-                            val.get_llvm_type(),
-                            val.get_value(),
-                            func_args.as_mut_ptr(),
-                            0,
-                            c_str!(""),
-                        );
-                    }
+                    val.call(self, args);
                     val
                 }
                 _ => {
@@ -326,11 +310,13 @@ impl ASTContext {
             Expression::FuncStmt(name, args, body) => unsafe {
                 let llvm_func =
                     LLVMFunction::new(self, name.clone(), args.clone(), *body.clone(), self.current_function.block);
+
                 let mut func = FuncType {
                     body: *body,
                     args: args.clone(),
                     llvm_type: llvm_func.func_type,
                     llvm_func: llvm_func.function,
+                    llvm_func_ref: llvm_func,
                 };
                 func.set_args(args);
                 // Set Func as a variable

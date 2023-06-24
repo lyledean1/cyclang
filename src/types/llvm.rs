@@ -127,5 +127,6 @@ pub unsafe fn build_bool_to_str_func(
         entry_block,
         block: entry_block,
         symbol_table: HashMap::new(),
+        args: vec![],
     }
 }

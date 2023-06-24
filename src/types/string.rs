@@ -1,6 +1,6 @@
 use crate::context::ASTContext;
 use crate::types::bool::BoolType;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase};
+use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase, Func};
 
 use std::any::Any;
 use std::ffi::CString;
@@ -154,7 +154,7 @@ impl TypeBase for StringType {
     {
         let value_as_string = match _value.downcast_ref::<String>() {
             Some(val) => val.to_string(),
-            None => panic!("The input value must be a bool"),
+            None => panic!("The input value must be a string"),
         };
         let string: CString = CString::new(value_as_string.clone()).unwrap();
         unsafe {
@@ -212,3 +212,5 @@ impl TypeBase for StringType {
         self.str_value.clone()
     }
 }
+
+impl Func for StringType {}

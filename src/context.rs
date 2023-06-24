@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::types::TypeBase;
+use crate::types::llvm::int8_type;
 use std::collections::HashMap;
 extern crate llvm_sys;
 use crate::parser::Expression;
@@ -8,8 +9,6 @@ use crate::types::func::FuncType;
 use crate::types::llvm::c_str;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-
-use std::ptr;
 
 macro_rules! c_str {
     ($s:expr) => {
@@ -118,13 +117,14 @@ impl Default for LLVMFunctionCache {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LLVMFunction {
     pub function: LLVMValueRef,
     pub func_type: LLVMTypeRef,
     pub entry_block: LLVMBasicBlockRef,
     pub block: LLVMBasicBlockRef,
-    pub symbol_table: HashMap<String, bool>,
+    pub symbol_table: HashMap<String, LLVMValueRef>,
+    pub args: Vec<LLVMTypeRef>
 }
 
 impl LLVMFunction {
@@ -132,30 +132,47 @@ impl LLVMFunction {
         context: &mut ASTContext,
         name: String,
         //TODO: check these arguments? Check the type?
-        _args: Vec<String>,
+        args: Vec<String>,
         body: Expression,
         block: LLVMBasicBlockRef,
     ) -> Self {
         let function_name = c_str(&name);
 
-        let function_type = LLVMFunctionType(LLVMVoidType(), ptr::null_mut(), 0, 0);
+        let param_types: &mut Vec<*mut llvm_sys::LLVMType> = &mut vec![];
+
+        for _i in 0..args.len() {
+            param_types.push(int8_type());
+        }
+
+        println!("{:?}", param_types);
+
+
+
+        let function_type = LLVMFunctionType(LLVMVoidType(), param_types.as_mut_ptr(), args.len() as u32, 0);
         let function = LLVMAddFunction(context.module, function_name, function_type);
         let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
             LLVMAppendBasicBlock(function, c_str!("entry"));
 
-        let new_function = LLVMFunction {
+        let previous_func = context.current_function.clone();
+        let mut new_function = LLVMFunction {
             function,
             func_type: function_type,
             entry_block: function_entry_block,
             block: function_entry_block,
             symbol_table: HashMap::new(),
+            args: param_types.to_vec(),
         };
 
-        context.current_function = new_function;
+        new_function.set_func_var(&"val", LLVMGetParam(function, 0));
+
+        context.current_function = new_function.clone();
 
         LLVMPositionBuilderAtEnd(context.builder, function_entry_block);
 
+        // Set func args here
         context.match_ast(body.clone());
+
+        // Delete func args here
         LLVMBuildRetVoid(context.builder);
 
         context.set_current_block(block);
@@ -166,10 +183,21 @@ impl LLVMFunction {
                 args: vec![],
                 llvm_type: function_type,
                 llvm_func: function,
+                llvm_func_ref: new_function.clone(),
             }),
             context.depth,
         );
-        context.current_function.clone()
+        //reset previous function
+        context.current_function = previous_func;
+        new_function
+    }
+
+    fn set_func_var(&mut self, key: &str, value: LLVMValueRef) {
+        self.symbol_table.insert(key.to_string(), value);
+    }
+
+    fn get_func_var(&self, key: &str) -> Option<LLVMValueRef> {
+        self.symbol_table.get(key).cloned()
     }
 }
 

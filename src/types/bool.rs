@@ -2,7 +2,7 @@ use crate::context::ASTContext;
 use crate::types::llvm::*;
 use std::any::Any;
 extern crate llvm_sys;
-use crate::types::{Base, BaseTypes, Comparison, Debug, TypeBase};
+use crate::types::{Base, BaseTypes, Comparison, Debug, TypeBase, Func};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMIntPredicate;
@@ -195,3 +195,5 @@ impl TypeBase for BoolType {
         self.llmv_value_pointer
     }
 }
+
+impl Func for BoolType {}
