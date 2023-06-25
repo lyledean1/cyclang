@@ -1,6 +1,6 @@
 extern crate llvm_sys;
 use crate::parser::Expression;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase, Func};
+use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::prelude::*;
 
 //TODO: create new functon

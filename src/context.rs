@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use crate::types::TypeBase;
 use crate::types::llvm::int8_type;
+use crate::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
 use crate::parser::Expression;
@@ -124,7 +124,7 @@ pub struct LLVMFunction {
     pub entry_block: LLVMBasicBlockRef,
     pub block: LLVMBasicBlockRef,
     pub symbol_table: HashMap<String, LLVMValueRef>,
-    pub args: Vec<LLVMTypeRef>
+    pub args: Vec<LLVMTypeRef>,
 }
 
 impl LLVMFunction {
@@ -146,9 +146,14 @@ impl LLVMFunction {
 
         println!("{:?}", param_types);
 
+        // Look Ahead to get Function Type
 
-
-        let function_type = LLVMFunctionType(LLVMVoidType(), param_types.as_mut_ptr(), args.len() as u32, 0);
+        let function_type = LLVMFunctionType(
+            LLVMVoidType(),
+            param_types.as_mut_ptr(),
+            args.len() as u32,
+            0,
+        );
         let function = LLVMAddFunction(context.module, function_name, function_type);
         let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
             LLVMAppendBasicBlock(function, c_str!("entry"));

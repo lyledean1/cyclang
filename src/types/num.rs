@@ -3,7 +3,7 @@ use std::any::Any;
 
 use crate::context::ASTContext;
 use crate::types::bool::BoolType;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase, Func};
+use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
@@ -407,4 +407,3 @@ unsafe fn get_comparison_number_type(
 
     return BoolType::new(Box::new(bool_value), _name, _context);
 }
-

@@ -1,8 +1,8 @@
 use crate::context::LLVMFunction;
 use crate::parser::Expression;
 extern crate llvm_sys;
+use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::LLVMBuildCall2;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase, Func};
 use llvm_sys::prelude::*;
 
 use super::string::StringType;
@@ -37,23 +37,27 @@ impl Debug for FuncType {}
 
 impl Func for FuncType {
     fn call(&self, _context: &mut crate::context::ASTContext, _args: Vec<Expression>) {
-        unsafe { 
-        let args = &mut vec![];
-        if _args.len() > 0 {
-            let value = StringType::new(Box::new("example".to_string()), "hello world".to_string(), _context);
-            args.push(value.get_value())
+        unsafe {
+            let args = &mut vec![];
+            if _args.len() > 0 {
+                let value = StringType::new(
+                    Box::new("example".to_string()),
+                    "hello world".to_string(),
+                    _context,
+                );
+                args.push(value.get_value())
+            }
+            println!("{:?}", args);
+            LLVMBuildCall2(
+                _context.builder,
+                self.get_llvm_type(),
+                self.get_value(),
+                args.as_mut_ptr(),
+                self.llvm_func_ref.args.len() as u32,
+                c_str!(""),
+            );
+            println!("here again");
         }
-        println!("{:?}", args);
-        LLVMBuildCall2(
-            _context.builder,
-            self.get_llvm_type(),
-            self.get_value(),
-            args.as_mut_ptr(),
-            self.llvm_func_ref.args.len() as u32,
-            c_str!(""),
-        );
-        println!("here again");
-    }
     }
 }
 

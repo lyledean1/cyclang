@@ -307,22 +307,34 @@ impl ASTContext {
                     unreachable!("call does not exists for function {:?}", name);
                 }
             },
-            Expression::FuncStmt(name, args, body) => unsafe {
-                let llvm_func =
-                    LLVMFunction::new(self, name.clone(), args.clone(), *body.clone(), self.current_function.block);
+            Expression::FuncStmt(name, args, _return_type, body) => unsafe {
+                let llvm_func = LLVMFunction::new(
+                    self,
+                    name.clone(),
+                    vec![],
+                    *body.clone(),
+                    self.current_function.block,
+                );
 
                 let mut func = FuncType {
                     body: *body,
-                    args: args.clone(),
+                    args: vec![],
                     llvm_type: llvm_func.func_type,
                     llvm_func: llvm_func.function,
                     llvm_func_ref: llvm_func,
                 };
-                func.set_args(args);
+                func.set_args(vec![]);
                 // Set Func as a variable
-                self.var_cache.set(&name, Box::new(func.clone()), self.depth);
+                self.var_cache
+                    .set(&name, Box::new(func.clone()), self.depth);
                 Box::new(func)
             },
+            Expression::FuncArgs(args) => {
+                unimplemented!()
+            }
+            Expression::FuncArg(arg_name, arg_type) => {
+                unimplemented!()
+            }
             Expression::IfStmt(condition, if_stmt, else_stmt) => unsafe {
                 let function = self.current_function.function;
                 let if_entry_block: *mut llvm_sys::LLVMBasicBlock = self.current_function.block;
@@ -504,6 +516,9 @@ impl ASTContext {
                 let expression_value = self.match_ast(*input);
                 expression_value.print(self);
                 expression_value
+            }
+            Expression::FuncArg(name, arg_type) => {
+                unimplemented!()
             }
             Expression::ReturnStmt(input) => {
                 unimplemented!()

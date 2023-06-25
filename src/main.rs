@@ -664,13 +664,13 @@ mod test {
     }
 
     #[test]
-    fn test_compile_function_stmt_args() {
+    fn test_compile_function_with_one_arg() {
         let input = r#"
-        let val = "hello";
-        fn hello_world(val) {
+        let val = "hello world";
+        fn hello_world(string val) -> int {
             print(val);
         }
-        hello_world(val);
+        hello_world("hello world");
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);

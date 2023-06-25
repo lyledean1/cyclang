@@ -64,7 +64,7 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
     fn get_str(&self) -> String {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
     }
-    
+
     fn get_args(&self) -> Vec<String> {
         unimplemented!("{:?} type does not implement get_args", self.get_type())
     }
@@ -116,7 +116,7 @@ pub trait Comparison: Base {
     }
 }
 
-pub trait Func : Base {
+pub trait Func: Base {
     fn call(&self, _context: &mut ASTContext, _call_arguments: Vec<Expression>) {
         unimplemented!("{:?} type does not implement call", self.get_type())
     }
