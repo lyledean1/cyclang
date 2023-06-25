@@ -329,9 +329,6 @@ impl ASTContext {
                     .set(&name, Box::new(func.clone()), self.depth);
                 Box::new(func)
             },
-            Expression::FuncArgs(args) => {
-                unimplemented!()
-            }
             Expression::FuncArg(arg_name, arg_type) => {
                 unimplemented!()
             }

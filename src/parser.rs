@@ -28,8 +28,7 @@ pub enum Expression {
     LetStmt(String, Box<Expression>),
     BlockStmt(Vec<Expression>),
     FuncArg(String, Type),
-    FuncArgs(Vec<Expression>),
-    FuncStmt(String, Box<Option<Expression>>, Type, Box<Expression>),
+    FuncStmt(String, Vec<Expression>, Type, Box<Expression>),
     CallStmt(String, Vec<Expression>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
     WhileStmt(Box<Expression>, Box<Expression>),
@@ -103,19 +102,15 @@ impl Expression {
 
     fn new_func_stmt(
         name: String,
-        args: Option<Expression>,
+        args: Vec<Expression>,
         return_type: Type,
         body: Expression,
     ) -> Self {
-        Self::FuncStmt(name, Box::new(args), return_type, Box::new(body))
+        Self::FuncStmt(name, args, return_type, Box::new(body))
     }
 
     fn new_func_arg(name: String, arg_type: Type) -> Self {
         Self::FuncArg(name, arg_type)
-    }
-
-    fn new_func_args(args: Vec<Expression>) -> Self {
-        Self::FuncArgs(args)
     }
 
     fn new_call_stmt(name: String, args: Vec<Expression>) -> Self {
@@ -215,14 +210,14 @@ fn parse_expression(
             let name = inner_pairs.next().unwrap().as_str().to_string();
 
             // Does this handle no args?
-            let mut func_args: Option<Expression> = None;
+            let mut func_args = vec![];
 
-            if inner_pairs
+            while inner_pairs
                 .peek()
                 .map_or(false, |p| p.as_rule() == Rule::func_arg)
             {
                 let args: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
-                func_args = Some(parse_expression(args)?);
+                func_args.push(parse_expression(args)?);
             }
 
             let mut func_type = Type::None;
@@ -255,7 +250,6 @@ fn parse_expression(
             Ok(func)
         }
         Rule::func_arg => {
-            let mut args = vec![];
             let mut inner_pairs = pair.into_inner();
             while inner_pairs.peek().map_or(false, |p| {
                 p.as_rule() == Rule::comma
@@ -263,32 +257,33 @@ fn parse_expression(
                     || p.as_rule() == Rule::type_name
             }) {
                 let next = inner_pairs.next().unwrap();
+                if next.as_rule() == Rule::comma {
+                    continue;
+                }
                 if next.as_rule() == Rule::type_name {
-                    let arg_name = next.as_str().to_string();
-                    let arg_type = inner_pairs.next().unwrap();
-                    if arg_type.as_rule() == Rule::type_name {
-                        match next.as_str() {
-                            "string" => {
-                                args.push(Expression::new_func_arg(arg_name, Type::String));
-                            }
-                            "bool" => {
-                                args.push(Expression::new_func_arg(arg_name, Type::String));
-                            }
-                            "int" => {
-                                args.push(Expression::new_func_arg(arg_name, Type::String));
-                            }
-                            _ => {
-                                unimplemented!(
-                                    "No rule for arg {:?} with arg type {:?}",
-                                    arg_name,
-                                    arg_type
-                                );
-                            }
+                    let arg_type = next.as_str().to_string();
+                    let arg_name = inner_pairs.next().unwrap().as_str().to_string();
+                    match arg_type.as_str() {
+                        "string" => {
+                            return Ok(Expression::new_func_arg(arg_name, Type::String))
+                        }
+                        "bool" => {
+                            return Ok(Expression::new_func_arg(arg_name, Type::Bool))
+                        }
+                        "int" => {
+                            return Ok(Expression::new_func_arg(arg_name, Type::Int))
+                        }
+                        _ => {
+                            unimplemented!(
+                                "No rule for arg {:?} with arg type {:?}",
+                                arg_name,
+                                arg_type
+                            );
                         }
                     }
                 }
             }
-            Ok(Expression::new_func_args(args))
+            unreachable!("Unable to parse args {:?}", inner_pairs)
         }
         Rule::call_stmt => {
             let mut inner_pairs = pair.into_inner();
@@ -396,6 +391,7 @@ fn parse_program(
             }
             _ => {
                 let expr = parse_expression(stmt_pair)?;
+                println!("{:?}", expr);
                 expr_vec.push(expr);
             }
         }

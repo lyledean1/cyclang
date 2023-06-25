@@ -20,7 +20,7 @@ iteration = { name ~ WHITESPACE? ~ ("++" | "--") }
 if_stmt = { "if" ~ WHITESPACE? ~ "(" ~ (expression | name ) ~ ")" ~ WHITESPACE? ~ block_stmt ~ (WHITESPACE? ~ "else" ~ block_stmt)? }
 let_stmt = { ("let" ~ WHITESPACE?)? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (call_stmt | expression | grouping | name )}
 func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~ arrow ~ WHITESPACE? ~ type_name)? ~ WHITESPACE? ~ block_stmt }
-func_arg = { WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
+func_arg = { WHITESPACE? ~ type_name ~ WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
 call_stmt = { name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
 print_stmt = { "print(" ~ (expression | name) ~ ")" }
 name = { (alpha | "_") ~ (alpha | digits | "_")* }
@@ -46,8 +46,7 @@ lessthanequal = {"<="}
 equal = { "=" }
 semicolon = { ";" }
 arrow = { "->" }
-return_stmt = { return_keyword ~ WHITESPACE? ~ expression_list_inner? }
-return_keyword = _{ "return" }
+return_stmt = { "return" ~ WHITESPACE? ~ expression_list_inner? }
 comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 comma = { WHITESPACE? ~ "," ~ WHITESPACE? }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
