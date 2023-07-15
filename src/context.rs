@@ -4,10 +4,11 @@ use crate::types::llvm::int8_type;
 use crate::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
-use crate::parser::Expression;
+use crate::parser::{Expression, Type};
 use crate::types::func::FuncType;
 use crate::types::llvm::c_str;
 use llvm_sys::core::*;
+use llvm_sys::LLVMType;
 use llvm_sys::prelude::*;
 
 macro_rules! c_str {
@@ -132,17 +133,15 @@ impl LLVMFunction {
         context: &mut ASTContext,
         name: String,
         //TODO: check these arguments? Check the type?
-        args: Vec<String>,
+        args: Vec<Expression>,
         body: Expression,
         block: LLVMBasicBlockRef,
     ) -> Self {
         let function_name = c_str(&name);
 
-        let param_types: &mut Vec<*mut llvm_sys::LLVMType> = &mut vec![];
-
-        for _i in 0..args.len() {
-            param_types.push(int8_type());
-        }
+        // let param_types: &mut Vec<*mut llvm_sys::LLVMType> = &mut LLVMFunction::get_arg_types(args.clone());
+        let param_types: &mut Vec<*mut llvm_sys::LLVMType> = &mut vec![int8_type()];
+        // Then get Return Type
 
         println!("{:?}", param_types);
 
@@ -195,6 +194,32 @@ impl LLVMFunction {
         //reset previous function
         context.current_function = previous_func;
         new_function
+    }
+
+    fn get_arg_types(args: Vec<Expression>) -> Vec<*mut LLVMType> {
+        let mut args_vec = vec![];
+        for arg in args.into_iter() {
+            match arg {
+                Expression::FuncArg(_, t) => {
+                    match t {
+                        Type::Int => {
+                            args_vec.push(int8_type())
+                        }
+                        Type::String => {
+                            args_vec.push(int8_type())
+                        }
+                        _=> {
+                            unreachable!("unknown type {:?}", t)
+                        }
+                    }
+                }
+                _ => {
+                    unreachable!("this should only be FuncArg, got {:?}", arg)
+                }
+            }
+
+        }
+        args_vec
     }
 
     fn set_func_var(&mut self, key: &str, value: LLVMValueRef) {

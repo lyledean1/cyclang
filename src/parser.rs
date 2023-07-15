@@ -142,7 +142,7 @@ fn parse_expression(
             Ok(Expression::new_number(n))
         }
         Rule::name => {
-            let s = pair.as_str().to_string();
+            let s = pair.as_str().to_string().replace(" ", "");
             Ok(Expression::new_variable(s))
         }
         Rule::string => {
@@ -410,8 +410,8 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
 
 #[cfg(test)]
 mod test {
-    use crate::parser::Expression::FuncArg;
     use super::*;
+    use crate::parser::Expression::{FuncArg, Variable};
     #[test]
     fn test_parse_string_expression() {
         let input = r#""hello";"#;
@@ -769,7 +769,7 @@ mod test {
             "get_ten".into(),
             [].to_vec(),
             Type::Int,
-            Expression::Number(10),
+            vec![Expression::ReturnStmt(Box::new(Expression::Number(10)))],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
@@ -788,7 +788,9 @@ mod test {
             "get_value".into(),
             [FuncArg("value".into(), Type::Int)].to_vec(),
             Type::Int,
-            Expression::Variable("value".into()),
+            vec![Expression::ReturnStmt(Box::new(Expression::Variable(
+                "value".into(),
+            )))],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
@@ -807,7 +809,9 @@ mod test {
             "get_value".into(),
             [FuncArg("value".into(), Type::String)].to_vec(),
             Type::String,
-            Expression::Variable("value".into()),
+            vec![Expression::ReturnStmt(Box::new(Expression::Variable(
+                "value".into(),
+            )))],
         );
         assert!(output.is_ok());
         // Return stmt not returning correct ast
@@ -817,20 +821,36 @@ mod test {
     }
 
     #[test]
-    fn test_fn_return_int() {
+    fn test_fn_return_int_add() {
         let input = r#"
-        fn add() -> int {
-            return 10;
+        fn add(int x, int y) -> int {
+            let value = x + y;
+            return value;
         }
         "#;
         let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
             parse_cyclo_program(input);
         let func_expr = build_basic_func_ast(
             "add".into(),
-            [].to_vec(),
+            [
+                FuncArg("x".into(), Type::Int),
+                FuncArg("y".into(), Type::Int),
+            ]
+            .to_vec(),
             Type::Int,
-            Expression::Number(10),
+            vec![
+                Expression::LetStmt(
+                    "value".into(),
+                    Box::new(Expression::Binary(
+                        Box::new(Variable("x".into())),
+                        "+".into(),
+                        Box::new(Variable("y".into())),
+                    )),
+                ),
+                Expression::ReturnStmt(Box::new(Expression::Variable("value".into()))),
+            ],
         );
+        println!("{:?}", output);
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
     }
@@ -840,9 +860,9 @@ mod test {
         name: String,
         args: Vec<Expression>,
         return_type: Type,
-        return_expr: Expression,
+        block_stmt: Vec<Expression>,
     ) -> Expression {
-        let body = Expression::BlockStmt(vec![Expression::ReturnStmt(Box::new(return_expr))]);
+        let body = Expression::BlockStmt(block_stmt);
         Expression::new_func_stmt(name, args, return_type, body)
     }
 
@@ -860,11 +880,12 @@ mod test {
             "hello_world".into(),
             [].to_vec(),
             Type::String,
-            Expression::String("\"hello world\"".into()),
+            vec![Expression::ReturnStmt(Box::new(Expression::String(
+                "\"hello world\"".into(),
+            )))],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
-
     }
 
     #[test]
@@ -880,7 +901,6 @@ mod test {
         "#;
         // TODO: fix this so call stmts return correctly
         assert!(parse_cyclo_program(input).is_ok());
-
     }
 
     #[test]

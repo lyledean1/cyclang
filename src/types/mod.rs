@@ -65,11 +65,11 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
     }
 
-    fn get_args(&self) -> Vec<String> {
+    fn get_args(&self) -> Vec<Expression> {
         unimplemented!("{:?} type does not implement get_args", self.get_type())
     }
 
-    fn set_args(&mut self, _args: Vec<String>) {
+    fn set_args(&mut self, _args: Vec<Expression>) {
         unimplemented!("{:?} type does not implement set_args", self.get_type())
     }
 }

@@ -311,7 +311,7 @@ impl ASTContext {
                 let llvm_func = LLVMFunction::new(
                     self,
                     name.clone(),
-                    vec![],
+                    args,
                     *body.clone(),
                     self.current_function.block,
                 );

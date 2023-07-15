@@ -17,7 +17,7 @@ macro_rules! c_str {
 #[derive(Debug, Clone)]
 pub struct FuncType {
     pub body: Expression,
-    pub args: Vec<String>,
+    pub args: Vec<Expression>,
     pub llvm_type: LLVMTypeRef,
     pub llvm_func: LLVMValueRef,
     pub llvm_func_ref: LLVMFunction,
@@ -67,10 +67,10 @@ impl TypeBase for FuncType {
     fn get_llvm_type(&self) -> LLVMTypeRef {
         self.llvm_type
     }
-    fn set_args(&mut self, args: Vec<String>) {
+    fn set_args(&mut self, args: Vec<Expression>) {
         self.args = args;
     }
-    fn get_args(&self) -> Vec<String> {
+    fn get_args(&self) -> Vec<Expression> {
         self.args.clone()
     }
 }
