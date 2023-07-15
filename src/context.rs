@@ -168,7 +168,7 @@ impl LLVMFunction {
             args: param_types.to_vec(),
         };
 
-        new_function.set_func_var(&"val", LLVMGetParam(function, 0));
+        new_function.set_func_var("val", LLVMGetParam(function, 0));
 
         context.current_function = new_function.clone();
 

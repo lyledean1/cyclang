@@ -46,7 +46,8 @@ lessthanequal = {"<="}
 equal = { "=" }
 semicolon = { ";" }
 arrow = { "->" }
-return_stmt = { "return" ~ WHITESPACE? ~ expression_list_inner? }
+return_keyword = _{ "return" }
+return_stmt = { return_keyword ~ WHITE_SPACE? ~ ((name | literal | call_stmt)? ~ WHITESPACE? ~ semicolon?)? }
 comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 comma = { WHITESPACE? ~ "," ~ WHITESPACE? }
 WHITESPACE = _{ " " | "\t" | NEWLINE }

@@ -39,7 +39,7 @@ impl Func for FuncType {
     fn call(&self, _context: &mut crate::context::ASTContext, _args: Vec<Expression>) {
         unsafe {
             let args = &mut vec![];
-            if _args.len() > 0 {
+            if _args.is_empty() {
                 let value = StringType::new(
                     Box::new("example".to_string()),
                     "hello world".to_string(),
@@ -47,7 +47,6 @@ impl Func for FuncType {
                 );
                 args.push(value.get_value())
             }
-            println!("{:?}", args);
             LLVMBuildCall2(
                 _context.builder,
                 self.get_llvm_type(),

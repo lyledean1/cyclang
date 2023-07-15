@@ -514,9 +514,6 @@ impl ASTContext {
                 expression_value.print(self);
                 expression_value
             }
-            Expression::FuncArg(name, arg_type) => {
-                unimplemented!()
-            }
             Expression::ReturnStmt(input) => {
                 unimplemented!()
             }
@@ -536,9 +533,7 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
         .output();
 
     match output {
-        Ok(_ok) => {
-            println!("{:?}", _ok);
-        }
+        Ok(_ok) => {}
         Err(e) => return Err(e),
     }
 
