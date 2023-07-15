@@ -1,6 +1,6 @@
 extern crate llvm_sys;
 use crate::parser::Expression;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase};
+use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::prelude::*;
 
 //TODO: create new functon
@@ -20,6 +20,8 @@ impl Arithmetic for BlockType {}
 impl Comparison for BlockType {}
 
 impl Debug for BlockType {}
+
+impl Func for BlockType {}
 
 impl TypeBase for BlockType {
     fn get_value(&self) -> LLVMValueRef {

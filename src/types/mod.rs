@@ -13,7 +13,7 @@ pub mod string;
 use llvm_sys::core::LLVMGetValueName;
 use std::any::Any;
 
-use crate::context::ASTContext;
+use crate::{context::ASTContext, parser::Expression};
 use dyn_clone::DynClone;
 
 extern crate llvm_sys;
@@ -32,7 +32,7 @@ pub trait Base: DynClone {
     fn get_type(&self) -> BaseTypes;
 }
 
-pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug {
+pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
     // TODO: remove on implementation
     #[allow(clippy::all)]
     fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
@@ -63,6 +63,14 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug {
     // TODO: make this a raw value
     fn get_str(&self) -> String {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
+    }
+
+    fn get_args(&self) -> Vec<String> {
+        unimplemented!("{:?} type does not implement get_args", self.get_type())
+    }
+
+    fn set_args(&mut self, _args: Vec<String>) {
+        unimplemented!("{:?} type does not implement set_args", self.get_type())
     }
 }
 
@@ -105,6 +113,12 @@ pub trait Comparison: Base {
     }
     fn lte(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement lte", self.get_type())
+    }
+}
+
+pub trait Func: Base {
+    fn call(&self, _context: &mut ASTContext, _call_arguments: Vec<Expression>) {
+        unimplemented!("{:?} type does not implement call", self.get_type())
     }
 }
 

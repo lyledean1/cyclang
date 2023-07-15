@@ -3,7 +3,7 @@ use std::any::Any;
 
 use crate::context::ASTContext;
 use crate::types::bool::BoolType;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, TypeBase};
+use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
@@ -389,6 +389,8 @@ impl Comparison for NumberType {
         }
     }
 }
+
+impl Func for NumberType {}
 
 unsafe fn get_comparison_number_type(
     _name: String,

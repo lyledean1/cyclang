@@ -644,6 +644,40 @@ mod test {
     }
 
     #[test]
+    fn test_compile_function_stmt_no_args_with_if() {
+        let input = r#"
+        fn hello_world() {
+            print("hello world");
+        }
+        fn not_executed() {
+            print("not executed");
+        }
+        if (true) {
+            hello_world();
+        } else {
+            not_executed();
+        }
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"hello world\"\n");
+    }
+
+    #[test]
+    fn test_compile_function_with_one_arg() {
+        let input = r#"
+        let val = "hello world";
+        fn hello_world(string val) -> int {
+            print(val);
+        }
+        hello_world("hello world");
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "\"hello world\"\n");
+    }
+
+    #[test]
     fn test_compile_function_stmt_print_if() {
         let input = r#"
         fn hello_world() {
@@ -688,5 +722,4 @@ mod test {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "10\n19\n27\n34\n40\n45\n49\n52\n54\n55\n");
     }
-
 }

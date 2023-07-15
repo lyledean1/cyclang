@@ -4,11 +4,11 @@ stmt_inner = _{ if_stmt | while_stmt| for_stmt | func_stmt | block_stmt }
 expression_list_inner = _{((( expression | let_stmt | print_stmt | call_stmt | grouping ) ~ (semicolon ~ WHITESPACE? ~ (binary | expression | let_stmt | print_stmt | call_stmt | grouping))*) ~ semicolon)}
 expression = _ { binary | literal }
 binary = {  operand ~ WHITESPACE? ~ operator_sequence }
-operand = _{ literal ~ WHITESPACE? | grouping | name }
+operand = _{ literal ~ WHITESPACE? | grouping | call_stmt | name  }
 operator_sequence = _{ operator ~ WHITESPACE* ~ operand ~ (WHITESPACE* ~ operator_sequence)? }
 grouping = { "(" ~ expression ~ ")" }
 while_stmt = {"while" ~ WHITESPACE? ~ "(" ~ (expression | name) ~ ")" ~ WHITESPACE? ~ block_stmt}
-block_stmt = { "{" ~ WHITESPACE? ~ (expression_list_inner | stmt_inner | WHITESPACE?) ~ (WHITESPACE? ~ (expression_list_inner | stmt_inner)*) ~ WHITESPACE? ~ "}" }
+block_stmt = { "{" ~ WHITESPACE? ~ (expression_list_inner | stmt_inner | WHITESPACE?) ~ (WHITESPACE? ~ (expression_list_inner | stmt_inner)*) ~ WHITESPACE? ~ return_stmt? ~ WHITESPACE? ~ "}" }
 literal = { number | string | bool | nil | list | map  }
 list = {"[" ~ WHITESPACE? ~ literal ~ WHITESPACE? ~ (WHITESPACE? ~ comma ~ WHITESPACE? ~ literal)* ~ WHITESPACE? ~ "]" }
 map = {"Map(" ~ inner_map ~ (WHITESPACE? ~ comma ~ WHITESPACE? ~ inner_map ~ WHITESPACE?)* ~ WHITESPACE? ~ ")"}
@@ -18,8 +18,9 @@ initialization = { "let" ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ number }
 condition = { name ~ WHITESPACE? ~ ("<" | "<=" | ">" | ">=" ) ~ WHITESPACE? ~ number }
 iteration = { name ~ WHITESPACE? ~ ("++" | "--") }
 if_stmt = { "if" ~ WHITESPACE? ~ "(" ~ (expression | name ) ~ ")" ~ WHITESPACE? ~ block_stmt ~ (WHITESPACE? ~ "else" ~ block_stmt)? }
-let_stmt = { ("let" ~ WHITESPACE?)? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (expression | grouping | name )}
-func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ (name ~ comma?)* ~ ")" ~ WHITESPACE? ~ block_stmt }
+let_stmt = { ("let" ~ WHITESPACE?)? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (call_stmt | expression | grouping | name )}
+func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~ arrow ~ WHITESPACE? ~ type_name)? ~ WHITESPACE? ~ block_stmt }
+func_arg = { WHITESPACE? ~ type_name ~ WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
 call_stmt = { name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
 print_stmt = { "print(" ~ (expression | name) ~ ")" }
 name = { (alpha | "_") ~ (alpha | digits | "_")* }
@@ -44,6 +45,10 @@ lessthan = {"<"}
 lessthanequal = {"<="}
 equal = { "=" }
 semicolon = { ";" }
+arrow = { "->" }
+return_keyword = _{ "return" }
+return_stmt = { return_keyword ~ WHITE_SPACE? ~ ((name | literal | call_stmt)? ~ WHITESPACE? ~ semicolon?)? }
 comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 comma = { WHITESPACE? ~ "," ~ WHITESPACE? }
 WHITESPACE = _{ " " | "\t" | NEWLINE }
+type_name = { "string" | "int" | "bool" }

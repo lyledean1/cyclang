@@ -7,7 +7,15 @@ use std::num::ParseIntError;
 #[grammar = "../grammar/cyclo.pest"]
 struct CycloParser;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    None,
+    Int,
+    String,
+    Bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Number(i32),
     String(String),
@@ -19,10 +27,12 @@ pub enum Expression {
     Grouping(Box<Expression>),
     LetStmt(String, Box<Expression>),
     BlockStmt(Vec<Expression>),
-    FuncStmt(String, Vec<String>, Box<Expression>),
-    CallStmt(String, Vec<String>),
+    FuncArg(String, Type),
+    FuncStmt(String, Vec<Expression>, Type, Box<Expression>),
+    CallStmt(String, Vec<Expression>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
     WhileStmt(Box<Expression>, Box<Expression>),
+    ReturnStmt(Box<Expression>),
     ForStmt(String, i32, i32, i32, Box<Expression>),
     Print(Box<Expression>),
 }
@@ -90,16 +100,29 @@ impl Expression {
         Self::ForStmt(var_name, start, end, step, Box::new(for_block_expr))
     }
 
-    fn new_func_stmt(name: String, args: Vec<String>, body: Expression) -> Self {
-        Self::FuncStmt(name, args, Box::new(body))
+    fn new_func_stmt(
+        name: String,
+        args: Vec<Expression>,
+        return_type: Type,
+        body: Expression,
+    ) -> Self {
+        Self::FuncStmt(name, args, return_type, Box::new(body))
     }
 
-    fn new_call_stmt(name: String, args: Vec<String>) -> Self {
+    fn new_func_arg(name: String, arg_type: Type) -> Self {
+        Self::FuncArg(name, arg_type)
+    }
+
+    fn new_call_stmt(name: String, args: Vec<Expression>) -> Self {
         Self::CallStmt(name, args)
     }
 
     fn new_print_stmt(value: Expression) -> Self {
         Self::Print(Box::new(value))
+    }
+
+    fn new_return_stmt(value: Expression) -> Self {
+        Self::ReturnStmt(Box::new(value))
     }
 }
 
@@ -150,7 +173,8 @@ fn parse_expression(
         }
         Rule::binary => {
             let mut inner_pairs = pair.into_inner();
-            let left = parse_expression(inner_pairs.next().unwrap())?;
+            let next = inner_pairs.next().unwrap();
+            let left = parse_expression(next)?;
             let op = inner_pairs.next().unwrap().as_str().to_string();
             let right = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_binary(left, op, right))
@@ -185,38 +209,104 @@ fn parse_expression(
         Rule::func_stmt => {
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
-            let mut args = vec![];
+
+            // Does this handle no args?
+            let mut func_args = vec![];
+
             while inner_pairs
                 .peek()
-                .map_or(false, |p| p.as_rule() == Rule::comma)
+                .map_or(false, |p| p.as_rule() == Rule::func_arg)
             {
-                inner_pairs.next(); // skip the comma
-                let arg_name = inner_pairs.next().unwrap().as_str().to_string();
-                args.push(arg_name);
+                let args: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
+                func_args.push(parse_expression(args)?);
             }
-            let body = parse_expression(inner_pairs.next().unwrap())?;
-            Ok(Expression::new_func_stmt(name, args, body))
+
+            let mut func_type = Type::None;
+            // Get function type or default to none
+            while inner_pairs.peek().map_or(false, |p| {
+                p.as_rule() == Rule::type_name || p.as_rule() == Rule::arrow
+            }) {
+                let next: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
+                if next.as_rule() == Rule::type_name {
+                    match next.as_str() {
+                        "string" => {
+                            func_type = Type::String;
+                        }
+                        "bool" => {
+                            func_type = Type::Bool;
+                        }
+                        "int" => {
+                            func_type = Type::Int;
+                        }
+                        _ => {
+                            func_type = Type::None;
+                        }
+                    }
+                }
+            }
+
+            let inner = inner_pairs.next().unwrap();
+            let body = parse_expression(inner)?;
+            let func = Expression::new_func_stmt(name, func_args, func_type, body);
+            Ok(func)
+        }
+        Rule::func_arg => {
+            let mut inner_pairs = pair.into_inner();
+            while inner_pairs.peek().map_or(false, |p| {
+                p.as_rule() == Rule::comma
+                    || p.as_rule() == Rule::name
+                    || p.as_rule() == Rule::type_name
+            }) {
+                let next = inner_pairs.next().unwrap();
+                if next.as_rule() == Rule::comma {
+                    continue;
+                }
+                if next.as_rule() == Rule::type_name {
+                    let arg_type = next.as_str().to_string();
+                    let arg_name = inner_pairs.next().unwrap().as_str().to_string();
+                    match arg_type.as_str() {
+                        "string" => return Ok(Expression::new_func_arg(arg_name, Type::String)),
+                        "bool" => return Ok(Expression::new_func_arg(arg_name, Type::Bool)),
+                        "int" => return Ok(Expression::new_func_arg(arg_name, Type::Int)),
+                        _ => {
+                            unimplemented!(
+                                "No rule for arg {:?} with arg type {:?}",
+                                arg_name,
+                                arg_type
+                            );
+                        }
+                    }
+                }
+            }
+            unreachable!("Unable to parse args {:?}", inner_pairs)
         }
         Rule::call_stmt => {
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
             let mut args = vec![];
-            while inner_pairs
-                .peek()
-                .map_or(false, |p| p.as_rule() == Rule::comma)
-            {
-                inner_pairs.next(); // skip the comma
-                let arg_name = inner_pairs.next().unwrap().as_str().to_string();
-                args.push(arg_name);
+            // TODO: fix this so it handles the different cases properly instead of this hack
+            while inner_pairs.peek().map_or(false, |p| {
+                p.as_rule() == Rule::comma
+                    || p.as_rule() == Rule::binary
+                    || p.as_rule() == Rule::literal
+                    || p.as_rule() == Rule::name
+            }) {
+                let next = inner_pairs.next().unwrap();
+                if next.as_rule() != Rule::comma {
+                    let arg_expr = parse_expression(next)?;
+                    args.push(arg_expr);
+                }
             }
-            Ok(Expression::new_call_stmt(name, args))
+            let call = Expression::new_call_stmt(name, args);
+            Ok(call)
         }
         Rule::block_stmt => {
             let inner_pairs = pair.into_inner();
             let mut expressions = Vec::new();
 
             for inner_pair in inner_pairs {
-                if inner_pair.as_rule() == Rule::semicolon {
+                let rule = inner_pair.as_rule();
+                if rule == Rule::semicolon {
                     continue;
                 }
                 expressions.push(parse_expression(inner_pair)?);
@@ -263,6 +353,11 @@ fn parse_expression(
                 var_name, start, end, step, block_stmt,
             ))
         }
+        Rule::return_stmt => {
+            let inner_pairs = pair.into_inner().next().unwrap();
+            let expr = parse_expression(inner_pairs)?;
+            Ok(Expression::new_return_stmt(expr))
+        }
         Rule::while_stmt => {
             let mut inner_pairs = pair.into_inner();
             let cond = parse_expression(inner_pairs.next().unwrap())?;
@@ -305,12 +400,7 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
             // TODO: only returns first pair
             // should this iterate through all pairs?
             if let Some(pair) = pairs.next() {
-                match parse_program(pair) {
-                    Ok(pair) => {
-                        return Ok(pair);
-                    }
-                    Err(e) => return Err(e),
-                }
+                return parse_program(pair);
             }
         }
         Err(e) => return Err(Box::new(e)),
@@ -320,6 +410,7 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
 
 #[cfg(test)]
 mod test {
+    use crate::parser::Expression::FuncArg;
     use super::*;
     #[test]
     fn test_parse_string_expression() {
@@ -639,7 +730,7 @@ mod test {
             let b = 5;
             {
                 {
-                    fn example(arg1, arg2) {
+                    fn example(int arg1, int arg2) {
                         print(arg1 + arg2);
                     }
                     example(5,5);
@@ -652,20 +743,144 @@ mod test {
     }
 
     #[test]
-    fn test_func() {
+    fn test_func_no_return() {
         let input = r#"
-        fn example(arg1, arg2) {
+        fn example() {
             print(1);
-        }
-        fn example_two(arg1, arg2) {
-            let a = 5;
-            print(a);
         }
         fn hello() {
             print("hello");
         }
         "#;
         assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_fn_return_int_num() {
+        let input = r#"
+        fn get_ten() -> int {
+            return 10;
+        }
+        let var = get_ten();
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "get_ten".into(),
+            [].to_vec(),
+            Type::Int,
+            Expression::Number(10),
+        );
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&func_expr))
+    }
+
+    #[test]
+    fn test_fn_return_int_value() {
+        let input = r#"
+        fn get_value(int value) -> int {
+            return value;
+        }
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "get_value".into(),
+            [FuncArg("value".into(), Type::Int)].to_vec(),
+            Type::Int,
+            Expression::Variable("value".into()),
+        );
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&func_expr))
+    }
+
+    #[test]
+    fn test_fn_return_string_value() {
+        let input = r#"
+        fn get_value(string value) -> string {
+            return value;
+        }
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "get_value".into(),
+            [FuncArg("value".into(), Type::String)].to_vec(),
+            Type::String,
+            Expression::Variable("value".into()),
+        );
+        assert!(output.is_ok());
+        // Return stmt not returning correct ast
+        // Returning Binaray(Expr)
+        // Instead of ReturnStmt(Binary(Expr))
+        assert!(output.unwrap().contains(&func_expr))
+    }
+
+    #[test]
+    fn test_fn_return_int() {
+        let input = r#"
+        fn add() -> int {
+            return 10;
+        }
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "add".into(),
+            [].to_vec(),
+            Type::Int,
+            Expression::Number(10),
+        );
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&func_expr))
+    }
+
+    // func to validate that the return statement AST is correct
+    fn build_basic_func_ast(
+        name: String,
+        args: Vec<Expression>,
+        return_type: Type,
+        return_expr: Expression,
+    ) -> Expression {
+        let body = Expression::BlockStmt(vec![Expression::ReturnStmt(Box::new(return_expr))]);
+        Expression::new_func_stmt(name, args, return_type, body)
+    }
+
+    #[test]
+    fn test_fn_return_string() {
+        let input = r#"
+        fn hello_world() -> string {
+            return "hello world";
+        }
+        let val = hello_world();
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "hello_world".into(),
+            [].to_vec(),
+            Type::String,
+            Expression::String("\"hello world\"".into()),
+        );
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&func_expr))
+
+    }
+
+    #[test]
+    fn test_fibonacci_fn() {
+        let input = r#"
+        fn fib(int val, int two) -> int {
+            if (val < 2) {
+                return 0;
+            }
+            return fib(val-1) + fib(val-2);
+        }
+        fib(20);
+        "#;
+        // TODO: fix this so call stmts return correctly
+        assert!(parse_cyclo_program(input).is_ok());
+
     }
 
     #[test]
@@ -709,12 +924,6 @@ mod test {
             print("hello");
         }
         "#;
-        match parse_cyclo_program(input) {
-            Err(e) => {
-                eprintln!("{}", e);
-            }
-            _ => {}
-        }
         assert!(parse_cyclo_program(input).is_ok());
     }
 
