@@ -2,12 +2,10 @@
 #![allow(dead_code)]
 //TODO: address these lints
 
-pub mod block;
 pub mod bool;
 pub mod func;
 pub mod llvm;
 pub mod num;
-pub mod param;
 pub mod string;
 pub mod void;
 
@@ -26,9 +24,7 @@ pub enum BaseTypes {
     String,
     Number,
     Bool,
-    Block,
     Func,
-    Param,
     Void,
 }
 

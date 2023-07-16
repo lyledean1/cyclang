@@ -14,7 +14,8 @@ macro_rules! c_str {
     };
 }
 
-//TODO: create new functon
+// FuncType -> Exposes the Call Func (i.e after function has been executed)
+// So can provide the return type to be used after execution
 #[derive(Clone)]
 pub struct FuncType {
     pub body: Expression,

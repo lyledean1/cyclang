@@ -1,11 +1,11 @@
 #![allow(dead_code)]
-use crate::types::block::BlockType;
 use crate::types::bool::BoolType;
 use crate::types::func::FuncType;
 use crate::types::llvm::*;
 use crate::types::num::NumberType;
 use crate::types::string::StringType;
 use crate::types::TypeBase;
+use crate::types::void::VoidType;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -300,13 +300,13 @@ impl ASTContext {
                 // Each Block Stmt, Incr and Decr
                 // Clearing all the "Local" Variables That Have Been Assigned
                 self.incr();
-                for expr in exprs.clone() {
+                for expr in exprs {
                     self.match_ast(expr);
                 }
                 // Delete Variables
                 self.var_cache.del_locals(self.get_depth());
                 self.decr();
-                Box::new(BlockType { values: exprs })
+                Box::new(VoidType{})
             }
             Expression::CallStmt(name, args) => match self.var_cache.get(&name) {
                 Some(val) => {
@@ -387,7 +387,7 @@ impl ASTContext {
                 LLVMBuildCondBr(self.builder, cond.get_value(), then_block, else_block);
 
                 self.set_current_block(merge_block);
-                Box::new(BlockType { values: vec![] })
+                Box::new(VoidType{})
             },
             Expression::WhileStmt(condition, while_block_stmt) => {
                 unsafe {

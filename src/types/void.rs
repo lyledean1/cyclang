@@ -2,9 +2,7 @@ extern crate llvm_sys;
 use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::prelude::*;
 
-// TODO: implement base type
-// return type i.e if int,
-// figure out how to allocate values
+// VoidType -> Placeholder for a type that should not be used
 #[derive(Debug, Clone)]
 pub struct VoidType {}
 
