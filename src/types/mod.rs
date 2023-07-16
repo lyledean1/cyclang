@@ -7,8 +7,9 @@ pub mod bool;
 pub mod func;
 pub mod llvm;
 pub mod num;
-pub mod string;
 pub mod param;
+pub mod string;
+pub mod void;
 
 //TODO: Upgrade to LLVMGetValueName2
 use llvm_sys::core::LLVMGetValueName;
@@ -28,6 +29,7 @@ pub enum BaseTypes {
     Block,
     Func,
     Param,
+    Void,
 }
 
 pub trait Base: DynClone {
@@ -119,7 +121,11 @@ pub trait Comparison: Base {
 }
 
 pub trait Func: Base {
-    fn call(&self, _context: &mut ASTContext, _call_arguments: Vec<Expression>) {
+    fn call(
+        &self,
+        _context: &mut ASTContext,
+        _call_arguments: Vec<Expression>,
+    ) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement call", self.get_type())
     }
 }

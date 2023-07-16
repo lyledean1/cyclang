@@ -142,7 +142,7 @@ fn parse_expression(
             Ok(Expression::new_number(n))
         }
         Rule::name => {
-            let s = pair.as_str().to_string().replace(" ", "");
+            let s = pair.as_str().to_string().replace(' ', "");
             Ok(Expression::new_variable(s))
         }
         Rule::string => {

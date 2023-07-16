@@ -736,19 +736,18 @@ mod test {
         assert_eq!(stdout, "20\n");
     }
 
-    // #[test]
-    // fn test_compile_fn_return_int_value() {
-    //     let input = r#"
-    //     fn add(int x, int y) -> int {
-    //         let val = x + y;
-    //         return val;
-    //     }
-    //     let num = add(10,10);
-    //     print(num)
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "20\n");
-    // }
-
+    #[test]
+    fn test_compile_fn_return_int_value() {
+        let input = r#"
+        fn add(int x, int y) -> int {
+            let val = x + y;
+            return val;
+        }
+        let num = add(5,5);
+        print(num);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "10\n");
+    }
 }

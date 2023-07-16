@@ -14,7 +14,7 @@ use crate::context::*;
 use std::io::Error;
 use std::process::Output;
 
-use crate::parser::Expression;
+use crate::parser::{Expression, Type};
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
@@ -63,6 +63,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
                 args: vec![],
+                return_type: Type::None,
             },
         );
         //sprintf
@@ -85,6 +86,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
                 args: vec![],
+                return_type: Type::None,
             },
         );
 
@@ -111,6 +113,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
                 args: vec![],
+                return_type: Type::None,
             },
             depth: 0,
             printf_str_value,
@@ -198,12 +201,11 @@ impl ASTContext {
                     // check if variable is in function
                     // TODO: should this be reversed i.e check func var first then global
                     match self.var_cache.get(&input) {
-                        Some(val) => return val.clone(),
+                        Some(val) => val,
                         None => {
                             unreachable!()
                         }
                     }
-                    unreachable!()
                 }
             },
             Expression::Nil => {
@@ -308,8 +310,10 @@ impl ASTContext {
             }
             Expression::CallStmt(name, args) => match self.var_cache.get(&name) {
                 Some(val) => {
-                    val.call(self, args);
-                    val
+                    let call_val = val.call(self, args);
+                    self.var_cache
+                        .set(name.as_str(), call_val.clone(), self.depth);
+                    call_val
                 }
                 _ => {
                     unreachable!("call does not exists for function {:?}", name);
@@ -320,6 +324,7 @@ impl ASTContext {
                     self,
                     name.clone(),
                     args.clone(),
+                    _return_type.clone(),
                     *body.clone(),
                     self.current_function.block,
                 );
@@ -330,6 +335,7 @@ impl ASTContext {
                     llvm_type: llvm_func.func_type,
                     llvm_func: llvm_func.function,
                     llvm_func_ref: llvm_func,
+                    return_type: _return_type,
                 };
                 func.set_args(vec![]);
                 // Set Func as a variable
@@ -524,8 +530,8 @@ impl ASTContext {
             }
             Expression::ReturnStmt(input) => {
                 let expression_value = self.match_ast(*input);
-                unsafe{
-                    LLVMBuildRet(self.builder, expression_value.get_ptr());
+                unsafe {
+                    LLVMBuildRet(self.builder, expression_value.get_value());
                 }
                 expression_value
             }

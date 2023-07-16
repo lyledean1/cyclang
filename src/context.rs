@@ -1,17 +1,16 @@
 #![allow(dead_code)]
 
-use crate::types::llvm::{int8_ptr_type, int32_ptr_type};
-use crate::types::TypeBase;
+use crate::types::llvm::{int32_ptr_type, int8_ptr_type};
 use crate::types::num::NumberType;
-use crate::types::param::ParamType;
+use crate::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
 use crate::parser::{Expression, Type};
 use crate::types::func::FuncType;
 use crate::types::llvm::c_str;
 use llvm_sys::core::*;
-use llvm_sys::LLVMType;
 use llvm_sys::prelude::*;
+use llvm_sys::LLVMType;
 
 macro_rules! c_str {
     ($s:expr) => {
@@ -128,6 +127,7 @@ pub struct LLVMFunction {
     pub block: LLVMBasicBlockRef,
     pub symbol_table: HashMap<String, Box<dyn TypeBase>>,
     pub args: Vec<LLVMTypeRef>,
+    pub return_type: Type,
 }
 
 impl LLVMFunction {
@@ -136,23 +136,31 @@ impl LLVMFunction {
         name: String,
         //TODO: check these arguments? Check the type?
         args: Vec<Expression>,
+        return_type: Type,
         body: Expression,
         block: LLVMBasicBlockRef,
     ) -> Self {
         let function_name = c_str(&name);
-        let param_types: &mut Vec<*mut llvm_sys::LLVMType> = &mut LLVMFunction::get_arg_types(args.clone());
-        // Then get Return Type
+        let param_types: &mut Vec<*mut llvm_sys::LLVMType> =
+            &mut LLVMFunction::get_arg_types(args.clone());
 
-        println!("{:?}", param_types);
-
-        // Look Ahead to get Function Type
-
-        let function_type = LLVMFunctionType(
+        let mut function_type = LLVMFunctionType(
             LLVMVoidType(),
             param_types.as_mut_ptr(),
             args.len() as u32,
             0,
         );
+
+        if return_type == Type::Int {
+            function_type = LLVMFunctionType(
+                int32_ptr_type(),
+                param_types.as_mut_ptr(),
+                args.len() as u32,
+                0,
+            );
+        }
+
+        // get correct function return type
         let function = LLVMAddFunction(context.module, function_name, function_type);
         let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
             LLVMAppendBasicBlock(function, c_str!("entry"));
@@ -165,32 +173,28 @@ impl LLVMFunction {
             block: function_entry_block,
             symbol_table: HashMap::new(),
             args: param_types.to_vec(),
+            return_type: return_type.clone(),
         };
 
-        for (i, val) in args.clone().iter_mut().enumerate() {
+        for (i, val) in args.iter().enumerate() {
             match val {
-                Expression::FuncArg(v, t) => {
-                    match t {
-                        Type::Int => {
-                            let val = LLVMGetParam(function, i as u32);
-                            let ptr = LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str(""));
-                            let num = NumberType{
-                                llmv_value: val,
-                                llmv_value_pointer: ptr,
-                                name: "param".into(),
-                                cname: c_str("param"),
-                            };
-                            new_function.set_func_var(v, Box::new(num));        
-
-                        }
-                        Type::String => {
-                            
-                        }
-                        _ => {
-                            unreachable!("type {:?} not found", t)
-                        }
+                Expression::FuncArg(v, t) => match t {
+                    Type::Int => {
+                        let val = LLVMGetParam(function, i as u32);
+                        let ptr = LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str(""));
+                        let num = NumberType {
+                            llmv_value: val,
+                            llmv_value_pointer: ptr,
+                            name: "param".into(),
+                            cname: c_str("param"),
+                        };
+                        new_function.set_func_var(v, Box::new(num));
                     }
-                }
+                    Type::String => {}
+                    _ => {
+                        unreachable!("type {:?} not found", t)
+                    }
+                },
                 _ => {
                     unreachable!("this should only be FuncArg, got {:?}", val)
                 }
@@ -206,7 +210,9 @@ impl LLVMFunction {
 
         // Delete func args here
         // // Check to see if there is a Return type
-        LLVMBuildRetVoid(context.builder);
+        if return_type == Type::None {
+            LLVMBuildRetVoid(context.builder);
+        }
 
         context.set_current_block(block);
         context.var_cache.set(
@@ -217,6 +223,7 @@ impl LLVMFunction {
                 llvm_type: function_type,
                 llvm_func: function,
                 llvm_func_ref: new_function.clone(),
+                return_type,
             }),
             context.depth,
         );
@@ -229,24 +236,17 @@ impl LLVMFunction {
         let mut args_vec = vec![];
         for arg in args.into_iter() {
             match arg {
-                Expression::FuncArg(val, t) => {
-                    match t {
-                        Type::Int => {
-                            args_vec.push(int8_ptr_type())
-                        }
-                        Type::String => {
-                            args_vec.push(int8_ptr_type())
-                        }
-                        _=> {
-                            unreachable!("unknown type {:?}", t)
-                        }
+                Expression::FuncArg(_, t) => match t {
+                    Type::Int => args_vec.push(int8_ptr_type()),
+                    Type::String => args_vec.push(int8_ptr_type()),
+                    _ => {
+                        unreachable!("unknown type {:?}", t)
                     }
-                }
+                },
                 _ => {
                     unreachable!("this should only be FuncArg, got {:?}", arg)
                 }
             }
-
         }
         args_vec
     }

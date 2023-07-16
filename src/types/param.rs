@@ -1,5 +1,4 @@
 extern crate llvm_sys;
-use crate::parser::Expression;
 use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::prelude::*;
 
@@ -28,6 +27,6 @@ impl Func for ParamType {}
 
 impl TypeBase for ParamType {
     fn get_value(&self) -> LLVMValueRef {
-        unimplemented!("No value ref for block type")
+        unimplemented!("No value ref for param type")
     }
 }
