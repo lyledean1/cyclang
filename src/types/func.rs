@@ -14,7 +14,7 @@ macro_rules! c_str {
 }
 
 //TODO: create new functon
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FuncType {
     pub body: Expression,
     pub args: Vec<Expression>,
@@ -36,26 +36,22 @@ impl Comparison for FuncType {}
 impl Debug for FuncType {}
 
 impl Func for FuncType {
-    fn call(&self, _context: &mut crate::context::ASTContext, _args: Vec<Expression>) {
+    fn call(&self, _context: &mut crate::context::ASTContext, args: Vec<Expression>) {
         unsafe {
-            let args = &mut vec![];
-            if _args.is_empty() {
-                let value = StringType::new(
-                    Box::new("example".to_string()),
-                    "hello world".to_string(),
-                    _context,
-                );
-                args.push(value.get_value())
+            // need to build up call with actual LLVMValue
+
+            let call_args = &mut vec![];
+            for arg in args.iter() {
+                call_args.push(_context.match_ast(arg.clone()).get_ptr());
             }
             LLVMBuildCall2(
                 _context.builder,
                 self.get_llvm_type(),
                 self.get_value(),
-                args.as_mut_ptr(),
+                call_args.as_mut_ptr(),
                 self.llvm_func_ref.args.len() as u32,
                 c_str!(""),
             );
-            println!("here again");
         }
     }
 }

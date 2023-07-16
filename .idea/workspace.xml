@@ -16,13 +16,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="58ca5b32-f5b8-4bd7-97f7-fc51bc756029" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/src/types/param.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/compiler.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/compiler.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/context.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/context.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/parser.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/types/bool.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/bool.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/types/func.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/func.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/types/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/types/num.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/num.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,6 +33,13 @@
   </component>
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Rust File" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -96,23 +105,6 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test parser::test::test_fn_return_string_value" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package cyclo --bin cyclo parser::test::test_fn_return_string_value -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
     <configuration name="Test test::test_compile_fn_int_value" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="test --package cyclo --bin cyclo test::test_compile_fn_int_value -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -147,13 +139,30 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
+    <configuration name="Test test::test_compile_function_with_two_args" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package cyclo --bin cyclo test::test_compile_function_with_two_args -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="false" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
     <recent_temporary>
       <list>
         <item itemvalue="Cargo.Test test::test_compile_function_with_one_arg" />
+        <item itemvalue="Cargo.Test test::test_compile_function_with_two_args" />
         <item itemvalue="Cargo.Test test::test_compile_fn_int_value" />
         <item itemvalue="Cargo.Test parser::test::test_fn_return_int_add" />
         <item itemvalue="Cargo.Test parser::test::test_fn_return_int_value" />
-        <item itemvalue="Cargo.Test parser::test::test_fn_return_string_value" />
       </list>
     </recent_temporary>
   </component>
@@ -204,12 +213,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/compiler.rs</url>
-          <line>186</line>
-          <option name="timeStamp" value="27" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
-          <url>file://$PROJECT_DIR$/src/compiler.rs</url>
-          <line>329</line>
+          <line>337</line>
           <option name="timeStamp" value="28" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
@@ -224,28 +228,23 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/compiler.rs</url>
-          <line>204</line>
+          <line>212</line>
           <option name="timeStamp" value="40" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/compiler.rs</url>
-          <line>207</line>
+          <line>215</line>
           <option name="timeStamp" value="41" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/context.rs</url>
-          <line>202</line>
-          <option name="timeStamp" value="42" />
+          <line>172</line>
+          <option name="timeStamp" value="51" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/src/context.rs</url>
-          <line>208</line>
-          <option name="timeStamp" value="43" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
-          <url>file://$PROJECT_DIR$/src/context.rs</url>
-          <line>205</line>
-          <option name="timeStamp" value="44" />
+          <line>232</line>
+          <option name="timeStamp" value="52" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

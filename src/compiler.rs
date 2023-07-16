@@ -195,7 +195,15 @@ impl ASTContext {
             Expression::Variable(input) => match self.var_cache.get(&input) {
                 Some(val) => val,
                 None => {
-                    panic!("var {:?} not found", input)
+                    // check if variable is in function
+                    // TODO: should this be reversed i.e check func var first then global
+                    match self.current_function.symbol_table.get(&input) {
+                        Some(val) => return val.clone(),
+                        None => {
+                            unreachable!()
+                        }
+                    }
+                    unreachable!()
                 }
             },
             Expression::Nil => {
@@ -311,14 +319,14 @@ impl ASTContext {
                 let llvm_func = LLVMFunction::new(
                     self,
                     name.clone(),
-                    args,
+                    args.clone(),
                     *body.clone(),
                     self.current_function.block,
                 );
 
                 let mut func = FuncType {
                     body: *body,
-                    args: vec![],
+                    args,
                     llvm_type: llvm_func.func_type,
                     llvm_func: llvm_func.function,
                     llvm_func_ref: llvm_func,
@@ -515,7 +523,11 @@ impl ASTContext {
                 expression_value
             }
             Expression::ReturnStmt(input) => {
-                unimplemented!()
+                let expression_value = self.match_ast(*input);
+                unsafe{
+                    LLVMBuildRet(self.builder, expression_value.get_ptr());
+                }
+                expression_value
             }
         }
     }

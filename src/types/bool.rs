@@ -45,7 +45,7 @@ impl Comparison for BoolType {
             },
             _ => {
                 unreachable!(
-                    "Can't add type {:?} and type {:?}",
+                    "Can't run '==' on type {:?} and type {:?}",
                     self.get_type(),
                     _rhs.get_type()
                 )
@@ -67,7 +67,7 @@ impl Comparison for BoolType {
             },
             _ => {
                 unreachable!(
-                    "Can't add type {:?} and type {:?}",
+                    "Can't run '!=' type {:?} and type {:?}",
                     self.get_type(),
                     _rhs.get_type()
                 )
@@ -173,9 +173,6 @@ impl TypeBase for BoolType {
     fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
-                // let alloca = _rhs.get_ptr();
-                // let name = LLVMGetValueName(_rhs.get_value());
-                // let new_value = LLVMBuildLoad2(self.builder, int1_ptr_type(), _rhs.get_value(), name);
                 LLVMBuildStore(self.builder, _rhs.get_value(), self.get_ptr());
             },
             _ => {

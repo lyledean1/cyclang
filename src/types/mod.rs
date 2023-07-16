@@ -8,6 +8,7 @@ pub mod func;
 pub mod llvm;
 pub mod num;
 pub mod string;
+pub mod param;
 
 //TODO: Upgrade to LLVMGetValueName2
 use llvm_sys::core::LLVMGetValueName;
@@ -26,6 +27,7 @@ pub enum BaseTypes {
     Bool,
     Block,
     Func,
+    Param,
 }
 
 pub trait Base: DynClone {
