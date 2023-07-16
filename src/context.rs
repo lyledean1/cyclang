@@ -148,7 +148,7 @@ impl LLVMFunction {
         // Look Ahead to get Function Type
 
         let function_type = LLVMFunctionType(
-            int32_ptr_type(),
+            LLVMVoidType(),
             param_types.as_mut_ptr(),
             args.len() as u32,
             0,
@@ -206,7 +206,7 @@ impl LLVMFunction {
 
         // Delete func args here
         // // Check to see if there is a Return type
-        // LLVMBuildRetVoid(context.builder);
+        LLVMBuildRetVoid(context.builder);
 
         context.set_current_block(block);
         context.var_cache.set(

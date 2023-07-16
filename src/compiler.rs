@@ -192,12 +192,12 @@ impl ASTContext {
                 return StringType::new(Box::new(input), "str".to_string(), self)
             }
             Expression::Bool(input) => BoolType::new(Box::new(input), "bool".to_string(), self),
-            Expression::Variable(input) => match self.var_cache.get(&input) {
-                Some(val) => val,
+            Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {
+                Some(val) => val.clone(),
                 None => {
                     // check if variable is in function
                     // TODO: should this be reversed i.e check func var first then global
-                    match self.current_function.symbol_table.get(&input) {
+                    match self.var_cache.get(&input) {
                         Some(val) => return val.clone(),
                         None => {
                             unreachable!()
