@@ -21,8 +21,8 @@ pub struct NumberType {
     //TODO: remove pub use of these
     pub llmv_value: LLVMValueRef,
     pub llmv_value_pointer: LLVMValueRef,
-    name: String,
-    cname: *const i8,
+    pub name: String,
+    pub cname: *const i8,
 }
 
 impl Base for NumberType {

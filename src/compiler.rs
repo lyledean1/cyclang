@@ -1,11 +1,11 @@
 #![allow(dead_code)]
-use crate::types::block::BlockType;
 use crate::types::bool::BoolType;
 use crate::types::func::FuncType;
 use crate::types::llvm::*;
 use crate::types::num::NumberType;
 use crate::types::string::StringType;
 use crate::types::TypeBase;
+use crate::types::void::VoidType;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -14,7 +14,7 @@ use crate::context::*;
 use std::io::Error;
 use std::process::Output;
 
-use crate::parser::Expression;
+use crate::parser::{Expression, Type};
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
@@ -63,6 +63,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
                 args: vec![],
+                return_type: Type::None,
             },
         );
         //sprintf
@@ -85,6 +86,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
                 args: vec![],
+                return_type: Type::None,
             },
         );
 
@@ -111,6 +113,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
                 entry_block: main_block,
                 symbol_table: HashMap::new(),
                 args: vec![],
+                return_type: Type::None,
             },
             depth: 0,
             printf_str_value,
@@ -192,10 +195,17 @@ impl ASTContext {
                 return StringType::new(Box::new(input), "str".to_string(), self)
             }
             Expression::Bool(input) => BoolType::new(Box::new(input), "bool".to_string(), self),
-            Expression::Variable(input) => match self.var_cache.get(&input) {
-                Some(val) => val,
+            Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {
+                Some(val) => val.clone(),
                 None => {
-                    panic!("var {:?} not found", input)
+                    // check if variable is in function
+                    // TODO: should this be reversed i.e check func var first then global
+                    match self.var_cache.get(&input) {
+                        Some(val) => val,
+                        None => {
+                            unreachable!()
+                        }
+                    }
                 }
             },
             Expression::Nil => {
@@ -290,18 +300,20 @@ impl ASTContext {
                 // Each Block Stmt, Incr and Decr
                 // Clearing all the "Local" Variables That Have Been Assigned
                 self.incr();
-                for expr in exprs.clone() {
+                for expr in exprs {
                     self.match_ast(expr);
                 }
                 // Delete Variables
                 self.var_cache.del_locals(self.get_depth());
                 self.decr();
-                Box::new(BlockType { values: exprs })
+                Box::new(VoidType{})
             }
             Expression::CallStmt(name, args) => match self.var_cache.get(&name) {
                 Some(val) => {
-                    val.call(self, args);
-                    val
+                    let call_val = val.call(self, args);
+                    self.var_cache
+                        .set(name.as_str(), call_val.clone(), self.depth);
+                    call_val
                 }
                 _ => {
                     unreachable!("call does not exists for function {:?}", name);
@@ -311,17 +323,19 @@ impl ASTContext {
                 let llvm_func = LLVMFunction::new(
                     self,
                     name.clone(),
-                    vec![],
+                    args.clone(),
+                    _return_type.clone(),
                     *body.clone(),
                     self.current_function.block,
                 );
 
                 let mut func = FuncType {
                     body: *body,
-                    args: vec![],
+                    args,
                     llvm_type: llvm_func.func_type,
                     llvm_func: llvm_func.function,
                     llvm_func_ref: llvm_func,
+                    return_type: _return_type,
                 };
                 func.set_args(vec![]);
                 // Set Func as a variable
@@ -373,7 +387,7 @@ impl ASTContext {
                 LLVMBuildCondBr(self.builder, cond.get_value(), then_block, else_block);
 
                 self.set_current_block(merge_block);
-                Box::new(BlockType { values: vec![] })
+                Box::new(VoidType{})
             },
             Expression::WhileStmt(condition, while_block_stmt) => {
                 unsafe {
@@ -515,7 +529,11 @@ impl ASTContext {
                 expression_value
             }
             Expression::ReturnStmt(input) => {
-                unimplemented!()
+                let expression_value = self.match_ast(*input);
+                unsafe {
+                    LLVMBuildRet(self.builder, expression_value.get_value());
+                }
+                expression_value
             }
         }
     }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::os::raw::c_ulonglong;
 
 extern crate llvm_sys;
+use crate::parser::Type;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
@@ -128,5 +129,6 @@ pub unsafe fn build_bool_to_str_func(
         block: entry_block,
         symbol_table: HashMap::new(),
         args: vec![],
+        return_type: Type::Bool, // ignore
     }
 }
