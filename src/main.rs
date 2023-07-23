@@ -5,10 +5,8 @@ use clap::Parser;
 use std::fmt;
 use std::process::exit;
 use std::{fs, process::Output};
-mod context;
 mod parser;
 mod repl;
-mod types;
 
 #[macro_use]
 mod compiler;

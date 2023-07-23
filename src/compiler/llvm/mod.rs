@@ -1,10 +1,13 @@
-use crate::context::LLVMFunction;
+use crate::compiler::llvm::context::LLVMFunction;
 use std::collections::HashMap;
 
 extern crate llvm_sys;
 use crate::parser::Type;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+
+pub mod types;
+pub mod context;
 
 #[macro_export]
 macro_rules! c_str {

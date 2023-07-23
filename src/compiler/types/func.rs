@@ -1,12 +1,13 @@
-use crate::context::LLVMFunction;
+use crate::compiler::llvm::context::LLVMFunction;
+
 use crate::parser::{Expression, Type};
 extern crate llvm_sys;
 use crate::c_str;
-use crate::types::bool::BoolType;
+use crate::compiler::types::bool::BoolType;
 use crate::compiler::llvm::c_str;
-use crate::types::num::NumberType;
-use crate::types::void::VoidType;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::types::num::NumberType;
+use crate::compiler::types::void::VoidType;
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::LLVMBuildCall2;
 use llvm_sys::prelude::*;
 
@@ -37,7 +38,7 @@ impl Debug for FuncType {}
 impl Func for FuncType {
     fn call(
         &self,
-        _context: &mut crate::context::ASTContext,
+        _context: &mut crate::compiler::llvm::context::ASTContext,
         args: Vec<Expression>,
     ) -> Box<dyn TypeBase> {
         unsafe {

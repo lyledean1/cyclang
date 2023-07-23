@@ -1,17 +1,17 @@
 
 #![allow(dead_code)]
-use crate::types::bool::BoolType;
-use crate::types::func::FuncType;
-use crate::types::num::NumberType;
-use crate::types::string::StringType;
-use crate::types::void::VoidType;
-use crate::types::TypeBase;
+use crate::compiler::types::bool::BoolType;
+use crate::compiler::types::func::FuncType;
+use crate::compiler::types::num::NumberType;
+use crate::compiler::types::string::StringType;
+use crate::compiler::types::void::VoidType;
+use crate::compiler::types::TypeBase;
 use crate::compiler::llvm::*;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
 
-use crate::context::*;
+use crate::compiler::llvm::context::*;
 use std::io::Error;
 use std::process::Output;
 
@@ -25,9 +25,9 @@ use std::process::Command;
 use std::ptr;
 use crate::c_str;
 
-
-pub mod ir;
 pub mod llvm;
+pub mod types;
+
 
 fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
     unsafe {

@@ -1,6 +1,6 @@
-use crate::context::ASTContext;
-use crate::types::bool::BoolType;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::llvm::context::ASTContext;
+use crate::compiler::types::bool::BoolType;
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 
 use std::any::Any;
 use std::ffi::CString;

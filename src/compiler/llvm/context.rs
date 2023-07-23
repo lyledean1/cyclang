@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 
-use crate::types::bool::BoolType;
+use crate::compiler::types::bool::BoolType;
 use crate::compiler::llvm::{int1_ptr_type, int32_ptr_type, int8_ptr_type};
-use crate::types::num::NumberType;
-use crate::types::TypeBase;
+use crate::compiler::types::num::NumberType;
+use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
 use crate::parser::{Expression, Type};
-use crate::types::func::FuncType;
+use crate::compiler::types::func::FuncType;
 use crate::compiler::llvm::c_str;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;

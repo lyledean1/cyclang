@@ -1,5 +1,5 @@
 extern crate llvm_sys;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::prelude::*;
 
 // VoidType -> Placeholder for a type that should not be used

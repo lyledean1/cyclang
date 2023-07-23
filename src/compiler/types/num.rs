@@ -2,9 +2,9 @@ use crate::compiler::llvm::*;
 use std::any::Any;
 use crate::c_str;
 
-use crate::context::ASTContext;
-use crate::types::bool::BoolType;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::llvm::context::ASTContext;
+use crate::compiler::types::bool::BoolType;
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
