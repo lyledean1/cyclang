@@ -888,7 +888,6 @@ mod test {
         assert!(output.unwrap().contains(&func_expr))
     }
 
-
     #[test]
     fn test_fn_return_bool() {
         let input = r#"
@@ -904,9 +903,10 @@ mod test {
             "hello_bool".into(),
             [].to_vec(),
             Type::Bool,
-            vec![Expression::LetStmt("value".into(), Box::new(Expression::Bool(true))), Expression::ReturnStmt(Box::new(Expression::Variable(
-                "value".into(),
-            )))],
+            vec![
+                Expression::LetStmt("value".into(), Box::new(Expression::Bool(true))),
+                Expression::ReturnStmt(Box::new(Expression::Variable("value".into()))),
+            ],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))

@@ -4,7 +4,6 @@
 
 pub mod bool;
 pub mod func;
-pub mod llvm;
 pub mod num;
 pub mod string;
 pub mod void;
@@ -13,7 +12,7 @@ pub mod void;
 use llvm_sys::core::LLVMGetValueName;
 use std::any::Any;
 
-use crate::{context::ASTContext, parser::Expression};
+use crate::{compiler::llvm::context::ASTContext, parser::Expression};
 use dyn_clone::DynClone;
 
 extern crate llvm_sys;

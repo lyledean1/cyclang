@@ -1,33 +1,35 @@
 #![allow(dead_code)]
-use crate::types::bool::BoolType;
-use crate::types::func::FuncType;
-use crate::types::llvm::*;
-use crate::types::num::NumberType;
-use crate::types::string::StringType;
-use crate::types::void::VoidType;
-use crate::types::TypeBase;
+use crate::compiler::llvm::*;
+use crate::compiler::types::bool::BoolType;
+use crate::compiler::types::func::FuncType;
+use crate::compiler::types::num::NumberType;
+use crate::compiler::types::string::StringType;
+use crate::compiler::types::void::VoidType;
+use crate::compiler::types::TypeBase;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
 
-use crate::context::*;
+use crate::compiler::llvm::context::*;
+use crate::compiler::llvm::control_flow::new_if_stmt;
+use crate::compiler::llvm::functions::*;
+
 use std::io::Error;
 use std::process::Output;
 
 use crate::parser::{Expression, Type};
 
 extern crate llvm_sys;
+use crate::c_str;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-use llvm_sys::LLVMIntPredicate;
 use std::process::Command;
 use std::ptr;
 
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
+use self::llvm::control_flow::{new_while_stmt, new_for_loop};
+
+pub mod llvm;
+pub mod types;
 
 fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
     unsafe {
@@ -37,8 +39,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         let builder = LLVMCreateBuilderInContext(context);
 
         // common void type
-        let void_type = LLVMVoidTypeInContext(context);
-        let mut llvm_func_cache = LLVMFunctionCache::new();
+        let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
 
         // our "main" function which will be the entry point when we run the executable
         let main_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
@@ -48,47 +49,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
 
         // Define common functions
 
-        let bool_to_str_func = build_bool_to_str_func(module, context);
-        llvm_func_cache.set("bool_to_str", bool_to_str_func);
-
-        //printf
-        let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
-        let print_func = LLVMAddFunction(module, c_str!("printf"), print_func_type);
-        llvm_func_cache.set(
-            "printf",
-            LLVMFunction {
-                function: print_func,
-                func_type: print_func_type,
-                block: main_block,
-                entry_block: main_block,
-                symbol_table: HashMap::new(),
-                args: vec![],
-                return_type: Type::None,
-            },
-        );
-        //sprintf
-        let mut arg_types = [
-            LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-            LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-            LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-            LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-        ];
-        let ret_type = LLVMPointerType(LLVMInt8TypeInContext(context), 0);
-        let sprintf_type =
-            LLVMFunctionType(ret_type, arg_types.as_mut_ptr(), arg_types.len() as u32, 1);
-        let sprintf = LLVMAddFunction(module, "sprintf\0".as_ptr() as *const i8, sprintf_type);
-        llvm_func_cache.set(
-            "sprintf",
-            LLVMFunction {
-                function: sprintf,
-                func_type: sprintf_type,
-                block: main_block,
-                entry_block: main_block,
-                symbol_table: HashMap::new(),
-                args: vec![],
-                return_type: Type::None,
-            },
-        );
+        let llvm_func_cache = build_helper_funcs(module, context, main_block);
 
         let var_cache = VariableCache::new();
         let format_str = "%d\n\0";
@@ -346,186 +307,15 @@ impl ASTContext {
             Expression::FuncArg(arg_name, arg_type) => {
                 unimplemented!()
             }
-            Expression::IfStmt(condition, if_stmt, else_stmt) => unsafe {
-                let function = self.current_function.function;
-                let if_entry_block: *mut llvm_sys::LLVMBasicBlock = self.current_function.block;
-
-                LLVMPositionBuilderAtEnd(self.builder, if_entry_block);
-
-                let cond: Box<dyn TypeBase> = self.match_ast(*condition);
-                // Build If Block
-                let then_block = LLVMAppendBasicBlock(function, c_str!("then_block"));
-                let merge_block = LLVMAppendBasicBlock(function, c_str!("merge_block"));
-
-                self.set_current_block(then_block);
-
-                self.match_ast(*if_stmt);
-
-                // Each
-                LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
-
-                // Build Else Block
-                let else_block = LLVMAppendBasicBlock(function, c_str!("else_block"));
-                self.set_current_block(else_block);
-
-                match *else_stmt {
-                    Some(v_stmt) => {
-                        self.match_ast(v_stmt);
-                        LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
-                    }
-                    _ => {
-                        LLVMPositionBuilderAtEnd(self.builder, else_block);
-                        LLVMBuildBr(self.builder, merge_block); // Branch to merge_block
-                    }
-                }
-
-                // E
-                LLVMPositionBuilderAtEnd(self.builder, merge_block);
-                self.set_current_block(merge_block);
-
-                self.set_current_block(if_entry_block);
-
-                let cmp = LLVMBuildLoad2(self.builder, int1_type(), cond.get_ptr(), c_str!("cmp"));
-                LLVMBuildCondBr(self.builder, cmp, then_block, else_block);
-
-                self.set_current_block(merge_block);
+            Expression::IfStmt(condition, if_stmt, else_stmt) => {
+                new_if_stmt(self, condition, if_stmt, else_stmt);
                 Box::new(VoidType {})
-            },
+            }
             Expression::WhileStmt(condition, while_block_stmt) => {
-                unsafe {
-                    let while_entry_block: *mut llvm_sys::LLVMBasicBlock =
-                        self.current_function.block;
-                    let function = self.current_function.function;
-
-                    let loop_cond_block = LLVMAppendBasicBlock(function, c_str!("loop_cond"));
-                    let loop_body_block = LLVMAppendBasicBlock(function, c_str!("loop_body"));
-                    let loop_exit_block = LLVMAppendBasicBlock(function, c_str!("loop_exit"));
-
-                    // Set bool type in entry block
-                    let var_name = c_str!("while_value_bool_var");
-                    let bool_type_ptr = LLVMBuildAlloca(self.builder, int1_type(), var_name);
-                    let value_condition = self.match_ast(*condition);
-
-                    let cmp = LLVMBuildLoad2(self.builder, int1_type(), value_condition.get_ptr(), c_str!("cmp"));
-
-                    LLVMBuildStore(self.builder, cmp, bool_type_ptr);
-
-                    LLVMBuildBr(self.builder, loop_cond_block);
-
-                    self.set_current_block(loop_body_block);
-                    // Check if the global variable already exists
-
-                    self.match_ast(*while_block_stmt);
-
-                    LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
-
-                    self.set_current_block(loop_cond_block);
-                    // Build loop condition block
-                    let value_cond_load = LLVMBuildLoad2(
-                        self.builder,
-                        int1_type(),
-                        value_condition.get_ptr(),
-                        c_str!("while_value_bool_var"),
-                    );
-
-                    LLVMBuildCondBr(
-                        self.builder,
-                        value_cond_load,
-                        loop_body_block,
-                        loop_exit_block,
-                    );
-
-                    // Position builder at loop exit block
-                    self.set_current_block(loop_exit_block);
-                    value_condition
-                }
+                new_while_stmt(self, condition, while_block_stmt)
             }
             Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
-                unsafe {
-                    // Create basic blocks
-                    let function = self.current_function.function;
-                    let for_block = self.current_function.block;
-
-                    self.set_current_block(for_block);
-                    let loop_cond_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_cond"));
-                    let loop_body_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_body"));
-                    // is this not needed?
-                    // let loop_incr_block =
-                    //     LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_incr"));
-                    let loop_exit_block =
-                        LLVMAppendBasicBlock(self.current_function.function, c_str!("loop_exit"));
-
-                    let i: Box<dyn TypeBase> =
-                        NumberType::new(Box::new(init), "i".to_string(), self);
-
-                    let value = i.get_value();
-                    let ptr = i.get_ptr();
-                    self.var_cache.set(&var_name, i, self.depth);
-
-                    LLVMBuildStore(self.builder, value, ptr);
-
-                    // Branch to loop condition block
-                    LLVMBuildBr(self.builder, loop_cond_block);
-
-                    // Build loop condition block
-                    self.set_current_block(loop_cond_block);
-
-                    // TODO: improve this logic for identifying for and reverse fors
-                    let mut op = LLVMIntPredicate::LLVMIntSLT;
-                    if increment < 0 {
-                        op = LLVMIntPredicate::LLVMIntSGT;
-                    }
-
-                    let op_lhs = ptr;
-                    let op_rhs = length;
-                    let loop_condition = LLVMBuildICmp(
-                        self.builder,
-                        op,
-                        LLVMBuildLoad2(
-                            self.builder,
-                            LLVMInt32TypeInContext(self.context),
-                            op_lhs,
-                            c_str!(""),
-                        ),
-                        LLVMConstInt(
-                            LLVMInt32TypeInContext(self.context),
-                            op_rhs.try_into().unwrap(),
-                            0,
-                        ),
-                        c_str!(""),
-                    );
-                    LLVMBuildCondBr(
-                        self.builder,
-                        loop_condition,
-                        loop_body_block,
-                        loop_exit_block,
-                    );
-
-                    // Build loop body block
-                    self.set_current_block(loop_body_block);
-                    let for_block_cond = self.match_ast(*for_block_expr);
-
-                    let new_value = LLVMBuildAdd(
-                        self.builder,
-                        LLVMBuildLoad2(
-                            self.builder,
-                            LLVMInt32TypeInContext(self.context),
-                            ptr,
-                            c_str!(""),
-                        ),
-                        LLVMConstInt(LLVMInt32TypeInContext(self.context), increment as u64, 0),
-                        c_str!(""),
-                    );
-                    LLVMBuildStore(self.builder, new_value, ptr);
-                    LLVMBuildBr(self.builder, loop_cond_block); // Jump back to loop condition
-
-                    // Position builder at loop exit block
-                    self.set_current_block(loop_exit_block);
-
-                    for_block_cond
-                }
+                new_for_loop(self, var_name, init, length, increment, for_block_expr)
             }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(*input);

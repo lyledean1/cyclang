@@ -1,20 +1,15 @@
-use crate::context::ASTContext;
-use crate::types::bool::BoolType;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::llvm::context::ASTContext;
+use crate::compiler::types::bool::BoolType;
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 
 use std::any::Any;
 use std::ffi::CString;
 
 extern crate llvm_sys;
-use crate::types::llvm::*;
+use crate::c_str;
+use crate::compiler::llvm::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
 
 #[derive(Debug, Clone)]
 pub struct StringType {

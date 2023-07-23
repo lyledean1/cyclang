@@ -1,20 +1,15 @@
-use crate::types::llvm::*;
+use crate::c_str;
+use crate::compiler::llvm::*;
 use std::any::Any;
 
-use crate::context::ASTContext;
-use crate::types::bool::BoolType;
-use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::llvm::context::ASTContext;
+use crate::compiler::types::bool::BoolType;
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMIntPredicate;
-
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
 
 #[derive(Debug, Clone)]
 pub struct NumberType {
@@ -395,7 +390,13 @@ unsafe fn get_comparison_number_type(
 ) -> Box<dyn TypeBase> {
     let lhs_val = LLVMBuildLoad2(_context.builder, int8_type(), lhs, c_str!("lhs_bool"));
     let rhs_val = LLVMBuildLoad2(_context.builder, int8_type(), rhs, c_str!("rhs_bool"));
-    let cmp = LLVMBuildICmp(_context.builder, comparison, lhs_val, rhs_val, c_str!("result"));
+    let cmp = LLVMBuildICmp(
+        _context.builder,
+        comparison,
+        lhs_val,
+        rhs_val,
+        c_str!("result"),
+    );
     let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
     LLVMBuildStore(_context.builder, cmp, alloca);
     Box::new(BoolType {
