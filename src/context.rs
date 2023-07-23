@@ -1,23 +1,18 @@
 #![allow(dead_code)]
 
 use crate::types::bool::BoolType;
-use crate::types::llvm::{int1_ptr_type, int1_type, int32_ptr_type, int8_ptr_type};
+use crate::compiler::llvm::{int1_ptr_type, int32_ptr_type, int8_ptr_type};
 use crate::types::num::NumberType;
 use crate::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
 use crate::parser::{Expression, Type};
 use crate::types::func::FuncType;
-use crate::types::llvm::c_str;
+use crate::compiler::llvm::c_str;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
-
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
+use crate::c_str;
 
 pub struct ASTContext {
     pub builder: LLVMBuilderRef,

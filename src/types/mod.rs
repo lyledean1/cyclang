@@ -4,7 +4,6 @@
 
 pub mod bool;
 pub mod func;
-pub mod llvm;
 pub mod num;
 pub mod string;
 pub mod void;

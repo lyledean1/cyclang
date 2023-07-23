@@ -1,5 +1,6 @@
-use crate::types::llvm::*;
+use crate::compiler::llvm::*;
 use std::any::Any;
+use crate::c_str;
 
 use crate::context::ASTContext;
 use crate::types::bool::BoolType;
@@ -10,11 +11,6 @@ use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMIntPredicate;
 
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
 
 #[derive(Debug, Clone)]
 pub struct NumberType {

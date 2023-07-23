@@ -1,11 +1,12 @@
+
 #![allow(dead_code)]
 use crate::types::bool::BoolType;
 use crate::types::func::FuncType;
-use crate::types::llvm::*;
 use crate::types::num::NumberType;
 use crate::types::string::StringType;
 use crate::types::void::VoidType;
 use crate::types::TypeBase;
+use crate::compiler::llvm::*;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -22,12 +23,11 @@ use llvm_sys::prelude::*;
 use llvm_sys::LLVMIntPredicate;
 use std::process::Command;
 use std::ptr;
+use crate::c_str;
 
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
+
+pub mod ir;
+pub mod llvm;
 
 fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
     unsafe {
@@ -563,3 +563,4 @@ pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
     // println!("main executable generated, running bin/main");
     Command::new("bin/main").output()
 }
+

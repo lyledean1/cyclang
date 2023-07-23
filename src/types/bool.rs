@@ -1,5 +1,7 @@
+use crate::c_str;
 use crate::context::ASTContext;
-use crate::types::llvm::*;
+use crate::compiler::llvm::*;
+
 use std::any::Any;
 extern crate llvm_sys;
 use crate::types::{Base, BaseTypes, Comparison, Debug, Func, TypeBase};
@@ -8,12 +10,6 @@ use llvm_sys::prelude::*;
 use llvm_sys::LLVMIntPredicate;
 
 use super::Arithmetic;
-
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
 
 #[derive(Debug, Clone)]
 pub struct BoolType {
@@ -39,7 +35,6 @@ impl Comparison for BoolType {
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntEQ,
-                    int1_type(),
                 );
             },
             _ => {
@@ -61,7 +56,6 @@ impl Comparison for BoolType {
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntNE,
-                    int1_type(),
                 );
             },
             _ => {
@@ -81,7 +75,6 @@ unsafe fn get_comparison_bool_type(
     rhs: LLVMValueRef,
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
-    number_type: LLVMTypeRef,
 ) -> Box<dyn TypeBase> {
     // Need to first load pointers 
     let lhs_val = LLVMBuildLoad2(_context.builder, int1_type(), lhs, c_str!("lhs_bool"));

@@ -1,19 +1,14 @@
 use crate::context::LLVMFunction;
 use crate::parser::{Expression, Type};
 extern crate llvm_sys;
+use crate::c_str;
 use crate::types::bool::BoolType;
-use crate::types::llvm::c_str;
+use crate::compiler::llvm::c_str;
 use crate::types::num::NumberType;
 use crate::types::void::VoidType;
 use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::LLVMBuildCall2;
 use llvm_sys::prelude::*;
-
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution

@@ -6,15 +6,11 @@ use std::any::Any;
 use std::ffi::CString;
 
 extern crate llvm_sys;
-use crate::types::llvm::*;
+use crate::compiler::llvm::*;
+use crate::c_str;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
-}
 
 #[derive(Debug, Clone)]
 pub struct StringType {
