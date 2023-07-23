@@ -97,7 +97,7 @@ pub unsafe fn build_bool_to_str_func(
 ) -> LLVMFunction {
     // Create the function
     let char_ptr_type = unsafe { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
-    let func_type = unsafe { LLVMFunctionType(char_ptr_type, &mut int1_type(), 1, 0) };
+    let func_type = unsafe { LLVMFunctionType(char_ptr_type, &mut int1_ptr_type(), 1, 0) };
     let function = unsafe { LLVMAddFunction(module, c_str!("bool_to_str"), func_type) };
 
     // Create the basic blocks
@@ -109,7 +109,8 @@ pub unsafe fn build_bool_to_str_func(
     let builder = unsafe { LLVMCreateBuilderInContext(context) };
     LLVMPositionBuilderAtEnd(builder, entry_block);
     let condition = LLVMGetParam(function, 0);
-    LLVMBuildCondBr(builder, condition, then_block, else_block);
+    let value = LLVMBuildLoad2(builder, int1_type(), condition, c_str!("load_bool"));
+    LLVMBuildCondBr(builder, value, then_block, else_block);
 
     // Build the 'then' block (return "true")
     let true_global = LLVMBuildGlobalStringPtr(builder, c_str!("true\n"), c_str!("true_str"));

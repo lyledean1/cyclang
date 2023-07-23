@@ -18,10 +18,9 @@ macro_rules! c_str {
 #[derive(Debug, Clone)]
 pub struct BoolType {
     pub builder: LLVMBuilderRef,
-    value: bool,
-    llmv_value: LLVMValueRef,
-    llmv_value_pointer: LLVMValueRef,
-    name: String,
+    pub llmv_value: LLVMValueRef,
+    pub llmv_value_pointer: LLVMValueRef,
+    pub name: String,
 }
 
 impl Base for BoolType {
@@ -84,12 +83,21 @@ unsafe fn get_comparison_bool_type(
     comparison: LLVMIntPredicate,
     number_type: LLVMTypeRef,
 ) -> Box<dyn TypeBase> {
-    // TODO: figure out how to print bool value as string?
-    let cmp = LLVMBuildICmp(_context.builder, comparison, lhs, rhs, c_str!("result"));
+    // Need to first load pointers 
+    let lhs_val = LLVMBuildLoad2(_context.builder, int1_type(), lhs, c_str!("lhs_bool"));
+    let rhs_val = LLVMBuildLoad2(_context.builder, int1_type(), rhs, c_str!("rhs_bool"));
+    let cmp = LLVMBuildICmp(_context.builder, comparison, lhs_val, rhs_val, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
-    let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
-    return BoolType::new(Box::new(bool_value), _name, _context);
+    // let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
+    // let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
+    let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
+    LLVMBuildStore(_context.builder, cmp, alloca);
+    Box::new(BoolType {
+        name: _name,
+        builder: _context.builder,
+        llmv_value: cmp,
+        llmv_value_pointer: alloca,
+    })
 }
 
 impl Arithmetic for BoolType {}
@@ -97,14 +105,14 @@ impl Arithmetic for BoolType {}
 impl Debug for BoolType {
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
-            let value = LLVMBuildLoad2(
-                self.builder,
-                int1_ptr_type(),
-                self.get_ptr(),
-                self.get_name(),
-            );
+            // let value = LLVMBuildLoad2(
+            //     self.builder,
+            //     int1_ptr_type(),
+            //     self.get_ptr(),
+            //     self.get_name(),
+            // );
 
-            let bool_func_args: *mut *mut llvm_sys::LLVMValue = [value].as_mut_ptr();
+            let bool_func_args: *mut *mut llvm_sys::LLVMValue = [self.get_ptr()].as_mut_ptr();
 
             match ast_context.llvm_func_cache.get("bool_to_str") {
                 Some(bool_to_string) => {
@@ -164,7 +172,6 @@ impl TypeBase for BoolType {
             Box::new(BoolType {
                 name: _name,
                 builder: _context.builder,
-                value: value_as_bool,
                 llmv_value: bool_value,
                 llmv_value_pointer: alloca,
             })
@@ -173,7 +180,8 @@ impl TypeBase for BoolType {
     fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
-                LLVMBuildStore(self.builder, _rhs.get_value(), self.get_ptr());
+                let rhs_val = LLVMBuildLoad2(_ast_context.builder, int1_type(), _rhs.get_value(), c_str!("load_bool"));
+                LLVMBuildStore(self.builder, rhs_val, self.get_ptr());
             },
             _ => {
                 unreachable!(
@@ -186,7 +194,7 @@ impl TypeBase for BoolType {
         }
     }
     fn get_value(&self) -> LLVMValueRef {
-        self.llmv_value
+        self.llmv_value_pointer
     }
     fn get_ptr(&self) -> LLVMValueRef {
         self.llmv_value_pointer
