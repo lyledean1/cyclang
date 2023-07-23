@@ -1,18 +1,18 @@
 #![allow(dead_code)]
 
-use crate::compiler::types::bool::BoolType;
 use crate::compiler::llvm::{int1_ptr_type, int32_ptr_type, int8_ptr_type};
+use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
-use crate::parser::{Expression, Type};
-use crate::compiler::types::func::FuncType;
+use crate::c_str;
 use crate::compiler::llvm::c_str;
+use crate::compiler::types::func::FuncType;
+use crate::parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
-use crate::c_str;
 
 pub struct ASTContext {
     pub builder: LLVMBuilderRef,

@@ -6,11 +6,10 @@ use std::any::Any;
 use std::ffi::CString;
 
 extern crate llvm_sys;
-use crate::compiler::llvm::*;
 use crate::c_str;
+use crate::compiler::llvm::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-
 
 #[derive(Debug, Clone)]
 pub struct StringType {

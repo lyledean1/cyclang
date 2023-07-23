@@ -76,10 +76,16 @@ unsafe fn get_comparison_bool_type(
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
 ) -> Box<dyn TypeBase> {
-    // Need to first load pointers 
+    // Need to first load pointers
     let lhs_val = LLVMBuildLoad2(_context.builder, int1_type(), lhs, c_str!("lhs_bool"));
     let rhs_val = LLVMBuildLoad2(_context.builder, int1_type(), rhs, c_str!("rhs_bool"));
-    let cmp = LLVMBuildICmp(_context.builder, comparison, lhs_val, rhs_val, c_str!("result"));
+    let cmp = LLVMBuildICmp(
+        _context.builder,
+        comparison,
+        lhs_val,
+        rhs_val,
+        c_str!("result"),
+    );
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
     // let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
     // let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
@@ -173,7 +179,12 @@ impl TypeBase for BoolType {
     fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
-                let rhs_val = LLVMBuildLoad2(_ast_context.builder, int1_type(), _rhs.get_value(), c_str!("load_bool"));
+                let rhs_val = LLVMBuildLoad2(
+                    _ast_context.builder,
+                    int1_type(),
+                    _rhs.get_value(),
+                    c_str!("load_bool"),
+                );
                 LLVMBuildStore(self.builder, rhs_val, self.get_ptr());
             },
             _ => {
