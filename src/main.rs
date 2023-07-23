@@ -750,4 +750,34 @@ mod test {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "10\n");
     }
+
+    #[test]
+    fn test_compile_fn_return_bool_value() {
+        let input = r#"
+        fn compare(bool x, bool y) -> bool {
+            let val = (x == y);
+            return val;
+        }
+        let value = compare(true,false);
+        print(value);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_compile_fn_return_bool_value_cmp_ints() {
+        let input = r#"
+        fn compare_ints(int x, int y) -> bool {
+            let val = (x == y);
+            return val;
+        }
+        let value = compare_ints(1000,1000);
+        print(value);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
 }

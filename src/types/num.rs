@@ -263,10 +263,9 @@ impl Comparison for NumberType {
                 return get_comparison_number_type(
                     self.name.clone(),
                     context,
-                    _rhs.get_value(),
-                    self.get_value(),
+                    _rhs.get_ptr(),
+                    self.get_ptr(),
                     LLVMIntPredicate::LLVMIntEQ,
-                    int8_type(),
                 );
             },
             _ => {
@@ -285,10 +284,9 @@ impl Comparison for NumberType {
                 return get_comparison_number_type(
                     self.name.clone(),
                     context,
-                    _rhs.get_value(),
-                    self.get_value(),
+                    _rhs.get_ptr(),
+                    self.get_ptr(),
                     LLVMIntPredicate::LLVMIntNE,
-                    int8_type(),
                 );
             },
             _ => {
@@ -307,10 +305,9 @@ impl Comparison for NumberType {
                 return get_comparison_number_type(
                     self.name.clone(),
                     context,
-                    _rhs.get_value(),
-                    self.get_value(),
+                    _rhs.get_ptr(),
+                    self.get_ptr(),
                     LLVMIntPredicate::LLVMIntSGT,
-                    int8_type(),
                 );
             },
             _ => {
@@ -329,10 +326,9 @@ impl Comparison for NumberType {
                 return get_comparison_number_type(
                     self.name.clone(),
                     context,
-                    _rhs.get_value(),
-                    self.get_value(),
+                    _rhs.get_ptr(),
+                    self.get_ptr(),
                     LLVMIntPredicate::LLVMIntSGE,
-                    int8_type(),
                 );
             },
             _ => {
@@ -351,10 +347,9 @@ impl Comparison for NumberType {
                 return get_comparison_number_type(
                     self.name.clone(),
                     context,
-                    _rhs.get_value(),
-                    self.get_value(),
+                    _rhs.get_ptr(),
+                    self.get_ptr(),
                     LLVMIntPredicate::LLVMIntSLT,
-                    int8_type(),
                 );
             },
             _ => {
@@ -373,10 +368,9 @@ impl Comparison for NumberType {
                 return get_comparison_number_type(
                     self.name.clone(),
                     context,
-                    _rhs.get_value(),
-                    self.get_value(),
+                    _rhs.get_ptr(),
+                    self.get_ptr(),
                     LLVMIntPredicate::LLVMIntSLE,
-                    int8_type(),
                 );
             },
             _ => {
@@ -398,12 +392,16 @@ unsafe fn get_comparison_number_type(
     rhs: LLVMValueRef,
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
-    number_type: LLVMTypeRef,
 ) -> Box<dyn TypeBase> {
-    let cmp = LLVMBuildICmp(_context.builder, comparison, lhs, rhs, c_str!("result"));
-    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
-    let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
-
-    return BoolType::new(Box::new(bool_value), _name, _context);
+    let lhs_val = LLVMBuildLoad2(_context.builder, int8_type(), lhs, c_str!("lhs_bool"));
+    let rhs_val = LLVMBuildLoad2(_context.builder, int8_type(), rhs, c_str!("rhs_bool"));
+    let cmp = LLVMBuildICmp(_context.builder, comparison, lhs_val, rhs_val, c_str!("result"));
+    let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
+    LLVMBuildStore(_context.builder, cmp, alloca);
+    Box::new(BoolType {
+        name: _name,
+        builder: _context.builder,
+        llmv_value: cmp,
+        llmv_value_pointer: alloca,
+    })
 }

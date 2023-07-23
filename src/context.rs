@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use crate::types::llvm::{int32_ptr_type, int8_ptr_type};
+use crate::types::bool::BoolType;
+use crate::types::llvm::{int1_ptr_type, int1_type, int32_ptr_type, int8_ptr_type};
 use crate::types::num::NumberType;
 use crate::types::TypeBase;
 use std::collections::HashMap;
@@ -151,13 +152,29 @@ impl LLVMFunction {
             0,
         );
 
-        if return_type == Type::Int {
-            function_type = LLVMFunctionType(
-                int32_ptr_type(),
-                param_types.as_mut_ptr(),
-                args.len() as u32,
-                0,
-            );
+        match return_type {
+            Type::Int => {
+                function_type = LLVMFunctionType(
+                    int32_ptr_type(),
+                    param_types.as_mut_ptr(),
+                    args.len() as u32,
+                    0,
+                );
+            }
+            Type::Bool => {
+                function_type = LLVMFunctionType(
+                    int1_ptr_type(),
+                    param_types.as_mut_ptr(),
+                    args.len() as u32,
+                    0,
+                );
+            }
+            Type::None => {
+                // skip
+            }
+            _ => {
+                unimplemented!("not implemented")
+            }
         }
 
         // get correct function return type
@@ -191,6 +208,17 @@ impl LLVMFunction {
                         new_function.set_func_var(v, Box::new(num));
                     }
                     Type::String => {}
+                    Type::Bool => {
+                        let val = LLVMGetParam(function, i as u32);
+                        let ptr = LLVMBuildAlloca(context.builder, int1_ptr_type(), c_str(""));
+                        let bool_type = BoolType {
+                            builder: context.builder,
+                            llmv_value: val,
+                            llmv_value_pointer: ptr,
+                            name: "bool_param".into(),
+                        };
+                        new_function.set_func_var(v, Box::new(bool_type));
+                    }
                     _ => {
                         unreachable!("type {:?} not found", t)
                     }
@@ -237,6 +265,7 @@ impl LLVMFunction {
         for arg in args.into_iter() {
             match arg {
                 Expression::FuncArg(_, t) => match t {
+                    Type::Bool => args_vec.push(int1_ptr_type()),
                     Type::Int => args_vec.push(int8_ptr_type()),
                     Type::String => args_vec.push(int8_ptr_type()),
                     _ => {

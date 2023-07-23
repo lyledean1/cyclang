@@ -1,11 +1,12 @@
 use crate::context::LLVMFunction;
 use crate::parser::{Expression, Type};
 extern crate llvm_sys;
-use crate::types::llvm::{c_str};
+use crate::types::bool::BoolType;
+use crate::types::llvm::c_str;
 use crate::types::num::NumberType;
 use crate::types::void::VoidType;
 use crate::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
-use llvm_sys::core::{ LLVMBuildCall2};
+use llvm_sys::core::LLVMBuildCall2;
 use llvm_sys::prelude::*;
 
 macro_rules! c_str {
@@ -68,13 +69,18 @@ impl Func for FuncType {
                         cname: c_str("call_value"),
                     });
                 }
+                Type::Bool => {
+                    return Box::new(BoolType {
+                        builder: _context.builder,
+                        llmv_value: call_value,
+                        llmv_value_pointer: call_value,
+                        name: "call_value".into(),
+                    })
+                }
                 Type::String => {}
                 Type::None => {
                     //Return void
                     return Box::new(VoidType {});
-                }
-                _ => {
-                    unreachable!("type {:?} not found", self.return_type)
                 }
             }
             unreachable!("type {:?} not found", self.return_type);

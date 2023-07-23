@@ -888,6 +888,30 @@ mod test {
         assert!(output.unwrap().contains(&func_expr))
     }
 
+
+    #[test]
+    fn test_fn_return_bool() {
+        let input = r#"
+        fn hello_bool() -> bool {
+            let value = true;
+            return value;
+        }
+        let val = hello_world();
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "hello_bool".into(),
+            [].to_vec(),
+            Type::Bool,
+            vec![Expression::LetStmt("value".into(), Box::new(Expression::Bool(true))), Expression::ReturnStmt(Box::new(Expression::Variable(
+                "value".into(),
+            )))],
+        );
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&func_expr))
+    }
+
     #[test]
     fn test_fibonacci_fn() {
         let input = r#"

@@ -4,8 +4,8 @@ use crate::types::func::FuncType;
 use crate::types::llvm::*;
 use crate::types::num::NumberType;
 use crate::types::string::StringType;
-use crate::types::TypeBase;
 use crate::types::void::VoidType;
+use crate::types::TypeBase;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -306,7 +306,7 @@ impl ASTContext {
                 // Delete Variables
                 self.var_cache.del_locals(self.get_depth());
                 self.decr();
-                Box::new(VoidType{})
+                Box::new(VoidType {})
             }
             Expression::CallStmt(name, args) => match self.var_cache.get(&name) {
                 Some(val) => {
@@ -384,10 +384,12 @@ impl ASTContext {
                 self.set_current_block(merge_block);
 
                 self.set_current_block(if_entry_block);
-                LLVMBuildCondBr(self.builder, cond.get_value(), then_block, else_block);
+
+                let cmp = LLVMBuildLoad2(self.builder, int1_type(), cond.get_ptr(), c_str!("cmp"));
+                LLVMBuildCondBr(self.builder, cmp, then_block, else_block);
 
                 self.set_current_block(merge_block);
-                Box::new(VoidType{})
+                Box::new(VoidType {})
             },
             Expression::WhileStmt(condition, while_block_stmt) => {
                 unsafe {
@@ -404,7 +406,9 @@ impl ASTContext {
                     let bool_type_ptr = LLVMBuildAlloca(self.builder, int1_type(), var_name);
                     let value_condition = self.match_ast(*condition);
 
-                    LLVMBuildStore(self.builder, value_condition.get_value(), bool_type_ptr);
+                    let cmp = LLVMBuildLoad2(self.builder, int1_type(), value_condition.get_ptr(), c_str!("cmp"));
+
+                    LLVMBuildStore(self.builder, cmp, bool_type_ptr);
 
                     LLVMBuildBr(self.builder, loop_cond_block);
 
