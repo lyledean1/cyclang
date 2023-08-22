@@ -32,7 +32,7 @@ cyclo --file /path/to/file.cyclo
     - [x] Subtraction
     - [x] Multiplication
     - [x] Division
-- [ ] Boolean
+- [x] Boolean
 - [x] Grouping
 - [ ] Lists
 - [ ] Map
@@ -43,9 +43,9 @@ cyclo --file /path/to/file.cyclo
     - [x] Reassignment
 - [x] Let Statements
 - [x] If Statements 
-- [ ] While Statements
-- [ ] For Loops
-    - [ ] Loop over range
+- [x] While Statements
+- [x] For Loops
+    - [x] Loop over range
     - [ ] Loop over values in list 
     - [ ] Loop over valuei in map
 - [ ] Functions
