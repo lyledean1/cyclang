@@ -6,7 +6,6 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
-use crate::compiler::types::BaseTypes;
 
 use std::collections::HashMap;
 use std::ffi::CStr;

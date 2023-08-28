@@ -719,6 +719,19 @@ mod test {
     }
 
     #[test]
+    fn test_fn_return_and_print() {
+        let input = r#"
+        fn get_ten() -> int {
+            return 10;
+        }
+        print(get_ten());
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        assert!(output.is_ok());
+    }
+
+    #[test]
     fn test_fn_return_int_num() {
         let input = r#"
         fn get_ten() -> int {

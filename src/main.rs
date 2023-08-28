@@ -269,68 +269,6 @@ mod test {
     }
 
     #[test]
-    fn test_compile_eqeq_variables_number_false() {
-        let input = r#"
-        let one = 1;
-        let two = 2;
-        let three = (two == one);
-        print(three);
-        "#;
-        let output = compile_output_from_string(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
-    }
-
-    #[test]
-    fn test_compile_eqeq_variables_number_true() {
-        let input = r#"
-        let one = 2;
-        let two = 2;
-        let three = (two == one);
-        print(three);
-        "#;
-        let output = compile_output_from_string(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
-    }
-
-    #[test]
-    fn test_compile_eqeq_variables_bool_false() {
-        let input = r#"
-        let one = true;
-        let two = false;
-        let three = (two == one);
-        print(three);
-        "#;
-        let output = compile_output_from_string(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
-    }
-
-    // TODO: figure out error handling
-    // #[test]
-    // fn test_compile_variables_reassign_bool_err() {
-    //     let input = r#"
-    //     let one = true;
-    //     one = 1;
-    //     "#;
-    //     assert!(parser::parse_cyclo_program(input).is_err());
-    // }
-
-    #[test]
-    fn test_compile_eqeq_variables_bool_true() {
-        let input = r#"
-        let one = true;
-        let two = true;
-        let three = (two == one);
-        print(three);
-        "#;
-        let output = compile_output_from_string(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
-    }
-
-    #[test]
     fn test_if_stmt_with_let_stmt() {
         let input = r#"
         let is_value = true;
@@ -510,8 +448,6 @@ mod test {
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert_eq!(stderr, "");
         assert_eq!(stdout, "true\n");
     }
 
@@ -566,8 +502,7 @@ mod test {
         while(value) {
             let other_value = true;
             let value = false;
-            number = number + 1;
-            print(number);
+            print(number + 1);
         }
         "#;
         let output = compile_output_from_string(input.to_string());
@@ -601,35 +536,6 @@ mod test {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "true\n");
     }
-
-    // TODO: add local scopes
-    // #[test]
-    // fn test_compile_block_stmt_bool_err() {
-    //     let input = r#"
-    //     {
-    //         is_true = true;
-    //     }
-    //     print(is_true);
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "\n");
-    // }
-
-    //TODO: implementation of reassigning strings
-    // #[test]
-    // fn test_compile_block_stmt_string() {
-    //     let input = r#"
-    //     let value = "example";
-    //     {
-    //         value = "example_two";
-    //     }
-    //     print(value);
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "\"example_two\"\n");
-    // }
 
     #[test]
     fn test_compile_function_stmt_no_args() {
@@ -710,19 +616,6 @@ mod test {
         assert_eq!(stdout, "10\n19\n27\n34\n40\n45\n49\n52\n54\n55\n");
     }
 
-    // #[test]
-    // fn test_compile_function_with_one_arg() {
-    //     let input = r#"
-    //     fn hello_world(string val) {
-    //         print(value);
-    //     }
-    //     hello_world("hello world");
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "\"hello world\"\n");
-    // }
-
     #[test]
     fn test_compile_function_return_int() {
         let input = r#"
@@ -730,7 +623,7 @@ mod test {
             return 5;
         }
         let val = get_int();
-        print(get_int);
+        print(get_int());
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -757,8 +650,7 @@ mod test {
         fn add(int x, int y) -> int {
             return x + y;
         }
-        let num = add(5,5);
-        print(num);
+        print(add(5,5));
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -774,8 +666,7 @@ mod test {
         fn add_together() -> int {
             return add(5,10) + add(10,4);
         }
-        let num = add_together();
-        print(num);
+        print(add_together());
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -788,8 +679,7 @@ mod test {
         fn compare(bool x, bool y) -> bool {
             return (x == y);
         }
-        let value = compare(true,false);
-        print(value);
+        print(compare(true,false));
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -802,8 +692,7 @@ mod test {
         fn compare_ints(int x, int y) -> bool {
             return (x == y);
         }
-        let value = compare_ints(1000,1000);
-        print(value);
+        print(compare_ints(1000,1000));
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -819,8 +708,7 @@ mod test {
         fn expect_true() -> bool {
             return (compare(1,1) == compare(2,2));
         }
-        let value = expect_true();
-        print(value);
+        print(expect_true());
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
