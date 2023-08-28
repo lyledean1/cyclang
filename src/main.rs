@@ -723,6 +723,20 @@ mod test {
     //     assert_eq!(stdout, "\"hello world\"\n");
     // }
 
+    // #[test]
+    // fn test_compile_function_return_int() {
+    //     let input = r#"
+    //     fn get_int() -> int {
+    //         return 5;
+    //     }
+    //     let val = get_int();
+    //     print(get_int);
+    //     "#;
+    //     let output = compile_output_from_string(input.to_string());
+    //     let stdout = String::from_utf8_lossy(&output.stdout);
+    //     assert_eq!(stdout, "5\n");
+    // }
+
     #[test]
     fn test_compile_function_with_two_args_and_ignore_top_level_var() {
         let input = r#"
@@ -752,6 +766,23 @@ mod test {
     }
 
     #[test]
+    fn test_compile_fn_return_int_value_with_call_stmts() {
+        let input = r#"
+        fn add(int x, int y) -> int {
+            return x + y;
+        }
+        fn add_together() -> int {
+            return add(10,10) + add(10,10);
+        }
+        let num = add_together();
+        print(num);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "40\n");
+    }
+
+    #[test]
     fn test_compile_fn_return_bool_value() {
         let input = r#"
         fn compare(bool x, bool y) -> bool {
@@ -778,4 +809,38 @@ mod test {
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "true\n");
     }
+
+    #[test]
+    fn test_compile_fn_return_bool_true_value_cmp_ints_in_another_fn() {
+        let input = r#"
+        fn compare(int x, int y) -> bool {
+            return (x == y);
+        }
+        fn expect_true() -> bool {
+            return (compare(1,1) == compare(2,2));
+        }
+        let value = expect_true();
+        print(value);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
+
+    // #[test]
+    // fn test_compile_fn_return_bool_false_value_cmp_ints_in_another_fn() {
+    //     let input = r#"
+    //     fn compare(int x, int y) -> bool {
+    //         return (x == y);
+    //     }
+    //     fn expect_false() -> bool {
+    //         return (compare(2,1) == compare(1,2));
+    //     }
+    //     let value = expect_false();
+    //     print(value);
+    //     "#;
+    //     let output = compile_output_from_string(input.to_string());
+    //     let stdout: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stdout);
+    //     assert_eq!(stdout, "false\n");
+    // }
 }

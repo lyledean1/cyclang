@@ -6,6 +6,7 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
+use crate::compiler::types::BaseTypes;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -268,10 +269,19 @@ impl ASTContext {
             }
             Expression::CallStmt(name, args) => match self.var_cache.get(&name) {
                 Some(val) => {
-                    let call_val = val.call(self, args);
-                    self.var_cache
-                        .set(name.as_str(), call_val.clone(), self.depth);
-                    call_val
+                    match val.get_type() {
+                        BaseTypes::Func=> {
+                            let call_val = val.call(self, args);
+                            self.var_cache
+                                .set(name.as_str(), call_val.clone(), self.depth);
+                            call_val
+                        },
+                        _ => {
+                            self.var_cache
+                                .set(name.as_str(), val.clone(), self.depth);
+                            val
+                        }
+                    }
                 }
                 _ => {
                     unreachable!("call does not exists for function {:?}", name);
