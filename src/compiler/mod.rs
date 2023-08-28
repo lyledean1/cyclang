@@ -253,9 +253,6 @@ impl ASTContext {
                     }
                 }
             }
-            Expression::List(list) => {
-                unimplemented!()
-            }
             Expression::BlockStmt(exprs) => {
                 // Set Variable Depth
                 // Each Block Stmt, Incr and Decr
