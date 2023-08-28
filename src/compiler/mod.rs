@@ -26,7 +26,7 @@ use llvm_sys::prelude::*;
 use std::process::Command;
 use std::ptr;
 
-use self::llvm::control_flow::{new_while_stmt, new_for_loop};
+use self::llvm::control_flow::{new_for_loop, new_while_stmt};
 
 pub mod llvm;
 pub mod types;

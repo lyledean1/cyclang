@@ -800,13 +800,11 @@ mod test {
             ]
             .to_vec(),
             Type::Int,
-            vec![
-                Expression::ReturnStmt(Box::new(Expression::Binary(
-                    Box::new(Variable("x".into())),
-                    "+".into(),
-                    Box::new(Variable("y".into())),
-                ))),
-            ],
+            vec![Expression::ReturnStmt(Box::new(Expression::Binary(
+                Box::new(Variable("x".into())),
+                "+".into(),
+                Box::new(Variable("y".into())),
+            )))],
         );
         println!("{:?}", output);
         assert!(output.is_ok());
@@ -860,9 +858,7 @@ mod test {
             "hello_bool".into(),
             [].to_vec(),
             Type::Bool,
-            vec![
-                Expression::ReturnStmt(Box::new(Expression::Bool(true))),
-            ],
+            vec![Expression::ReturnStmt(Box::new(Expression::Bool(true)))],
         );
         assert!(output.is_ok());
         println!("{:?}", output);
@@ -870,21 +866,54 @@ mod test {
     }
 
     #[test]
+    fn test_fn_return_call_fn_binary_add() {
+        let input = r#"
+        fn sum_square(int x, int y) -> int {
+            return square(x) + square(y);
+        }
+        let val = sum_square(x,y);
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "sum_square".into(),
+            [
+                FuncArg("x".into(), Type::Int),
+                FuncArg("y".into(), Type::Int),
+            ]
+            .to_vec(),
+            Type::Int,
+            vec![Expression::ReturnStmt(Box::new(Expression::Binary(
+                Box::new(Expression::CallStmt(
+                    "square".into(),
+                    vec![Variable("x".into())],
+                )),
+                "+".into(),
+                Box::new(Expression::CallStmt(
+                    "square".into(),
+                    vec![Variable("y".into())],
+                )),
+            )))],
+        );
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&func_expr));
+    }
+
+    #[test]
     fn test_fibonacci_fn() {
         let input = r#"
-        fn fib(int val, int two) -> int {
-            if (val < 2) {
+        fn fib(int n) -> int {
+            if (n < 2) {
                 return 0;
             }
-            return fib(val-1) + fib(val-2);
+            return fib(n-1) + fib(n-2);
         }
         fib(20);
         "#;
         let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
-        parse_cyclo_program(input);
-        // TODO: fix this so call stmts return correctly
-        println!("{:?}", output);
+            parse_cyclo_program(input);
         assert!(output.is_ok());
+        // assert!(output.unwrap().contains(&func_expr)); to test?
     }
 
     #[test]
