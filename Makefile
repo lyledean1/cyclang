@@ -5,8 +5,11 @@ run:
 build-ir:
 	clang ./bin/main.ll -o ./bin/main
 
-test:
+test: 
 	cargo test -- --test-threads=1
+
+test-parser:
+	cargo test -- parser
 
 clean:
 	rm -rf ./bin/main*

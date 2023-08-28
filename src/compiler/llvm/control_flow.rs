@@ -4,8 +4,8 @@ use crate::parser::Expression;
 extern crate llvm_sys;
 use super::context::ASTContext;
 use crate::compiler::int1_type;
-use llvm_sys::core::*;
 use crate::compiler::NumberType;
+use llvm_sys::core::*;
 use llvm_sys::LLVMIntPredicate;
 
 pub fn new_if_stmt(
@@ -117,7 +117,14 @@ pub fn new_while_stmt(
     }
 }
 
-pub fn new_for_loop(context: &mut ASTContext, var_name: String, init: i32, length: i32, increment: i32, for_block_expr: Box<Expression>) -> Box<dyn TypeBase> {
+pub fn new_for_loop(
+    context: &mut ASTContext,
+    var_name: String,
+    init: i32,
+    length: i32,
+    increment: i32,
+    for_block_expr: Box<Expression>,
+) -> Box<dyn TypeBase> {
     unsafe {
         let for_block = context.current_function.block;
 

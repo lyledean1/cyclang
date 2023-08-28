@@ -22,7 +22,6 @@ pub enum Expression {
     Bool(bool),
     Nil,
     Variable(String),
-    List(Vec<Expression>),
     Binary(Box<Expression>, String, Box<Expression>),
     Grouping(Box<Expression>),
     LetStmt(String, Box<Expression>),
@@ -60,10 +59,6 @@ impl Expression {
 
     fn new_variable(name: String) -> Self {
         Self::Variable(name)
-    }
-
-    fn new_list(exprs: Vec<Expression>) -> Self {
-        Self::List(exprs)
     }
 
     fn new_let_stmt(name: String, value: Expression) -> Self {
@@ -160,17 +155,6 @@ fn parse_expression(
             ))),
         },
         Rule::nil => Ok(Expression::new_nil()),
-        Rule::list => {
-            let inner_pairs = pair.into_inner();
-            let mut exprs = vec![];
-            for inner_pair in inner_pairs {
-                if inner_pair.as_rule() == Rule::comma {
-                    continue;
-                }
-                exprs.push(parse_expression(inner_pair)?);
-            }
-            Ok(Expression::new_list(exprs))
-        }
         Rule::binary => {
             let mut inner_pairs = pair.into_inner();
             let next = inner_pairs.next().unwrap();
@@ -382,7 +366,7 @@ fn parse_program(
     let mut expr_vec = vec![];
     for stmt_pair in pair.into_inner() {
         match stmt_pair.as_rule() {
-            Rule::semicolon | Rule::EOI | Rule::comma | Rule::comment => {
+            Rule::semicolon | Rule::EOI | Rule::comma => {
                 continue;
             }
             _ => {
@@ -617,27 +601,6 @@ mod test {
     }
 
     #[test]
-    fn test_parse_list() {
-        let input = r#"[1, true, false, "three", nil];"#;
-        assert!(parse_cyclo_program(input).is_ok());
-    }
-
-    // TODO: Add Map Type
-    // #[test]
-    // fn test_parse_map() {
-    //     let input = r#"Map(1 -> 2, "three" -> 4, "five" -> 6);"#;
-    //     match parse_cyclo_program(input) {
-    //         Err(e) => {
-    //             eprintln!("{}", e);
-    //         }
-    //         _ => {
-
-    //         }
-    //     }
-    //     assert!(parse_cyclo_program(input).is_ok());
-    // }
-
-    #[test]
     fn test_parse_bool_equals_string() {
         let input = r#"true == "hello";"#;
         assert!(parse_cyclo_program(input).is_ok());
@@ -824,8 +787,7 @@ mod test {
     fn test_fn_return_int_add() {
         let input = r#"
         fn add(int x, int y) -> int {
-            let value = x + y;
-            return value;
+            return x + y;
         }
         "#;
         let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
@@ -838,17 +800,11 @@ mod test {
             ]
             .to_vec(),
             Type::Int,
-            vec![
-                Expression::LetStmt(
-                    "value".into(),
-                    Box::new(Expression::Binary(
-                        Box::new(Variable("x".into())),
-                        "+".into(),
-                        Box::new(Variable("y".into())),
-                    )),
-                ),
-                Expression::ReturnStmt(Box::new(Expression::Variable("value".into()))),
-            ],
+            vec![Expression::ReturnStmt(Box::new(Expression::Binary(
+                Box::new(Variable("x".into())),
+                "+".into(),
+                Box::new(Variable("y".into())),
+            )))],
         );
         println!("{:?}", output);
         assert!(output.is_ok());
@@ -892,8 +848,7 @@ mod test {
     fn test_fn_return_bool() {
         let input = r#"
         fn hello_bool() -> bool {
-            let value = true;
-            return value;
+            return true;
         }
         let val = hello_world();
         "#;
@@ -903,28 +858,62 @@ mod test {
             "hello_bool".into(),
             [].to_vec(),
             Type::Bool,
-            vec![
-                Expression::LetStmt("value".into(), Box::new(Expression::Bool(true))),
-                Expression::ReturnStmt(Box::new(Expression::Variable("value".into()))),
-            ],
+            vec![Expression::ReturnStmt(Box::new(Expression::Bool(true)))],
         );
         assert!(output.is_ok());
+        println!("{:?}", output);
         assert!(output.unwrap().contains(&func_expr))
+    }
+
+    #[test]
+    fn test_fn_return_call_fn_binary_add() {
+        let input = r#"
+        fn sum_square(int x, int y) -> int {
+            return square(x) + square(y);
+        }
+        let val = sum_square(x,y);
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "sum_square".into(),
+            [
+                FuncArg("x".into(), Type::Int),
+                FuncArg("y".into(), Type::Int),
+            ]
+            .to_vec(),
+            Type::Int,
+            vec![Expression::ReturnStmt(Box::new(Expression::Binary(
+                Box::new(Expression::CallStmt(
+                    "square".into(),
+                    vec![Variable("x".into())],
+                )),
+                "+".into(),
+                Box::new(Expression::CallStmt(
+                    "square".into(),
+                    vec![Variable("y".into())],
+                )),
+            )))],
+        );
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&func_expr));
     }
 
     #[test]
     fn test_fibonacci_fn() {
         let input = r#"
-        fn fib(int val, int two) -> int {
-            if (val < 2) {
+        fn fib(int n) -> int {
+            if (n < 2) {
                 return 0;
             }
-            return fib(val-1) + fib(val-2);
+            return fib(n-1) + fib(n-2);
         }
         fib(20);
         "#;
-        // TODO: fix this so call stmts return correctly
-        assert!(parse_cyclo_program(input).is_ok());
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        assert!(output.is_ok());
+        // assert!(output.unwrap().contains(&func_expr)); to test?
     }
 
     #[test]
@@ -1010,18 +999,6 @@ mod test {
     fn test_for_loop_stmt_reverse() {
         let input = r#"
         for (let i = 40; i < 10; i--)
-        {
-            print(i);
-        }
-        "#;
-        assert!(parse_cyclo_program(input).is_ok());
-    }
-
-    #[test]
-    fn test_for_loop_stmt_reverse_with_comment() {
-        let input = r#"
-        /* this is a comment */
-        for (let i = 40; i > 10; i--)
         {
             print(i);
         }
