@@ -772,14 +772,14 @@ mod test {
             return x + y;
         }
         fn add_together() -> int {
-            return add(10,10) + add(10,10);
+            return add(5,10) + add(10,4);
         }
         let num = add_together();
         print(num);
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "40\n");
+        assert_eq!(stdout, "29\n");
     }
 
     #[test]
@@ -834,7 +834,7 @@ mod test {
     //         return (x == y);
     //     }
     //     fn expect_false() -> bool {
-    //         return (compare(2,1) == compare(1,2));
+    //         return (compare(1,1) == compare(2,1));
     //     }
     //     let value = expect_false();
     //     print(value);

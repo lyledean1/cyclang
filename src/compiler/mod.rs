@@ -53,6 +53,8 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         let llvm_func_cache = build_helper_funcs(module, context, main_block);
 
         let var_cache = VariableCache::new();
+        let func_cache = VariableCache::new();
+
         let format_str = "%d\n\0";
         let printf_str_num_value = LLVMBuildGlobalStringPtr(
             builder,
@@ -68,6 +70,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
             context,
             llvm_func_cache,
             var_cache,
+            func_cache,
             current_function: LLVMFunction {
                 function: main_func,
                 func_type: main_func_type,
@@ -267,21 +270,12 @@ impl ASTContext {
                 self.decr();
                 Box::new(VoidType {})
             }
-            Expression::CallStmt(name, args) => match self.var_cache.get(&name) {
+            Expression::CallStmt(name, args) => match self.func_cache.get(&name) {
                 Some(val) => {
-                    match val.get_type() {
-                        BaseTypes::Func=> {
-                            let call_val = val.call(self, args);
-                            self.var_cache
-                                .set(name.as_str(), call_val.clone(), self.depth);
-                            call_val
-                        },
-                        _ => {
-                            self.var_cache
-                                .set(name.as_str(), val.clone(), self.depth);
-                            val
-                        }
-                    }
+                    let call_val = val.call(self, args);
+                    self.var_cache
+                        .set(name.as_str(), call_val.clone(), self.depth);
+                    call_val
                 }
                 _ => {
                     unreachable!("call does not exists for function {:?}", name);
@@ -307,7 +301,7 @@ impl ASTContext {
                 };
                 func.set_args(vec![]);
                 // Set Func as a variable
-                self.var_cache
+                self.func_cache
                     .set(&name, Box::new(func.clone()), self.depth);
                 Box::new(func)
             },

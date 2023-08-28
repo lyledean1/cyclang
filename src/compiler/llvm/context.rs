@@ -19,6 +19,7 @@ pub struct ASTContext {
     pub module: LLVMModuleRef,
     pub context: LLVMContextRef,
     pub var_cache: VariableCache,
+    pub func_cache: VariableCache,
     pub llvm_func_cache: LLVMFunctionCache,
     pub current_function: LLVMFunction,
     pub depth: i32,
