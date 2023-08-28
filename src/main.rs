@@ -741,8 +741,7 @@ mod test {
     fn test_compile_fn_return_int_value() {
         let input = r#"
         fn add(int x, int y) -> int {
-            let val = x + y;
-            return val;
+            return x + y;
         }
         let num = add(5,5);
         print(num);
@@ -756,8 +755,7 @@ mod test {
     fn test_compile_fn_return_bool_value() {
         let input = r#"
         fn compare(bool x, bool y) -> bool {
-            let val = (x == y);
-            return val;
+            return (x == y);
         }
         let value = compare(true,false);
         print(value);
@@ -771,8 +769,7 @@ mod test {
     fn test_compile_fn_return_bool_value_cmp_ints() {
         let input = r#"
         fn compare_ints(int x, int y) -> bool {
-            let val = (x == y);
-            return val;
+            return (x == y);
         }
         let value = compare_ints(1000,1000);
         print(value);
