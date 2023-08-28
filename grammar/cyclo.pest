@@ -22,7 +22,7 @@ func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~
 func_arg = { WHITESPACE? ~ type_name ~ WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
 type_name = { "string" | "int" | "bool" }
 call_stmt = { name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
-print_stmt = { "print(" ~ (expression | name) ~ ")" }
+print_stmt = { "print(" ~ (call_stmt | expression | name) ~ ")" }
 
 // binary statemeents
 binary = {  operand ~ WHITESPACE? ~ operator_sequence }
