@@ -801,15 +801,11 @@ mod test {
             .to_vec(),
             Type::Int,
             vec![
-                Expression::LetStmt(
-                    "value".into(),
-                    Box::new(Expression::Binary(
-                        Box::new(Variable("x".into())),
-                        "+".into(),
-                        Box::new(Variable("y".into())),
-                    )),
-                ),
-                Expression::ReturnStmt(Box::new(Expression::Variable("value".into()))),
+                Expression::ReturnStmt(Box::new(Expression::Binary(
+                    Box::new(Variable("x".into())),
+                    "+".into(),
+                    Box::new(Variable("y".into())),
+                ))),
             ],
         );
         println!("{:?}", output);
