@@ -291,14 +291,10 @@ impl ASTContext {
                 );
 
                 let mut func = FuncType {
-                    body: *body,
-                    args,
                     llvm_type: llvm_func.func_type,
                     llvm_func: llvm_func.function,
-                    llvm_func_ref: llvm_func,
                     return_type: _return_type,
                 };
-                func.set_args(vec![]);
                 // Set Func as a variable
                 self.func_cache
                     .set(&name, Box::new(func.clone()), self.depth);

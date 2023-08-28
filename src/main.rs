@@ -731,4 +731,20 @@ mod test {
     //     let stdout: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stdout);
     //     assert_eq!(stdout, "false\n");
     // }
+
+    #[test]
+    fn test_recursive_fn() {
+        let input = r#"
+        fn fib(int n) -> int {
+            if (n <= 1) {
+                return 0;
+            }
+            return fib(n - 1) + fib(n - 2);
+        }
+        print(fib(20));
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
+    }
 }

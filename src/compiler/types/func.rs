@@ -1,5 +1,3 @@
-use crate::compiler::llvm::context::LLVMFunction;
-
 use crate::parser::{Expression, Type};
 extern crate llvm_sys;
 use crate::c_str;
@@ -8,19 +6,16 @@ use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
-use llvm_sys::core::LLVMBuildCall2;
+use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution
 #[derive(Clone)]
 pub struct FuncType {
-    pub body: Expression,
-    pub args: Vec<Expression>,
     pub return_type: Type,
     pub llvm_type: LLVMTypeRef,
     pub llvm_func: LLVMValueRef,
-    pub llvm_func_ref: LLVMFunction,
 }
 
 impl Base for FuncType {
@@ -53,7 +48,7 @@ impl Func for FuncType {
                 self.get_llvm_type(),
                 self.get_value(),
                 call_args.as_mut_ptr(),
-                self.llvm_func_ref.args.len() as u32,
+                LLVMCountParamTypes(self.get_llvm_type()),
                 c_str!(""),
             );
             match self.return_type {
@@ -90,11 +85,5 @@ impl TypeBase for FuncType {
     }
     fn get_llvm_type(&self) -> LLVMTypeRef {
         self.llvm_type
-    }
-    fn set_args(&mut self, args: Vec<Expression>) {
-        self.args = args;
-    }
-    fn get_args(&self) -> Vec<Expression> {
-        self.args.clone()
     }
 }
