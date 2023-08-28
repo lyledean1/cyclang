@@ -175,6 +175,14 @@ impl LLVMFunction {
 
         // get correct function return type
         let function = LLVMAddFunction(context.module, function_name, function_type);
+
+        let func = FuncType {
+            llvm_type: function_type,
+            llvm_func: function,
+            return_type: return_type.clone(),
+        };
+        context.func_cache.set(&name, Box::new(func), context.depth);
+
         let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
             LLVMAppendBasicBlock(function, c_str!("entry"));
 
@@ -242,11 +250,8 @@ impl LLVMFunction {
         context.var_cache.set(
             name.as_str(),
             Box::new(FuncType {
-                body,
-                args: vec![],
                 llvm_type: function_type,
                 llvm_func: function,
-                llvm_func_ref: new_function.clone(),
                 return_type,
             }),
             context.depth,
