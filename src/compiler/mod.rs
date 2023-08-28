@@ -332,7 +332,7 @@ impl ASTContext {
             Expression::ReturnStmt(input) => {
                 let expression_value = self.match_ast(*input);
                 unsafe {
-                    LLVMBuildRet(self.builder, expression_value.get_value());
+                    LLVMBuildRet(self.builder, expression_value.get_ptr());
                 }
                 expression_value
             }

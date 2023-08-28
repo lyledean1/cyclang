@@ -723,19 +723,19 @@ mod test {
     //     assert_eq!(stdout, "\"hello world\"\n");
     // }
 
-    // #[test]
-    // fn test_compile_function_return_int() {
-    //     let input = r#"
-    //     fn get_int() -> int {
-    //         return 5;
-    //     }
-    //     let val = get_int();
-    //     print(get_int);
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "5\n");
-    // }
+    #[test]
+    fn test_compile_function_return_int() {
+        let input = r#"
+        fn get_int() -> int {
+            return 5;
+        }
+        let val = get_int();
+        print(get_int);
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "5\n");
+    }
 
     #[test]
     fn test_compile_function_with_two_args_and_ignore_top_level_var() {
