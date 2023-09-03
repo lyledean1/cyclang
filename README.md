@@ -1,6 +1,6 @@
 # Cyclo-lang
 
-A programming language I built in Rust - mainly for fun and my own learning! Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) as the backend to compile to machine code binary. Very hacky and not production ready. Also will be coming back to refactor this now I have got recursion working, expect to find lots of bugs as I had a more extensive test suite.
+A programming language I built in Rust - mainly for fun and my own learning! Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) as the backend to compile to machine code binary. Very hacky and not production ready. Also will be coming back to refactor this now I have got recursion working, expect to find lots of bugs as I update with a more extensive test suite.
 
 Try the Fibonacci example in `/examples/fib.cyclo`
 
