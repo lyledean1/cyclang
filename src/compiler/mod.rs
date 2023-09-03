@@ -6,6 +6,7 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
+use std::ffi::CString;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -88,8 +89,13 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
             ast_ctx.match_ast(expr);
         }
         LLVMBuildRetVoid(builder);
-        // write our bitcode file to arm64
-        LLVMSetTarget(module, c_str!("arm64"));
+
+        // get and set the architecture
+        let arch_str = std::env::consts::ARCH;
+        let c_str = CString::new(arch_str).expect("Failed to convert to CString");
+        let ptr: *const i8 = c_str.as_ptr() as *const i8;
+
+        LLVMSetTarget(module, ptr);
         LLVMPrintModuleToFile(module, c_str!("bin/main.ll"), ptr::null_mut());
         // Use Clang to output LLVM IR -> Binary
         // LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
