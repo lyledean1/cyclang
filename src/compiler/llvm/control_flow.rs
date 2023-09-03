@@ -1,8 +1,8 @@
 use crate::c_str;
 use crate::compiler::types::return_type::ReturnType;
+use crate::compiler::types::void::VoidType;
 use crate::compiler::types::BaseTypes;
 use crate::compiler::TypeBase;
-use crate::compiler::types::void::VoidType;
 use crate::parser::Expression;
 extern crate llvm_sys;
 use super::context::ASTContext;
@@ -18,7 +18,7 @@ pub fn new_if_stmt(
     else_stmt: Option<Expression>,
 ) -> Box<dyn TypeBase> {
     unsafe {
-        let mut return_type: Box<dyn TypeBase>= Box::new(VoidType{});
+        let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
         let function = context.current_function.function;
         let if_entry_block: *mut llvm_sys::LLVMBasicBlock = context.current_function.block;
 
@@ -36,7 +36,7 @@ pub fn new_if_stmt(
 
         match stmt.get_type() {
             BaseTypes::Return => {
-                return_type = Box::new(ReturnType{});
+                return_type = Box::new(ReturnType {});
             }
             _ => {
                 LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
@@ -53,7 +53,7 @@ pub fn new_if_stmt(
                 let stmt = context.match_ast(v_stmt);
                 match stmt.get_type() {
                     BaseTypes::Return => {
-                        return_type = Box::new(ReturnType{});
+                        return_type = Box::new(ReturnType {});
                     }
                     _ => {
                         LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
@@ -87,8 +87,8 @@ pub fn new_if_stmt(
 
 pub fn new_while_stmt(
     context: &mut ASTContext,
-    condition: Box<Expression>,
-    while_block_stmt: Box<Expression>,
+    condition: Expression,
+    while_block_stmt: Expression,
 ) -> Box<dyn TypeBase> {
     unsafe {
         let function = context.current_function.function;
@@ -100,7 +100,7 @@ pub fn new_while_stmt(
         // Set bool type in entry block
         let var_name = c_str!("while_value_bool_var");
         let bool_type_ptr = LLVMBuildAlloca(context.builder, int1_type(), var_name);
-        let value_condition = context.match_ast(*condition);
+        let value_condition = context.match_ast(condition);
 
         let cmp = LLVMBuildLoad2(
             context.builder,
@@ -116,7 +116,7 @@ pub fn new_while_stmt(
         context.set_current_block(loop_body_block);
         // Check if the global variable already exists
 
-        context.match_ast(*while_block_stmt);
+        context.match_ast(while_block_stmt);
 
         LLVMBuildBr(context.builder, loop_cond_block); // Jump back to loop condition
 
@@ -148,7 +148,7 @@ pub fn new_for_loop(
     init: i32,
     length: i32,
     increment: i32,
-    for_block_expr: Box<Expression>,
+    for_block_expr: Expression,
 ) -> Box<dyn TypeBase> {
     unsafe {
         let for_block = context.current_function.block;
@@ -211,7 +211,7 @@ pub fn new_for_loop(
 
         // Build loop body block
         context.set_current_block(loop_body_block);
-        let for_block_cond = context.match_ast(*for_block_expr);
+        let for_block_cond = context.match_ast(for_block_expr);
 
         let new_value = LLVMBuildAdd(
             context.builder,

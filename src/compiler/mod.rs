@@ -262,7 +262,7 @@ impl ASTContext {
                 // Each Block Stmt, Incr and Decr
                 // Clearing all the "Local" Variables That Have Been Assigned
                 self.incr();
-                let mut val: Box<dyn TypeBase> = Box::new(VoidType{});
+                let mut val: Box<dyn TypeBase> = Box::new(VoidType {});
                 for expr in exprs {
                     val = self.match_ast(expr);
                 }
@@ -309,10 +309,10 @@ impl ASTContext {
                 return new_if_stmt(self, *condition, *if_stmt, *else_stmt);
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
-                new_while_stmt(self, condition, while_block_stmt)
+                new_while_stmt(self, *condition, *while_block_stmt)
             }
             Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
-                new_for_loop(self, var_name, init, length, increment, for_block_expr)
+                new_for_loop(self, var_name, init, length, increment, *for_block_expr)
             }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(*input);

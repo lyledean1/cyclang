@@ -98,10 +98,7 @@ unsafe fn get_value_for_print_argument(
     value: BoolType,
 ) -> LLVMValueRef {
     match value.get_ptr() {
-        Some(v) => {
-            let value = LLVMBuildLoad2(builder, int1_type(), v, name);
-            value
-        }
+        Some(v) => LLVMBuildLoad2(builder, int1_type(), v, name),
         None => value.get_value(),
     }
 }
