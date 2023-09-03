@@ -4,10 +4,6 @@ A programming language I built in Rust - mainly for fun and my own learning! Use
 
 Try the Fibonacci example in `/examples/fib.cyclo`
 
-```
-cargo run -- --file ./examples/fib.cyclo
-```
-
 *Note*: *this isn't the most efficient Fibonacci algorithm but it's just an example of using recursion in the language, its also only been tested on an M1 Mac, so there might be bugs on other architectures*
 
 ```rust
@@ -20,7 +16,11 @@ fn fib(int n) -> int {
 print(fib(20));
 ```
 
-This should output `6765`! 
+```
+cargo run -- --file ./examples/fib.cyclo
+```
+
+This will output a binary to `./bin/main` which you can run. This should output `6765`! 
 
 ## LLVM Set Up 
 
