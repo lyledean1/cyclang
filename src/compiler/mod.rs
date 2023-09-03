@@ -27,6 +27,7 @@ use std::process::Command;
 use std::ptr;
 
 use self::llvm::control_flow::{new_for_loop, new_while_stmt};
+use self::types::return_type::ReturnType;
 
 pub mod llvm;
 pub mod types;
@@ -261,13 +262,14 @@ impl ASTContext {
                 // Each Block Stmt, Incr and Decr
                 // Clearing all the "Local" Variables That Have Been Assigned
                 self.incr();
+                let mut val: Box<dyn TypeBase> = Box::new(VoidType{});
                 for expr in exprs {
-                    self.match_ast(expr);
+                    val = self.match_ast(expr);
                 }
                 // Delete Variables
                 self.var_cache.del_locals(self.get_depth());
                 self.decr();
-                Box::new(VoidType {})
+                val
             }
             Expression::CallStmt(name, args) => match self.func_cache.get(&name) {
                 Some(val) => {
@@ -304,8 +306,7 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                new_if_stmt(self, condition, if_stmt, else_stmt);
-                Box::new(VoidType {})
+                return new_if_stmt(self, condition, if_stmt, else_stmt);
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 new_while_stmt(self, condition, while_block_stmt)
@@ -323,7 +324,7 @@ impl ASTContext {
                 unsafe {
                     LLVMBuildRet(self.builder, expression_value.get_value());
                 }
-                expression_value
+                Box::new(ReturnType {})
             }
         }
     }

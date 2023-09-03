@@ -1,5 +1,8 @@
 use crate::c_str;
+use crate::compiler::types::return_type::ReturnType;
+use crate::compiler::types::BaseTypes;
 use crate::compiler::TypeBase;
+use crate::compiler::types::void::VoidType;
 use crate::parser::Expression;
 extern crate llvm_sys;
 use super::context::ASTContext;
@@ -13,8 +16,9 @@ pub fn new_if_stmt(
     condition: Box<Expression>,
     if_stmt: Box<Expression>,
     else_stmt: Box<Option<Expression>>,
-) {
+) -> Box<dyn TypeBase> {
     unsafe {
+        let mut return_type: Box<dyn TypeBase>= Box::new(VoidType{});
         let function = context.current_function.function;
         let if_entry_block: *mut llvm_sys::LLVMBasicBlock = context.current_function.block;
 
@@ -27,10 +31,18 @@ pub fn new_if_stmt(
 
         context.set_current_block(then_block);
 
-        context.match_ast(*if_stmt);
+        let stmt = context.match_ast(*if_stmt);
+        println!("{:?}", stmt.get_type());
 
+        match stmt.get_type() {
+            BaseTypes::Return => {
+                return_type = Box::new(ReturnType{});
+            }
+            _ => {
+                LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
+            }
+        }
         // Each
-        LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
 
         // Build Else Block
         let else_block = LLVMAppendBasicBlock(function, c_str!("else_block"));
@@ -38,8 +50,15 @@ pub fn new_if_stmt(
 
         match *else_stmt {
             Some(v_stmt) => {
-                context.match_ast(v_stmt);
-                LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
+                let stmt = context.match_ast(v_stmt);
+                match stmt.get_type() {
+                    BaseTypes::Return => {
+                        return_type = Box::new(ReturnType{});
+                    }
+                    _ => {
+                        LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
+                    }
+                }
             }
             _ => {
                 LLVMPositionBuilderAtEnd(context.builder, else_block);
@@ -53,10 +72,16 @@ pub fn new_if_stmt(
 
         context.set_current_block(if_entry_block);
 
-        let cmp = LLVMBuildLoad2(context.builder, int1_type(), cond.get_ptr().unwrap(), c_str!("cmp"));
+        let cmp = LLVMBuildLoad2(
+            context.builder,
+            int1_type(),
+            cond.get_ptr().unwrap(),
+            c_str!("cmp"),
+        );
         LLVMBuildCondBr(context.builder, cmp, then_block, else_block);
 
         context.set_current_block(merge_block);
+        return_type
     }
 }
 

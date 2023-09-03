@@ -44,7 +44,8 @@ impl Arithmetic for NumberType {
                             _rhs.get_ptr().unwrap(),
                             _rhs.get_name(),
                         );
-                        let result = LLVMBuildAdd(context.builder, lhs_value, rhs_value, c_str!("add_num"));
+                        let result =
+                            LLVMBuildAdd(context.builder, lhs_value, rhs_value, c_str!("add_num"));
                         LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
                         //TODO: fix the new instruction
                         return Box::new(NumberType {
@@ -52,11 +53,17 @@ impl Arithmetic for NumberType {
                             llmv_value: result,
                             llmv_value_pointer: self.llmv_value_pointer,
                             cname: self.get_name(),
-                        })
+                        });
                     }
                     None => {
-                        let result = LLVMBuildAdd(context.builder, self.get_value(), _rhs.get_value(), c_str!("add_num"));
-                        let alloca = LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str!("param_add"));
+                        let result = LLVMBuildAdd(
+                            context.builder,
+                            self.get_value(),
+                            _rhs.get_value(),
+                            c_str!("add_num"),
+                        );
+                        let alloca =
+                            LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str!("param_add"));
                         LLVMBuildStore(context.builder, result, alloca);
                         //TODO: fix the new instruction
                         return Box::new(NumberType {
@@ -64,7 +71,7 @@ impl Arithmetic for NumberType {
                             llmv_value: result,
                             llmv_value_pointer: Some(alloca),
                             cname: self.get_name(),
-                        })
+                        });
                     }
                 }
             },
@@ -95,7 +102,8 @@ impl Arithmetic for NumberType {
                             _rhs.get_ptr().unwrap(),
                             _rhs.get_name(),
                         );
-                        let result = LLVMBuildSub(context.builder, lhs_value, rhs_value, c_str!("add_num"));
+                        let result =
+                            LLVMBuildSub(context.builder, lhs_value, rhs_value, c_str!("add_num"));
                         LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
                         //TODO: fix the new instruction
                         return Box::new(NumberType {
@@ -103,11 +111,17 @@ impl Arithmetic for NumberType {
                             llmv_value: result,
                             llmv_value_pointer: self.llmv_value_pointer,
                             cname: self.get_name(),
-                        })
+                        });
                     }
                     None => {
-                        let result = LLVMBuildSub(context.builder, self.get_value(), _rhs.get_value(), c_str!("add_num"));
-                        let alloca = LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str!("param_add"));
+                        let result = LLVMBuildSub(
+                            context.builder,
+                            self.get_value(),
+                            _rhs.get_value(),
+                            c_str!("add_num"),
+                        );
+                        let alloca =
+                            LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str!("param_add"));
                         LLVMBuildStore(context.builder, result, alloca);
                         //TODO: fix the new instruction
                         return Box::new(NumberType {
@@ -115,7 +129,7 @@ impl Arithmetic for NumberType {
                             llmv_value: result,
                             llmv_value_pointer: Some(alloca),
                             cname: self.get_name(),
-                        })
+                        });
                     }
                 }
             },
@@ -146,7 +160,8 @@ impl Arithmetic for NumberType {
                             _rhs.get_ptr().unwrap(),
                             _rhs.get_name(),
                         );
-                        let result = LLVMBuildMul(context.builder, lhs_value, rhs_value, c_str!("add_num"));
+                        let result =
+                            LLVMBuildMul(context.builder, lhs_value, rhs_value, c_str!("add_num"));
                         LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
                         //TODO: fix the new instruction
                         return Box::new(NumberType {
@@ -154,11 +169,17 @@ impl Arithmetic for NumberType {
                             llmv_value: result,
                             llmv_value_pointer: self.llmv_value_pointer,
                             cname: self.get_name(),
-                        })
+                        });
                     }
                     None => {
-                        let result = LLVMBuildMul(context.builder, self.get_value(), _rhs.get_value(), c_str!("add_num"));
-                        let alloca = LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str!("param_add"));
+                        let result = LLVMBuildMul(
+                            context.builder,
+                            self.get_value(),
+                            _rhs.get_value(),
+                            c_str!("add_num"),
+                        );
+                        let alloca =
+                            LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str!("param_add"));
                         LLVMBuildStore(context.builder, result, alloca);
                         //TODO: fix the new instruction
                         return Box::new(NumberType {
@@ -166,7 +187,7 @@ impl Arithmetic for NumberType {
                             llmv_value: result,
                             llmv_value_pointer: Some(alloca),
                             cname: self.get_name(),
-                        })
+                        });
                     }
                 }
             },
@@ -228,7 +249,7 @@ impl Debug for NumberType {
                         e,
                         c_str!("num_printf_ptr_val"),
                     );
-        
+
                     let print_args = [ast_context.printf_str_num_value, val].as_mut_ptr();
                     match ast_context.llvm_func_cache.get("printf") {
                         Some(print_func) => {
@@ -249,7 +270,8 @@ impl Debug for NumberType {
                 None => {
                     // let alloca = LLVMBuildAlloca(ast_context.builder, int32_ptr_type(), c_str!("print_num_ptr"));
                     // LLVMBuildStore(ast_context.builder, self.get_value(), alloca);
-                    let print_args = [ast_context.printf_str_num_value, self.get_value()].as_mut_ptr();
+                    let print_args =
+                        [ast_context.printf_str_num_value, self.get_value()].as_mut_ptr();
                     match ast_context.llvm_func_cache.get("printf") {
                         Some(print_func) => {
                             LLVMBuildCall2(
@@ -265,10 +287,8 @@ impl Debug for NumberType {
                             unreachable!()
                         }
                     }
-
                 }
             }
-
         }
     }
 }
@@ -302,7 +322,6 @@ impl TypeBase for NumberType {
                 let name = LLVMGetValueName(self.get_value());
                 let new_value = LLVMBuildLoad2(_ast_context.builder, int32_type(), alloca, name);
                 LLVMBuildStore(_ast_context.builder, new_value, alloca);
-
             },
             _ => {
                 unreachable!(
@@ -323,14 +342,15 @@ impl TypeBase for NumberType {
     }
 }
 
-unsafe fn get_int32_arg_for_comp_self(val: NumberType, rhs: Box<dyn TypeBase>) -> [LLVMValueRef; 2] {
+unsafe fn get_int32_arg_for_comp_self(
+    val: NumberType,
+    rhs: Box<dyn TypeBase>,
+) -> [LLVMValueRef; 2] {
     match val.get_ptr() {
         Some(v) => {
             return [v, rhs.get_ptr().unwrap()];
         }
-        None => {
-            return [val.get_value(), rhs.get_value()]
-        }
+        None => return [val.get_value(), rhs.get_value()],
     }
 }
 
@@ -489,8 +509,18 @@ unsafe fn get_comparison_number_type(
     lhs: Option<LLVMValueRef>,
     comparison: LLVMIntPredicate,
 ) -> Box<dyn TypeBase> {
-    let lhs_val = LLVMBuildLoad2(_context.builder, int8_type(), lhs.unwrap(), c_str!("lhs_bool"));
-    let rhs_val = LLVMBuildLoad2(_context.builder, int8_type(), rhs.unwrap(), c_str!("rhs_bool"));
+    let lhs_val = LLVMBuildLoad2(
+        _context.builder,
+        int8_type(),
+        lhs.unwrap(),
+        c_str!("lhs_bool"),
+    );
+    let rhs_val = LLVMBuildLoad2(
+        _context.builder,
+        int8_type(),
+        rhs.unwrap(),
+        c_str!("rhs_bool"),
+    );
     let cmp = LLVMBuildICmp(
         _context.builder,
         comparison,

@@ -152,20 +152,12 @@ impl LLVMFunction {
 
         match return_type {
             Type::Int => {
-                function_type = LLVMFunctionType(
-                    int32_type(),
-                    param_types.as_mut_ptr(),
-                    args.len() as u32,
-                    0,
-                );
+                function_type =
+                    LLVMFunctionType(int32_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
             }
             Type::Bool => {
-                function_type = LLVMFunctionType(
-                    int1_type(),
-                    param_types.as_mut_ptr(),
-                    args.len() as u32,
-                    0,
-                );
+                function_type =
+                    LLVMFunctionType(int1_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
             }
             Type::None => {
                 // skip

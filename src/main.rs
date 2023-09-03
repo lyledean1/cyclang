@@ -745,7 +745,7 @@ mod test {
     }
 
     #[test]
-    fn test_factorial_recursive_function() {
+    fn test_recursive_factorial_fn() {
         let input = r#"
         fn factorial(int n) -> int {
             if (n == 0) {
@@ -761,7 +761,7 @@ mod test {
     }
 
     #[test]
-    fn test_recursive_fn() {
+    fn test_recursive_fib_fn() {
         let input = r#"
         fn fib(int n) -> int {
             if (n == 0) {
@@ -776,6 +776,6 @@ mod test {
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(stdout, "6765\n");
     }
 }

@@ -76,13 +76,7 @@ unsafe fn get_comparison_bool_type(
     lhs: LLVMValueRef,
     comparison: LLVMIntPredicate,
 ) -> Box<dyn TypeBase> {
-    let cmp = LLVMBuildICmp(
-        _context.builder,
-        comparison,
-        rhs,
-        lhs,
-        c_str!("result"),
-    );
+    let cmp = LLVMBuildICmp(_context.builder, comparison, rhs, lhs, c_str!("result"));
     // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
     // let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
     // let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
@@ -98,28 +92,25 @@ unsafe fn get_comparison_bool_type(
 
 impl Arithmetic for BoolType {}
 
-
-unsafe fn get_value_for_print_argument(builder: LLVMBuilderRef, name: *const i8, value: BoolType) -> LLVMValueRef {
+unsafe fn get_value_for_print_argument(
+    builder: LLVMBuilderRef,
+    name: *const i8,
+    value: BoolType,
+) -> LLVMValueRef {
     match value.get_ptr() {
         Some(v) => {
-            let value = LLVMBuildLoad2(
-                builder,
-                int1_type(),
-                v,
-                name,
-            );
+            let value = LLVMBuildLoad2(builder, int1_type(), v, name);
             return value;
         }
-        None => {
-            return value.get_value()
-        }
+        None => return value.get_value(),
     }
 }
 
 impl Debug for BoolType {
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
-            let value = get_value_for_print_argument(ast_context.builder, self.get_name(), self.clone());
+            let value =
+                get_value_for_print_argument(ast_context.builder, self.get_name(), self.clone());
 
             let bool_func_args: *mut *mut llvm_sys::LLVMValue = [value].as_mut_ptr();
 

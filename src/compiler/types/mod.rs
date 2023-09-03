@@ -5,6 +5,7 @@
 pub mod bool;
 pub mod func;
 pub mod num;
+pub mod return_type;
 pub mod string;
 pub mod void;
 
@@ -25,6 +26,7 @@ pub enum BaseTypes {
     Bool,
     Func,
     Void,
+    Return,
 }
 
 pub trait Base: DynClone {

@@ -53,7 +53,11 @@ impl Func for FuncType {
             );
             match self.return_type {
                 Type::Int => {
-                    let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_str!("call_value_int"));
+                    let ptr = LLVMBuildAlloca(
+                        _context.builder,
+                        int32_ptr_type(),
+                        c_str!("call_value_int"),
+                    );
                     LLVMBuildStore(_context.builder, call_value, ptr);
 
                     return Box::new(NumberType {
@@ -64,14 +68,18 @@ impl Func for FuncType {
                     });
                 }
                 Type::Bool => {
-                    let ptr = LLVMBuildAlloca(_context.builder, int1_ptr_type(), c_str!("call_value_int"));
+                    let ptr = LLVMBuildAlloca(
+                        _context.builder,
+                        int1_ptr_type(),
+                        c_str!("call_value_int"),
+                    );
                     LLVMBuildStore(_context.builder, call_value, ptr);
                     return Box::new(BoolType {
                         builder: _context.builder,
                         llmv_value: call_value,
                         llmv_value_pointer: ptr,
                         name: "call_value".into(),
-                    })
+                    });
                 }
                 Type::String => {}
                 Type::None => {
