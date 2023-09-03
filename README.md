@@ -2,6 +2,20 @@
 
 A programming language I built in Rust - mainly for fun and my own learning! Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) as the backend to compile to machine code binary.
 
+Try the Fibonacci example in `/examples/fib.cyclo`
+
+```rust
+fn fib(int n) -> int {
+    if (n < 2) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+print(fib(20));
+```
+
+This should output `6765`! 
+
 ## Install 
 
 Download the repo and run 
@@ -11,7 +25,7 @@ cargo install --path=./
 
 ## Run
 
-Run the .cyclo file 
+Run the .cyclo file
 
 ```
 cyclo --file /path/to/file.cyclo

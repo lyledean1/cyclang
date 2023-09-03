@@ -354,146 +354,74 @@ unsafe fn get_int32_arg_for_comp_self(
 
 impl Comparison for NumberType {
     fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                let compare_int32_args = [self.get_value(), _rhs.get_value()].as_mut_ptr();
-                match context.llvm_func_cache.get("compare_int32") {
-                    Some(compare_int32_func) => {
-                        let cmp = LLVMBuildCall2(
-                            context.builder,
-                            compare_int32_func.func_type,
-                            compare_int32_func.function,
-                            compare_int32_args,
-                            2,
-                            c_str!(""),
-                        );
-                        let alloca =
-                            LLVMBuildAlloca(context.builder, int1_type(), c_str!("bool_cmp"));
-                        LLVMBuildStore(context.builder, cmp, alloca);
-                        Box::new(BoolType {
-                            name: String::from("eqeq_bool"),
-                            builder: context.builder,
-                            llmv_value: cmp,
-                            llmv_value_pointer: alloca,
-                        })
-                    }
-                    _ => {
-                        unreachable!()
-                    }
-                }
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
+        unsafe {
+            get_comparison_number_type(
+                self.name.clone(),
+                context,
+                _rhs.clone(),
+                self.clone(),
+                LLVMIntPredicate::LLVMIntEQ,
+            )
         }
     }
 
     fn ne(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                return get_comparison_number_type(
-                    self.name.clone(),
-                    context,
-                    _rhs.get_ptr(),
-                    self.get_ptr(),
-                    LLVMIntPredicate::LLVMIntNE,
-                );
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
+        unsafe {
+            get_comparison_number_type(
+                self.name.clone(),
+                context,
+                _rhs.clone(),
+                self.clone(),
+                LLVMIntPredicate::LLVMIntNE,
+            )
         }
     }
 
     fn gt(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                return get_comparison_number_type(
-                    self.name.clone(),
-                    context,
-                    _rhs.get_ptr(),
-                    self.get_ptr(),
-                    LLVMIntPredicate::LLVMIntSGT,
-                );
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
+        unsafe {
+            get_comparison_number_type(
+                self.name.clone(),
+                context,
+                _rhs.clone(),
+                self.clone(),
+                LLVMIntPredicate::LLVMIntSGT,
+            )
         }
     }
 
     fn gte(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                return get_comparison_number_type(
-                    self.name.clone(),
-                    context,
-                    _rhs.get_ptr(),
-                    self.get_ptr(),
-                    LLVMIntPredicate::LLVMIntSGE,
-                );
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
+        unsafe {
+            get_comparison_number_type(
+                self.name.clone(),
+                context,
+                _rhs.clone(),
+                self.clone(),
+                LLVMIntPredicate::LLVMIntSGE,
+            )
         }
     }
 
     fn lt(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                return get_comparison_number_type(
-                    self.name.clone(),
-                    context,
-                    _rhs.get_ptr(),
-                    self.get_ptr(),
-                    LLVMIntPredicate::LLVMIntSLT,
-                );
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
+        unsafe {
+            get_comparison_number_type(
+                self.name.clone(),
+                context,
+                _rhs.clone(),
+                self.clone(),
+                LLVMIntPredicate::LLVMIntSLT,
+            )
         }
     }
 
     fn lte(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number => unsafe {
-                return get_comparison_number_type(
-                    self.name.clone(),
-                    context,
-                    _rhs.get_ptr(),
-                    self.get_ptr(),
-                    LLVMIntPredicate::LLVMIntSLE,
-                );
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
+        unsafe {
+            get_comparison_number_type(
+                self.name.clone(),
+                context,
+                _rhs.clone(),
+                self.clone(),
+                LLVMIntPredicate::LLVMIntSLE,
+            )
         }
     }
 }
@@ -503,35 +431,66 @@ impl Func for NumberType {}
 unsafe fn get_comparison_number_type(
     _name: String,
     _context: &mut ASTContext,
-    rhs: Option<LLVMValueRef>,
-    lhs: Option<LLVMValueRef>,
+    rhs: Box<dyn TypeBase>,
+    lhs: NumberType,
     comparison: LLVMIntPredicate,
 ) -> Box<dyn TypeBase> {
-    let lhs_val = LLVMBuildLoad2(
-        _context.builder,
-        int8_type(),
-        lhs.unwrap(),
-        c_str!("lhs_bool"),
-    );
-    let rhs_val = LLVMBuildLoad2(
-        _context.builder,
-        int8_type(),
-        rhs.unwrap(),
-        c_str!("rhs_bool"),
-    );
-    let cmp = LLVMBuildICmp(
-        _context.builder,
-        comparison,
-        lhs_val,
-        rhs_val,
-        c_str!("result"),
-    );
-    let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
-    LLVMBuildStore(_context.builder, cmp, alloca);
-    Box::new(BoolType {
-        name: _name,
-        builder: _context.builder,
-        llmv_value: cmp,
-        llmv_value_pointer: alloca,
-    })
+    // First check type
+    match rhs.get_type() {
+        BaseTypes::Number => {}
+        _ => {
+            unreachable!(
+                "Can't add type {:?} and type {:?}",
+                lhs.get_type(),
+                rhs.get_type()
+            )
+        }
+    }
+    // then do comparison
+    match lhs.get_ptr() {
+        Some(lhs_ptr) => {
+            // If loading a pointer
+            let lhs_val =
+                LLVMBuildLoad2(_context.builder, int8_type(), lhs_ptr, c_str!("lhs_bool"));
+            let rhs_val = LLVMBuildLoad2(
+                _context.builder,
+                int8_type(),
+                rhs.get_ptr().unwrap(),
+                c_str!("rhs_bool"),
+            );
+            let cmp = LLVMBuildICmp(
+                _context.builder,
+                comparison,
+                lhs_val,
+                rhs_val,
+                c_str!("result"),
+            );
+            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
+            LLVMBuildStore(_context.builder, cmp, alloca);
+            Box::new(BoolType {
+                name: _name,
+                builder: _context.builder,
+                llmv_value: cmp,
+                llmv_value_pointer: alloca,
+            })
+        }
+        None => {
+            // If loading a raw value
+            let cmp = LLVMBuildICmp(
+                _context.builder,
+                comparison,
+                lhs.get_value(),
+                rhs.get_value(),
+                c_str!("result"),
+            );
+            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
+            LLVMBuildStore(_context.builder, cmp, alloca);
+            Box::new(BoolType {
+                name: _name,
+                builder: _context.builder,
+                llmv_value: cmp,
+                llmv_value_pointer: alloca,
+            })
+        }
+    }
 }
