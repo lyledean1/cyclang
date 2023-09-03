@@ -338,7 +338,7 @@ impl Comparison for NumberType {
     fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let compare_int32_args = get_int32_arg_for_comp_self(self.clone(), _rhs.clone()).as_mut_ptr();
+                let compare_int32_args = [self.get_value(), _rhs.get_value()].as_mut_ptr();
                 match context.llvm_func_cache.get("compare_int32") {
                     Some(compare_int32_func) => {
                         let cmp = LLVMBuildCall2(
