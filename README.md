@@ -20,7 +20,7 @@ print(fib(20));
 cargo run -- --file ./examples/fib.cyclo
 ```
 
-This will output a binary to `./bin/main` which you can run. This should output `6765`! 
+This should output `6765`! 
 
 ## LLVM Set Up 
 
