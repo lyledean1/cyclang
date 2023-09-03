@@ -658,6 +658,19 @@ mod test {
     }
 
     #[test]
+    fn test_compile_fn_return_int_value_mul() {
+        let input = r#"
+        fn mul(int x, int y) -> int {
+            return x * y;
+        }
+        print(mul(5,5));
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "25\n");
+    }
+
+    #[test]
     fn test_compile_fn_return_int_value_with_call_stmts() {
         let input = r#"
         fn add(int x, int y) -> int {
@@ -729,6 +742,22 @@ mod test {
         let output = compile_output_from_string(input.to_string());
         let stdout: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stdout);
         assert_eq!(stdout, "false\n");
+    }
+
+    #[test]
+    fn test_factorial_recursive_function() {
+        let input = r#"
+        fn factorial(int n) -> int {
+            if (n == 0) {
+                return 1;
+            }
+            return n * factorial(n - 1);
+        }
+        print(factorial(5));
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "true\n");
     }
 
     #[test]
