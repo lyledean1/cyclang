@@ -2,7 +2,6 @@ extern crate llvm_sys;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::prelude::*;
 
-// ReturnType -> Placeholder for a type that should not be used
 #[derive(Debug, Clone)]
 pub struct ReturnType {}
 
@@ -22,6 +21,6 @@ impl Func for ReturnType {}
 
 impl TypeBase for ReturnType {
     fn get_value(&self) -> LLVMValueRef {
-        unimplemented!("No value ref for void type")
+        unimplemented!("No value ref for return type")
     }
 }

@@ -64,8 +64,8 @@ cyclo --file /path/to/file.cyclo
     - [x] Loop over range
     - [ ] Loop over values in list 
     - [ ] Loop over valuei in map
-- [ ] Functions
-    - [ ] Call function ()
+- [x] Functions
+    - [x] Call function ()
     - [ ] Lambda Functions
     - [ ] Closures
 - [ ] Classes

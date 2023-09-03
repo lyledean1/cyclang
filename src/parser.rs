@@ -819,7 +819,6 @@ mod test {
                 Box::new(Variable("y".into())),
             )))],
         );
-        println!("{:?}", output);
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
     }
@@ -874,7 +873,6 @@ mod test {
             vec![Expression::ReturnStmt(Box::new(Expression::Bool(true)))],
         );
         assert!(output.is_ok());
-        println!("{:?}", output);
         assert!(output.unwrap().contains(&func_expr))
     }
 
