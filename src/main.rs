@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate pest_derive;
-
 use clap::Parser;
 use std::fmt;
 use std::process::exit;
@@ -46,12 +45,12 @@ fn compile_output_from_string(contents: String) -> Output {
 }
 
 fn main() {
-    // Create the bin directory for LLVM IR if doesn't exist    
+    // Create the bin directory for LLVM IR if doesn't exist
     fs::create_dir_all("./bin").unwrap();
     let args = Args::parse();
     if let Some(filename) = args.file {
         let contents = fs::read_to_string(filename).expect("Failed to read file");
-        compile_output_from_string(contents);
+        println!("{}", String::from_utf8_lossy(&compile_output_from_string(contents).stdout).trim_end_matches("\n").to_string());
     } else {
         repl::run();
     }
