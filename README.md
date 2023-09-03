@@ -2,13 +2,13 @@
 
 A programming language I built in Rust - mainly for fun and my own learning! Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) as the backend to compile to machine code binary. Very hacky and not production ready. Also will be coming back to refactor this now I have got recursion working, expect to find lots of bugs as I had a more extensive test suite.
 
-Try the Fibonacci example in `/examples/fib.cyclo` (also make sure you have LLVM set up to run this locally)
+Try the Fibonacci example in `/examples/fib.cyclo`
 
 ```
 cargo run -- --file ./examples/fib.cyclo
 ```
 
-*Note*: *this isn't the most efficient Fibonacci algorithm but it's just an example of using recursion in the language*
+*Note*: *this isn't the most efficient Fibonacci algorithm but it's just an example of using recursion in the language, its also only been tested on an M1 Mac, so there might be bugs on other architectures*
 
 ```rust
 fn fib(int n) -> int {
