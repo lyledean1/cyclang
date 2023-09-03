@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::compiler::llvm::{int1_ptr_type, int32_ptr_type, int8_ptr_type};
+use crate::compiler::llvm::{int1_ptr_type, int32_ptr_type, int32_type, int8_ptr_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
@@ -13,6 +13,8 @@ use crate::parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
+
+use super::int1_type;
 
 pub struct ASTContext {
     pub builder: LLVMBuilderRef,
@@ -151,7 +153,7 @@ impl LLVMFunction {
         match return_type {
             Type::Int => {
                 function_type = LLVMFunctionType(
-                    int32_ptr_type(),
+                    int32_type(),
                     param_types.as_mut_ptr(),
                     args.len() as u32,
                     0,
@@ -159,7 +161,7 @@ impl LLVMFunction {
             }
             Type::Bool => {
                 function_type = LLVMFunctionType(
-                    int1_ptr_type(),
+                    int1_type(),
                     param_types.as_mut_ptr(),
                     args.len() as u32,
                     0,

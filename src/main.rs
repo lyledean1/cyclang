@@ -715,22 +715,21 @@ mod test {
         assert_eq!(stdout, "true\n");
     }
 
-    // #[test]
-    // fn test_compile_fn_return_bool_false_value_cmp_ints_in_another_fn() {
-    //     let input = r#"
-    //     fn compare(int x, int y) -> bool {
-    //         return (x == y);
-    //     }
-    //     fn expect_false() -> bool {
-    //         return (compare(1,1) == compare(2,1));
-    //     }
-    //     let value = expect_false();
-    //     print(value);
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "false\n");
-    // }
+    #[test]
+    fn test_compile_fn_return_bool_false_value_cmp_ints_in_another_fn() {
+        let input = r#"
+        fn compare(int x, int y) -> bool {
+            return (x == y);
+        }
+        fn expect_false() -> bool {
+            return (compare(1,2) == compare(1,1));
+        }
+        print(expect_false());
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "false\n");
+    }
 
     #[test]
     fn test_recursive_fn() {

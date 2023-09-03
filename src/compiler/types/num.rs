@@ -47,7 +47,7 @@ impl Arithmetic for NumberType {
                 //TODO: fix the new instruction
                 Box::new(NumberType {
                     name: self.name.clone(),
-                    llmv_value: self.llmv_value,
+                    llmv_value: result,
                     llmv_value_pointer: self.llmv_value_pointer,
                     cname: self.get_name(),
                 })
@@ -82,7 +82,7 @@ impl Arithmetic for NumberType {
                 //TODO: fix the new instruction
                 Box::new(NumberType {
                     name: self.name.clone(),
-                    llmv_value: self.llmv_value,
+                    llmv_value: result,
                     llmv_value_pointer: self.llmv_value_pointer,
                     cname: self.get_name(),
                 })
@@ -117,7 +117,7 @@ impl Arithmetic for NumberType {
                 //TODO: fix the new instruction
                 Box::new(NumberType {
                     name: self.name.clone(),
-                    llmv_value: self.llmv_value,
+                    llmv_value: result,
                     llmv_value_pointer: self.llmv_value_pointer,
                     cname: self.get_name(),
                 })
@@ -152,7 +152,7 @@ impl Arithmetic for NumberType {
                 //TODO: fix the new instruction
                 Box::new(NumberType {
                     name: self.name.clone(),
-                    llmv_value: self.llmv_value,
+                    llmv_value: result,
                     llmv_value_pointer: self.llmv_value_pointer,
                     cname: self.get_name(),
                 })
@@ -246,22 +246,37 @@ impl TypeBase for NumberType {
     fn get_ptr(&self) -> LLVMValueRef {
         self.llmv_value_pointer
     }
-    fn get_llvm_type(&self) -> LLVMTypeRef {
-        int32_ptr_type()
-    }
 }
 
 impl Comparison for NumberType {
     fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                return get_comparison_number_type(
-                    self.name.clone(),
-                    context,
-                    _rhs.get_ptr(),
-                    self.get_ptr(),
-                    LLVMIntPredicate::LLVMIntEQ,
-                );
+                let compare_int32_args = [self.get_ptr(), _rhs.get_ptr()].as_mut_ptr();
+                match context.llvm_func_cache.get("compare_int32") {
+                    Some(compare_int32_func) => {
+                        let cmp = LLVMBuildCall2(
+                            context.builder,
+                            compare_int32_func.func_type,
+                            compare_int32_func.function,
+                            compare_int32_args,
+                            2,
+                            c_str!(""),
+                        );
+                        let alloca =
+                            LLVMBuildAlloca(context.builder, int1_type(), c_str!("bool_cmp"));
+                        LLVMBuildStore(context.builder, cmp, alloca);
+                        Box::new(BoolType {
+                            name: String::from("eqeq_bool"),
+                            builder: context.builder,
+                            llmv_value: cmp,
+                            llmv_value_pointer: alloca,
+                        })
+                    }
+                    _ => {
+                        unreachable!()
+                    }
+                }
             },
             _ => {
                 unreachable!(
