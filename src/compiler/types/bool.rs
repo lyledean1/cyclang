@@ -77,9 +77,6 @@ unsafe fn get_comparison_bool_type(
     comparison: LLVMIntPredicate,
 ) -> Box<dyn TypeBase> {
     let cmp = LLVMBuildICmp(_context.builder, comparison, rhs, lhs, c_str!("result"));
-    // let result_str = LLVMBuildIntToPtr(builder, result, int8_ptr_type(), c_str!(""));
-    // let bool_cmp = LLVMBuildZExt(_context.builder, cmp, number_type, c_str!("bool_cmp"));
-    // let bool_value = LLVMConstIntGetZExtValue(bool_cmp) != 0;
     let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
     LLVMBuildStore(_context.builder, cmp, alloca);
     Box::new(BoolType {

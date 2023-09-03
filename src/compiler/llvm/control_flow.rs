@@ -32,10 +32,10 @@ pub fn new_if_stmt(
         context.set_current_block(then_block);
 
         let stmt = context.match_ast(if_stmt);
-        println!("{:?}", stmt.get_type());
 
         match stmt.get_type() {
             BaseTypes::Return => {
+                // if its a return type we will skip branching in the LLVM IR
                 return_type = Box::new(ReturnType {});
             }
             _ => {
@@ -53,6 +53,7 @@ pub fn new_if_stmt(
                 let stmt = context.match_ast(v_stmt);
                 match stmt.get_type() {
                     BaseTypes::Return => {
+                        // if its a return type we will skip branching in the LLVM IR
                         return_type = Box::new(ReturnType {});
                     }
                     _ => {
