@@ -292,7 +292,7 @@ impl ASTContext {
                     self.current_function.block,
                 );
 
-                let mut func = FuncType {
+                let func = FuncType {
                     llvm_type: llvm_func.func_type,
                     llvm_func: llvm_func.function,
                     return_type: _return_type,
@@ -306,7 +306,7 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                return new_if_stmt(self, condition, if_stmt, else_stmt);
+                return new_if_stmt(self, *condition, *if_stmt, *else_stmt);
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 new_while_stmt(self, condition, while_block_stmt)

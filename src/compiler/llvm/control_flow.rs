@@ -13,9 +13,9 @@ use llvm_sys::LLVMIntPredicate;
 
 pub fn new_if_stmt(
     context: &mut ASTContext,
-    condition: Box<Expression>,
-    if_stmt: Box<Expression>,
-    else_stmt: Box<Option<Expression>>,
+    condition: Expression,
+    if_stmt: Expression,
+    else_stmt: Option<Expression>,
 ) -> Box<dyn TypeBase> {
     unsafe {
         let mut return_type: Box<dyn TypeBase>= Box::new(VoidType{});
@@ -24,14 +24,14 @@ pub fn new_if_stmt(
 
         LLVMPositionBuilderAtEnd(context.builder, if_entry_block);
 
-        let cond: Box<dyn TypeBase> = context.match_ast(*condition);
+        let cond: Box<dyn TypeBase> = context.match_ast(condition);
         // Build If Block
         let then_block = LLVMAppendBasicBlock(function, c_str!("then_block"));
         let merge_block = LLVMAppendBasicBlock(function, c_str!("merge_block"));
 
         context.set_current_block(then_block);
 
-        let stmt = context.match_ast(*if_stmt);
+        let stmt = context.match_ast(if_stmt);
         println!("{:?}", stmt.get_type());
 
         match stmt.get_type() {
@@ -48,7 +48,7 @@ pub fn new_if_stmt(
         let else_block = LLVMAppendBasicBlock(function, c_str!("else_block"));
         context.set_current_block(else_block);
 
-        match *else_stmt {
+        match else_stmt {
             Some(v_stmt) => {
                 let stmt = context.match_ast(v_stmt);
                 match stmt.get_type() {

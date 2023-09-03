@@ -100,9 +100,9 @@ unsafe fn get_value_for_print_argument(
     match value.get_ptr() {
         Some(v) => {
             let value = LLVMBuildLoad2(builder, int1_type(), v, name);
-            return value;
+            value
         }
-        None => return value.get_value(),
+        None => value.get_value(),
     }
 }
 

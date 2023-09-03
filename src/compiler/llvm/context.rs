@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::compiler::llvm::{int1_ptr_type, int32_ptr_type, int32_type, int8_ptr_type};
+use crate::compiler::llvm::{int32_type, int8_ptr_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
