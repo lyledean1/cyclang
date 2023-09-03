@@ -98,15 +98,28 @@ unsafe fn get_comparison_bool_type(
 
 impl Arithmetic for BoolType {}
 
+
+unsafe fn get_value_for_print_argument(builder: LLVMBuilderRef, name: *const i8, value: BoolType) -> LLVMValueRef {
+    match value.get_ptr() {
+        Some(v) => {
+            let value = LLVMBuildLoad2(
+                builder,
+                int1_type(),
+                v,
+                name,
+            );
+            return value;
+        }
+        None => {
+            return value.get_value()
+        }
+    }
+}
+
 impl Debug for BoolType {
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
-            let value = LLVMBuildLoad2(
-                self.builder,
-                int1_type(),
-                self.get_ptr().unwrap(),
-                self.get_name(),
-            );
+            let value = get_value_for_print_argument(ast_context.builder, self.get_name(), self.clone());
 
             let bool_func_args: *mut *mut llvm_sys::LLVMValue = [value].as_mut_ptr();
 

@@ -757,7 +757,7 @@ mod test {
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(stdout, "120\n");
     }
 
     #[test]

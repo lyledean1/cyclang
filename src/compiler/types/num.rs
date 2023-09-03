@@ -81,27 +81,43 @@ impl Arithmetic for NumberType {
     fn sub(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let lhs_value = LLVMBuildLoad2(
-                    context.builder,
-                    int32_type(),
-                    self.get_ptr().unwrap(),
-                    self.get_name(),
-                );
-                let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(
-                    context.builder,
-                    int32_type(),
-                    _rhs.get_ptr().unwrap(),
-                    _rhs.get_name(),
-                );
-                let result = LLVMBuildSub(context.builder, lhs_value, rhs_value, c_str!("sub_num"));
-                LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
-                //TODO: fix the new instruction
-                Box::new(NumberType {
-                    name: self.name.clone(),
-                    llmv_value: result,
-                    llmv_value_pointer: self.llmv_value_pointer,
-                    cname: self.get_name(),
-                })
+                match self.llmv_value_pointer {
+                    Some(p) => {
+                        let lhs_value = LLVMBuildLoad2(
+                            context.builder,
+                            int32_type(),
+                            self.get_ptr().unwrap(),
+                            self.get_name(),
+                        );
+                        let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(
+                            context.builder,
+                            int32_type(),
+                            _rhs.get_ptr().unwrap(),
+                            _rhs.get_name(),
+                        );
+                        let result = LLVMBuildSub(context.builder, lhs_value, rhs_value, c_str!("add_num"));
+                        LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
+                        //TODO: fix the new instruction
+                        return Box::new(NumberType {
+                            name: self.name.clone(),
+                            llmv_value: result,
+                            llmv_value_pointer: self.llmv_value_pointer,
+                            cname: self.get_name(),
+                        })
+                    }
+                    None => {
+                        let result = LLVMBuildSub(context.builder, self.get_value(), _rhs.get_value(), c_str!("add_num"));
+                        let alloca = LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str!("param_add"));
+                        LLVMBuildStore(context.builder, result, alloca);
+                        //TODO: fix the new instruction
+                        return Box::new(NumberType {
+                            name: self.name.clone(),
+                            llmv_value: result,
+                            llmv_value_pointer: Some(alloca),
+                            cname: self.get_name(),
+                        })
+                    }
+                }
             },
             _ => {
                 unreachable!(
@@ -116,27 +132,43 @@ impl Arithmetic for NumberType {
     fn mul(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let lhs_value = LLVMBuildLoad2(
-                    context.builder,
-                    int32_type(),
-                    self.get_ptr().unwrap(),
-                    self.get_name(),
-                );
-                let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(
-                    context.builder,
-                    int32_type(),
-                    _rhs.get_ptr().unwrap(),
-                    _rhs.get_name(),
-                );
-                let result = LLVMBuildMul(context.builder, lhs_value, rhs_value, c_str!("result"));
-                LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
-                //TODO: fix the new instruction
-                Box::new(NumberType {
-                    name: self.name.clone(),
-                    llmv_value: result,
-                    llmv_value_pointer: self.llmv_value_pointer,
-                    cname: self.get_name(),
-                })
+                match self.llmv_value_pointer {
+                    Some(p) => {
+                        let lhs_value = LLVMBuildLoad2(
+                            context.builder,
+                            int32_type(),
+                            self.get_ptr().unwrap(),
+                            self.get_name(),
+                        );
+                        let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(
+                            context.builder,
+                            int32_type(),
+                            _rhs.get_ptr().unwrap(),
+                            _rhs.get_name(),
+                        );
+                        let result = LLVMBuildMul(context.builder, lhs_value, rhs_value, c_str!("add_num"));
+                        LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
+                        //TODO: fix the new instruction
+                        return Box::new(NumberType {
+                            name: self.name.clone(),
+                            llmv_value: result,
+                            llmv_value_pointer: self.llmv_value_pointer,
+                            cname: self.get_name(),
+                        })
+                    }
+                    None => {
+                        let result = LLVMBuildMul(context.builder, self.get_value(), _rhs.get_value(), c_str!("add_num"));
+                        let alloca = LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str!("param_add"));
+                        LLVMBuildStore(context.builder, result, alloca);
+                        //TODO: fix the new instruction
+                        return Box::new(NumberType {
+                            name: self.name.clone(),
+                            llmv_value: result,
+                            llmv_value_pointer: Some(alloca),
+                            cname: self.get_name(),
+                        })
+                    }
+                }
             },
             _ => {
                 unreachable!(
@@ -291,11 +323,22 @@ impl TypeBase for NumberType {
     }
 }
 
+unsafe fn get_int32_arg_for_comp_self(val: NumberType, rhs: Box<dyn TypeBase>) -> [LLVMValueRef; 2] {
+    match val.get_ptr() {
+        Some(v) => {
+            return [v, rhs.get_ptr().unwrap()];
+        }
+        None => {
+            return [val.get_value(), rhs.get_value()]
+        }
+    }
+}
+
 impl Comparison for NumberType {
     fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number => unsafe {
-                let compare_int32_args = [self.get_ptr().unwrap(), _rhs.get_ptr().unwrap()].as_mut_ptr();
+                let compare_int32_args = get_int32_arg_for_comp_self(self.clone(), _rhs.clone()).as_mut_ptr();
                 match context.llvm_func_cache.get("compare_int32") {
                     Some(compare_int32_func) => {
                         let cmp = LLVMBuildCall2(

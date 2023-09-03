@@ -115,7 +115,7 @@ pub unsafe fn build_compare_int32_func(
     let builder = unsafe { LLVMCreateBuilderInContext(context) };
 
     // Create the function
-    let mut arg_types = [int32_ptr_type(), int32_ptr_type()];
+    let mut arg_types = [int32_type(), int32_type()];
     let func_type = unsafe { LLVMFunctionType(int1_type(), arg_types.as_mut_ptr(), 2, 0) };
     let function = unsafe { LLVMAddFunction(module, c_str!("compare_int32"), func_type) };
 
@@ -126,8 +126,8 @@ pub unsafe fn build_compare_int32_func(
     let rhs_val: *mut llvm_sys::LLVMValue = LLVMGetParam(function, 1);
 
     LLVMPositionBuilderAtEnd(builder, entry_block);
-    let lhs_val = LLVMBuildLoad2(builder, int32_ptr_type(), lhs_val, c_str!("lhs_bool"));
-    let rhs_val = LLVMBuildLoad2(builder, int32_ptr_type(), rhs_val, c_str!("rhs_bool"));
+    // let lhs_val = LLVMBuildLoad2(builder, int32_ptr_type(), lhs_val, c_str!("lhs_bool"));
+    // let rhs_val = LLVMBuildLoad2(builder, int32_ptr_type(), rhs_val, c_str!("rhs_bool"));
     let cmp = LLVMBuildICmp(
         builder,
         llvm_sys::LLVMIntPredicate::LLVMIntEQ,
