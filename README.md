@@ -4,6 +4,8 @@ A programming language I built in Rust - mainly for fun and my own learning! Use
 
 Try the Fibonacci example in `/examples/fib.cyclo`
 
+*Note*: *this isn't the most efficient Fibonacci algorithm but its showing off the language capabilities*
+
 ```rust
 fn fib(int n) -> int {
     if (n < 2) {
