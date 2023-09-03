@@ -46,6 +46,8 @@ fn compile_output_from_string(contents: String) -> Output {
 }
 
 fn main() {
+    // Create the bin directory for LLVM IR if doesn't exist    
+    fs::create_dir_all("./bin").unwrap();
     let args = Args::parse();
     if let Some(filename) = args.file {
         let contents = fs::read_to_string(filename).expect("Failed to read file");
