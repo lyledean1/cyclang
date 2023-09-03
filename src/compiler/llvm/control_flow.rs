@@ -53,7 +53,7 @@ pub fn new_if_stmt(
 
         context.set_current_block(if_entry_block);
 
-        let cmp = LLVMBuildLoad2(context.builder, int1_type(), cond.get_ptr(), c_str!("cmp"));
+        let cmp = LLVMBuildLoad2(context.builder, int1_type(), cond.get_ptr().unwrap(), c_str!("cmp"));
         LLVMBuildCondBr(context.builder, cmp, then_block, else_block);
 
         context.set_current_block(merge_block);
@@ -80,7 +80,7 @@ pub fn new_while_stmt(
         let cmp = LLVMBuildLoad2(
             context.builder,
             int1_type(),
-            value_condition.get_ptr(),
+            value_condition.get_ptr().unwrap(),
             c_str!("cmp"),
         );
 
@@ -100,7 +100,7 @@ pub fn new_while_stmt(
         let value_cond_load = LLVMBuildLoad2(
             context.builder,
             int1_type(),
-            value_condition.get_ptr(),
+            value_condition.get_ptr().unwrap(),
             c_str!("while_value_bool_var"),
         );
 
@@ -145,7 +145,7 @@ pub fn new_for_loop(
         let ptr = i.get_ptr();
         context.var_cache.set(&var_name, i, context.depth);
 
-        LLVMBuildStore(context.builder, value, ptr);
+        LLVMBuildStore(context.builder, value, ptr.unwrap());
 
         // Branch to loop condition block
         LLVMBuildBr(context.builder, loop_cond_block);
@@ -167,7 +167,7 @@ pub fn new_for_loop(
             LLVMBuildLoad2(
                 context.builder,
                 LLVMInt32TypeInContext(context.context),
-                op_lhs,
+                op_lhs.unwrap(),
                 c_str!(""),
             ),
             LLVMConstInt(
@@ -193,13 +193,13 @@ pub fn new_for_loop(
             LLVMBuildLoad2(
                 context.builder,
                 LLVMInt32TypeInContext(context.context),
-                ptr,
+                ptr.unwrap(),
                 c_str!(""),
             ),
             LLVMConstInt(LLVMInt32TypeInContext(context.context), increment as u64, 0),
             c_str!(""),
         );
-        LLVMBuildStore(context.builder, new_value, ptr);
+        LLVMBuildStore(context.builder, new_value, ptr.unwrap());
         LLVMBuildBr(context.builder, loop_cond_block); // Jump back to loop condition
 
         // Position builder at loop exit block

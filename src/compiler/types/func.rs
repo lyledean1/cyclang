@@ -41,7 +41,7 @@ impl Func for FuncType {
 
             let call_args = &mut vec![];
             for arg in args.iter() {
-                call_args.push(_context.match_ast(arg.clone()).get_ptr());
+                call_args.push(_context.match_ast(arg.clone()).get_value());
             }
             let call_value = LLVMBuildCall2(
                 _context.builder,
@@ -58,7 +58,7 @@ impl Func for FuncType {
 
                     return Box::new(NumberType {
                         llmv_value: call_value,
-                        llmv_value_pointer: ptr,
+                        llmv_value_pointer: None,
                         name: "call_value".into(),
                         cname: c_str("call_value"),
                     });

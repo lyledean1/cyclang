@@ -236,7 +236,7 @@ impl ASTContext {
             Expression::Grouping(_input) => self.match_ast(*_input),
             Expression::LetStmt(var, lhs) => {
                 match self.var_cache.get(&var) {
-                    Some(val) => {
+                    Some(mut val) => {
                         // Check Variables are the same Type
                         // Then Update the value of the old variable
                         // reassign variable

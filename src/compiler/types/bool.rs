@@ -104,7 +104,7 @@ impl Debug for BoolType {
             let value = LLVMBuildLoad2(
                 self.builder,
                 int1_type(),
-                self.get_ptr(),
+                self.get_ptr().unwrap(),
                 self.get_name(),
             );
 
@@ -173,16 +173,16 @@ impl TypeBase for BoolType {
             })
         }
     }
-    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
                 let rhs_val = LLVMBuildLoad2(
                     _ast_context.builder,
                     int1_type(),
-                    _rhs.get_ptr(),
+                    _rhs.get_ptr().unwrap(),
                     c_str!("load_bool"),
                 );
-                LLVMBuildStore(self.builder, rhs_val, self.get_ptr());
+                LLVMBuildStore(self.builder, rhs_val, self.get_ptr().unwrap());
             },
             _ => {
                 unreachable!(
@@ -197,8 +197,8 @@ impl TypeBase for BoolType {
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
-    fn get_ptr(&self) -> LLVMValueRef {
-        self.llmv_value_pointer
+    fn get_ptr(&self) -> Option<LLVMValueRef> {
+        Some(self.llmv_value_pointer)
     }
 }
 

@@ -176,7 +176,7 @@ impl TypeBase for StringType {
             })
         }
     }
-    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
             BaseTypes::String => {
                 //TODO: need to revisit implementation of strings
@@ -195,9 +195,9 @@ impl TypeBase for StringType {
     fn get_value(&self) -> LLVMValueRef {
         self.llmv_value
     }
-    fn get_ptr(&self) -> LLVMValueRef {
+    fn get_ptr(&self) -> Option<LLVMValueRef> {
         match self.llmv_value_pointer {
-            Some(v) => v,
+            Some(v) => Some(v),
             None => {
                 unreachable!("No pointer for this value")
             }

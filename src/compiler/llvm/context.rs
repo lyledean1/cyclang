@@ -204,23 +204,21 @@ impl LLVMFunction {
                 Expression::FuncArg(v, t) => match t {
                     Type::Int => {
                         let val = LLVMGetParam(function, i as u32);
-                        let ptr = LLVMBuildAlloca(context.builder, int32_ptr_type(), c_str(""));
                         let num = NumberType {
                             llmv_value: val,
-                            llmv_value_pointer: ptr,
+                            llmv_value_pointer: None,
                             name: "param".into(),
-                            cname: c_str("param"),
+                            cname: c_str!("param"),
                         };
                         new_function.set_func_var(v, Box::new(num));
                     }
                     Type::String => {}
                     Type::Bool => {
                         let val = LLVMGetParam(function, i as u32);
-                        let ptr = LLVMBuildAlloca(context.builder, int1_ptr_type(), c_str(""));
                         let bool_type = BoolType {
                             builder: context.builder,
                             llmv_value: val,
-                            llmv_value_pointer: ptr,
+                            llmv_value_pointer: val,
                             name: "bool_param".into(),
                         };
                         new_function.set_func_var(v, Box::new(bool_type));
@@ -268,8 +266,8 @@ impl LLVMFunction {
         for arg in args.into_iter() {
             match arg {
                 Expression::FuncArg(_, t) => match t {
-                    Type::Bool => args_vec.push(int1_ptr_type()),
-                    Type::Int => args_vec.push(int8_ptr_type()),
+                    Type::Bool => args_vec.push(int1_type()),
+                    Type::Int => args_vec.push(int32_type()),
                     Type::String => args_vec.push(int8_ptr_type()),
                     _ => {
                         unreachable!("unknown type {:?}", t)
