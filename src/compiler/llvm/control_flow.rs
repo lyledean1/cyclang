@@ -1,4 +1,7 @@
 use crate::c_str;
+use crate::compiler::types::return_type::ReturnType;
+use crate::compiler::types::void::VoidType;
+use crate::compiler::types::BaseTypes;
 use crate::compiler::TypeBase;
 use crate::parser::Expression;
 extern crate llvm_sys;
@@ -10,36 +13,52 @@ use llvm_sys::LLVMIntPredicate;
 
 pub fn new_if_stmt(
     context: &mut ASTContext,
-    condition: Box<Expression>,
-    if_stmt: Box<Expression>,
-    else_stmt: Box<Option<Expression>>,
-) {
+    condition: Expression,
+    if_stmt: Expression,
+    else_stmt: Option<Expression>,
+) -> Box<dyn TypeBase> {
     unsafe {
+        let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
         let function = context.current_function.function;
         let if_entry_block: *mut llvm_sys::LLVMBasicBlock = context.current_function.block;
 
         LLVMPositionBuilderAtEnd(context.builder, if_entry_block);
 
-        let cond: Box<dyn TypeBase> = context.match_ast(*condition);
+        let cond: Box<dyn TypeBase> = context.match_ast(condition);
         // Build If Block
         let then_block = LLVMAppendBasicBlock(function, c_str!("then_block"));
         let merge_block = LLVMAppendBasicBlock(function, c_str!("merge_block"));
 
         context.set_current_block(then_block);
 
-        context.match_ast(*if_stmt);
+        let stmt = context.match_ast(if_stmt);
+        println!("{:?}", stmt.get_type());
 
+        match stmt.get_type() {
+            BaseTypes::Return => {
+                return_type = Box::new(ReturnType {});
+            }
+            _ => {
+                LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
+            }
+        }
         // Each
-        LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
 
         // Build Else Block
         let else_block = LLVMAppendBasicBlock(function, c_str!("else_block"));
         context.set_current_block(else_block);
 
-        match *else_stmt {
+        match else_stmt {
             Some(v_stmt) => {
-                context.match_ast(v_stmt);
-                LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
+                let stmt = context.match_ast(v_stmt);
+                match stmt.get_type() {
+                    BaseTypes::Return => {
+                        return_type = Box::new(ReturnType {});
+                    }
+                    _ => {
+                        LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
+                    }
+                }
             }
             _ => {
                 LLVMPositionBuilderAtEnd(context.builder, else_block);
@@ -53,17 +72,23 @@ pub fn new_if_stmt(
 
         context.set_current_block(if_entry_block);
 
-        let cmp = LLVMBuildLoad2(context.builder, int1_type(), cond.get_ptr(), c_str!("cmp"));
+        let cmp = LLVMBuildLoad2(
+            context.builder,
+            int1_type(),
+            cond.get_ptr().unwrap(),
+            c_str!("cmp"),
+        );
         LLVMBuildCondBr(context.builder, cmp, then_block, else_block);
 
         context.set_current_block(merge_block);
+        return_type
     }
 }
 
 pub fn new_while_stmt(
     context: &mut ASTContext,
-    condition: Box<Expression>,
-    while_block_stmt: Box<Expression>,
+    condition: Expression,
+    while_block_stmt: Expression,
 ) -> Box<dyn TypeBase> {
     unsafe {
         let function = context.current_function.function;
@@ -75,12 +100,12 @@ pub fn new_while_stmt(
         // Set bool type in entry block
         let var_name = c_str!("while_value_bool_var");
         let bool_type_ptr = LLVMBuildAlloca(context.builder, int1_type(), var_name);
-        let value_condition = context.match_ast(*condition);
+        let value_condition = context.match_ast(condition);
 
         let cmp = LLVMBuildLoad2(
             context.builder,
             int1_type(),
-            value_condition.get_ptr(),
+            value_condition.get_ptr().unwrap(),
             c_str!("cmp"),
         );
 
@@ -91,7 +116,7 @@ pub fn new_while_stmt(
         context.set_current_block(loop_body_block);
         // Check if the global variable already exists
 
-        context.match_ast(*while_block_stmt);
+        context.match_ast(while_block_stmt);
 
         LLVMBuildBr(context.builder, loop_cond_block); // Jump back to loop condition
 
@@ -100,7 +125,7 @@ pub fn new_while_stmt(
         let value_cond_load = LLVMBuildLoad2(
             context.builder,
             int1_type(),
-            value_condition.get_ptr(),
+            value_condition.get_ptr().unwrap(),
             c_str!("while_value_bool_var"),
         );
 
@@ -123,7 +148,7 @@ pub fn new_for_loop(
     init: i32,
     length: i32,
     increment: i32,
-    for_block_expr: Box<Expression>,
+    for_block_expr: Expression,
 ) -> Box<dyn TypeBase> {
     unsafe {
         let for_block = context.current_function.block;
@@ -145,7 +170,7 @@ pub fn new_for_loop(
         let ptr = i.get_ptr();
         context.var_cache.set(&var_name, i, context.depth);
 
-        LLVMBuildStore(context.builder, value, ptr);
+        LLVMBuildStore(context.builder, value, ptr.unwrap());
 
         // Branch to loop condition block
         LLVMBuildBr(context.builder, loop_cond_block);
@@ -167,7 +192,7 @@ pub fn new_for_loop(
             LLVMBuildLoad2(
                 context.builder,
                 LLVMInt32TypeInContext(context.context),
-                op_lhs,
+                op_lhs.unwrap(),
                 c_str!(""),
             ),
             LLVMConstInt(
@@ -186,20 +211,20 @@ pub fn new_for_loop(
 
         // Build loop body block
         context.set_current_block(loop_body_block);
-        let for_block_cond = context.match_ast(*for_block_expr);
+        let for_block_cond = context.match_ast(for_block_expr);
 
         let new_value = LLVMBuildAdd(
             context.builder,
             LLVMBuildLoad2(
                 context.builder,
                 LLVMInt32TypeInContext(context.context),
-                ptr,
+                ptr.unwrap(),
                 c_str!(""),
             ),
             LLVMConstInt(LLVMInt32TypeInContext(context.context), increment as u64, 0),
             c_str!(""),
         );
-        LLVMBuildStore(context.builder, new_value, ptr);
+        LLVMBuildStore(context.builder, new_value, ptr.unwrap());
         LLVMBuildBr(context.builder, loop_cond_block); // Jump back to loop condition
 
         // Position builder at loop exit block

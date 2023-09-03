@@ -27,6 +27,7 @@ use std::process::Command;
 use std::ptr;
 
 use self::llvm::control_flow::{new_for_loop, new_while_stmt};
+use self::types::return_type::ReturnType;
 
 pub mod llvm;
 pub mod types;
@@ -236,7 +237,7 @@ impl ASTContext {
             Expression::Grouping(_input) => self.match_ast(*_input),
             Expression::LetStmt(var, lhs) => {
                 match self.var_cache.get(&var) {
-                    Some(val) => {
+                    Some(mut val) => {
                         // Check Variables are the same Type
                         // Then Update the value of the old variable
                         // reassign variable
@@ -261,13 +262,14 @@ impl ASTContext {
                 // Each Block Stmt, Incr and Decr
                 // Clearing all the "Local" Variables That Have Been Assigned
                 self.incr();
+                let mut val: Box<dyn TypeBase> = Box::new(VoidType {});
                 for expr in exprs {
-                    self.match_ast(expr);
+                    val = self.match_ast(expr);
                 }
                 // Delete Variables
                 self.var_cache.del_locals(self.get_depth());
                 self.decr();
-                Box::new(VoidType {})
+                val
             }
             Expression::CallStmt(name, args) => match self.func_cache.get(&name) {
                 Some(val) => {
@@ -290,7 +292,7 @@ impl ASTContext {
                     self.current_function.block,
                 );
 
-                let mut func = FuncType {
+                let func = FuncType {
                     llvm_type: llvm_func.func_type,
                     llvm_func: llvm_func.function,
                     return_type: _return_type,
@@ -304,14 +306,13 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                new_if_stmt(self, condition, if_stmt, else_stmt);
-                Box::new(VoidType {})
+                return new_if_stmt(self, *condition, *if_stmt, *else_stmt);
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
-                new_while_stmt(self, condition, while_block_stmt)
+                new_while_stmt(self, *condition, *while_block_stmt)
             }
             Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
-                new_for_loop(self, var_name, init, length, increment, for_block_expr)
+                new_for_loop(self, var_name, init, length, increment, *for_block_expr)
             }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(*input);
@@ -321,9 +322,9 @@ impl ASTContext {
             Expression::ReturnStmt(input) => {
                 let expression_value = self.match_ast(*input);
                 unsafe {
-                    LLVMBuildRet(self.builder, expression_value.get_ptr());
+                    LLVMBuildRet(self.builder, expression_value.get_value());
                 }
-                expression_value
+                Box::new(ReturnType {})
             }
         }
     }

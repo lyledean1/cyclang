@@ -658,6 +658,19 @@ mod test {
     }
 
     #[test]
+    fn test_compile_fn_return_int_value_mul() {
+        let input = r#"
+        fn mul(int x, int y) -> int {
+            return x * y;
+        }
+        print(mul(5,5));
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "25\n");
+    }
+
+    #[test]
     fn test_compile_fn_return_int_value_with_call_stmts() {
         let input = r#"
         fn add(int x, int y) -> int {
@@ -715,29 +728,47 @@ mod test {
         assert_eq!(stdout, "true\n");
     }
 
-    // #[test]
-    // fn test_compile_fn_return_bool_false_value_cmp_ints_in_another_fn() {
-    //     let input = r#"
-    //     fn compare(int x, int y) -> bool {
-    //         return (x == y);
-    //     }
-    //     fn expect_false() -> bool {
-    //         return (compare(1,1) == compare(2,1));
-    //     }
-    //     let value = expect_false();
-    //     print(value);
-    //     "#;
-    //     let output = compile_output_from_string(input.to_string());
-    //     let stdout: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stdout);
-    //     assert_eq!(stdout, "false\n");
-    // }
+    #[test]
+    fn test_compile_fn_return_bool_false_value_cmp_ints_in_another_fn() {
+        let input = r#"
+        fn compare(int x, int y) -> bool {
+            return (x == y);
+        }
+        fn expect_false() -> bool {
+            return (compare(1,2) == compare(1,1));
+        }
+        print(expect_false());
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "false\n");
+    }
 
     #[test]
-    fn test_recursive_fn() {
+    fn test_recursive_factorial_fn() {
+        let input = r#"
+        fn factorial(int n) -> int {
+            if (n == 0) {
+                return 1;
+            }
+            return n * factorial(n - 1);
+        }
+        print(factorial(5));
+        "#;
+        let output = compile_output_from_string(input.to_string());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout, "120\n");
+    }
+
+    #[test]
+    fn test_recursive_fib_fn() {
         let input = r#"
         fn fib(int n) -> int {
-            if (n <= 1) {
+            if (n == 0) {
                 return 0;
+            }
+            if (n == 1) {
+                return 1;
             }
             return fib(n - 1) + fib(n - 2);
         }
@@ -745,6 +776,6 @@ mod test {
         "#;
         let output = compile_output_from_string(input.to_string());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(stdout, "6765\n");
     }
 }

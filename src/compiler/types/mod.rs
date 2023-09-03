@@ -5,6 +5,7 @@
 pub mod bool;
 pub mod func;
 pub mod num;
+pub mod return_type;
 pub mod string;
 pub mod void;
 
@@ -25,6 +26,7 @@ pub enum BaseTypes {
     Bool,
     Func,
     Void,
+    Return,
 }
 
 pub trait Base: DynClone {
@@ -40,7 +42,7 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
     {
         unimplemented!("new has not been implemented for this type");
     }
-    fn assign(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
+    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         unimplemented!("{:?} type does not implement assign", self.get_type())
     }
     unsafe fn get_name(&self) -> *const i8 {
@@ -53,7 +55,7 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
         )
     }
     fn get_value(&self) -> LLVMValueRef;
-    fn get_ptr(&self) -> LLVMValueRef {
+    fn get_ptr(&self) -> Option<LLVMValueRef> {
         unimplemented!(
             "get_ptr is not implemented for this type {:?}",
             self.get_type()
