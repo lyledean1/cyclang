@@ -6,7 +6,6 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
-use std::ffi::CString;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -23,7 +22,12 @@ use crate::parser::{Expression, Type};
 extern crate llvm_sys;
 use crate::c_str;
 use llvm_sys::core::*;
+use llvm_sys::execution_engine::{
+    LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
+    LLVMLinkInMCJIT,
+};
 use llvm_sys::prelude::*;
+use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget};
 use std::process::Command;
 use std::ptr;
 
@@ -33,9 +37,12 @@ use self::types::return_type::ReturnType;
 pub mod llvm;
 pub mod types;
 
-fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
+fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> String {
     unsafe {
-        // setup
+        LLVMLinkInMCJIT();
+        LLVM_InitializeNativeTarget();
+        LLVM_InitializeNativeAsmPrinter();
+
         let context = LLVMContextCreate();
         let module = LLVMModuleCreateWithName(c_str!("main"));
         let builder = LLVMCreateBuilderInContext(context);
@@ -90,21 +97,41 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>) -> String {
         }
         LLVMBuildRetVoid(builder);
 
-        // get and set the architecture
-        let arch_str = std::env::consts::ARCH;
-        let c_str = CString::new(arch_str).expect("Failed to convert to CString");
-        let ptr: *const i8 = c_str.as_ptr() as *const i8;
+        // Run execution engine
+        let mut engine = ptr::null_mut();
+        let mut error = ptr::null_mut();
 
-        LLVMSetTarget(module, ptr);
-        LLVMPrintModuleToFile(module, c_str!("bin/main.ll"), ptr::null_mut());
+        if LLVMCreateExecutionEngineForModule(&mut engine, module, &mut error) != 0 {
+            LLVMDisposeMessage(error);
+            panic!("Failed to create execution engine");
+        }
+
+        let main_func: extern "C" fn() = std::mem::transmute(LLVMGetFunctionAddress(
+            engine,
+            b"main\0".as_ptr() as *const _,
+        ));
+
+        // Call the main function. It should execute its code.
+        if is_execution_engine {
+            main_func();
+        }
+        if !is_execution_engine {
+            LLVMPrintModuleToFile(module, c_str!("bin/main.ll"), ptr::null_mut());
+        }
         // Use Clang to output LLVM IR -> Binary
         // LLVMWriteBitcodeToFile(module, c_str!("bin/main.bc"));
+
         let module_cstr = CStr::from_ptr(LLVMPrintModuleToString(module));
         let module_string = module_cstr.to_string_lossy().into_owned();
 
         // clean up
         LLVMDisposeBuilder(builder);
-        LLVMDisposeModule(module);
+        if is_execution_engine {
+            LLVMDisposeExecutionEngine(engine);
+        }
+        if !is_execution_engine {
+            LLVMDisposeModule(module);
+        }
         LLVMContextDispose(context);
         module_string
     }
@@ -336,23 +363,27 @@ impl ASTContext {
     }
 }
 
-pub fn compile(input: Vec<Expression>) -> Result<Output, Error> {
+pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<Output, Error> {
     // output LLVM IR
-    llvm_compile_to_ir(input);
+
+    llvm_compile_to_ir(input, is_execution_engine);
     // compile to binary
+    if !is_execution_engine {
+        let output = Command::new("clang")
+            .arg("bin/main.ll")
+            .arg("-o")
+            .arg("bin/main")
+            .output();
 
-    let output = Command::new("clang")
-        .arg("bin/main.ll")
-        .arg("-o")
-        .arg("bin/main")
-        .output();
+        match output {
+            Ok(_ok) => {}
+            Err(e) => return Err(e),
+        }
 
-    match output {
-        Ok(_ok) => {}
-        Err(e) => return Err(e),
+        // // //TODO: add this as a debug line
+        // println!("main executable generated, running bin/main");
+        return Command::new("bin/main").output();
     }
-
-    // // //TODO: add this as a debug line
-    // println!("main executable generated, running bin/main");
-    Command::new("bin/main").output()
+    // todo handle no command
+    Command::new("ls").output()
 }
