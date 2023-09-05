@@ -1,11 +1,12 @@
 #[macro_use]
 extern crate pest_derive;
 use clap::Parser;
-use std::{fmt};
+use std::fmt;
 use std::process::exit;
-use std::{fs, process::Output};
+use std::fs;
 mod parser;
 mod repl;
+mod cyclo_error;
 
 #[macro_use]
 mod compiler;
@@ -29,7 +30,7 @@ impl fmt::Display for ParserError {
     }
 }
 
-fn compile_output_from_string(contents: String, is_execution_engine: bool) -> Output {
+fn compile_output_from_string(contents: String, is_execution_engine: bool) -> String {
     match parser::parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
         Ok(exprs) => match compiler::compile(exprs, is_execution_engine) {
@@ -60,7 +61,7 @@ fn main() {
 mod test {
     use super::*;
     //Note: Integration tests for parsing and compiling output
-    fn compile_output_from_string_test(contents: String) -> Output {
+    fn compile_output_from_string_test(contents: String) -> String {
         compile_output_from_string(contents, false)
     }
     
@@ -68,24 +69,21 @@ mod test {
     fn test_compile_print_number_expression() {
         let input = r#"print(12);"#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "12\n");
+        assert_eq!(output, "12\n");
     }
 
     #[test]
     fn test_compile_print_string_expression() {
         let input = r#"print("example blah blah blah");"#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"example blah blah blah\"\n");
+        assert_eq!(output, "\"example blah blah blah\"\n");
     }
 
     #[test]
     fn test_compile_print_add_string_expression() {
         let input = r#"print("hello" + " world");"#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "hello world\n");
+        assert_eq!(output, "hello world\n");
     }
 
     #[test]
@@ -93,8 +91,7 @@ mod test {
         let input = r#"print(true);"#;
         // call print statement for str
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -104,8 +101,7 @@ mod test {
         print(variable);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -115,8 +111,7 @@ mod test {
         print(variable);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "2\n");
+        assert_eq!(output, "2\n");
     }
 
     #[test]
@@ -127,8 +122,7 @@ mod test {
         print(number);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "3\n");
+        assert_eq!(output, "3\n");
     }
 
     #[test]
@@ -138,8 +132,7 @@ mod test {
         print(variable);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"hello\"\n");
+        assert_eq!(output, "\"hello\"\n");
     }
 
     #[test]
@@ -149,8 +142,7 @@ mod test {
         print(value);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -159,8 +151,7 @@ mod test {
         print(2 + 4);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "6\n");
+        assert_eq!(output, "6\n");
     }
 
     #[test]
@@ -169,8 +160,7 @@ mod test {
         print(6 - 4);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "2\n");
+        assert_eq!(output, "2\n");
     }
 
     #[test]
@@ -179,8 +169,7 @@ mod test {
         print(5 * 4);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "20\n");
+        assert_eq!(output, "20\n");
     }
 
     #[test]
@@ -189,8 +178,7 @@ mod test {
         print(20/4);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "5\n");
+        assert_eq!(output, "5\n");
     }
 
     #[test]
@@ -199,8 +187,7 @@ mod test {
         print(4 == 4);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -209,8 +196,7 @@ mod test {
         print(4 == 5);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
+        assert_eq!(output, "false\n");
     }
 
     #[test]
@@ -219,8 +205,7 @@ mod test {
         print("4" == "4");
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -229,8 +214,7 @@ mod test {
         print("4" == "5");
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
+        assert_eq!(output, "false\n");
     }
 
     #[test]
@@ -239,8 +223,7 @@ mod test {
         print(true == false);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
+        assert_eq!(output, "false\n");
     }
 
     #[test]
@@ -249,8 +232,7 @@ mod test {
         print(true == true);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -259,8 +241,7 @@ mod test {
         print(true != true);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
+        assert_eq!(output, "false\n");
     }
 
     #[test]
@@ -269,8 +250,7 @@ mod test {
         print(true != false);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -283,8 +263,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"hello\"\n");
+        assert_eq!(output, "\"hello\"\n");
     }
 
     #[test]
@@ -296,8 +275,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"hello\"\n");
+        assert_eq!(output, "\"hello\"\n");
     }
 
     #[test]
@@ -311,8 +289,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"hello\"\n");
+        assert_eq!(output, "\"hello\"\n");
     }
 
     #[test]
@@ -327,8 +304,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"hello\"\n");
+        assert_eq!(output, "\"hello\"\n");
     }
 
     #[test]
@@ -345,8 +321,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"yep\"\n");
+        assert_eq!(output, "\"yep\"\n");
     }
 
     #[test]
@@ -364,8 +339,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"yep\"\n\"yep\"\n");
+        assert_eq!(output, "\"yep\"\n\"yep\"\n");
     }
 
     #[test]
@@ -391,8 +365,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "1\n2\n3\n4\n");
+        assert_eq!(output, "1\n2\n3\n4\n");
     }
 
     #[test]
@@ -422,8 +395,7 @@ mod test {
         print(var);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "1\n2\n3\n4\n5\n");
+        assert_eq!(output, "1\n2\n3\n4\n5\n");
     }
 
     #[test]
@@ -436,8 +408,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
+        assert_eq!(output, "false\n");
     }
 
     #[test]
@@ -452,8 +423,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -466,10 +436,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert_eq!(stderr, "");
-        assert_eq!(stdout, "\"here\"\n");
+        assert_eq!(output, "\"here\"\n");
     }
 
     #[test]
@@ -482,8 +449,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -495,8 +461,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "");
+        assert_eq!(output, "");
     }
 
     #[test]
@@ -511,8 +476,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "1\n");
+        assert_eq!(output, "1\n");
     }
 
     #[test]
@@ -524,8 +488,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n");
+        assert_eq!(output, "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n");
     }
 
     #[test]
@@ -538,8 +501,7 @@ mod test {
         print(is_true);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -551,8 +513,7 @@ mod test {
         hello_world();
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"hello world\"\n");
+        assert_eq!(output, "\"hello world\"\n");
     }
 
     #[test]
@@ -571,8 +532,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "\"hello world\"\n");
+        assert_eq!(output, "\"hello world\"\n");
     }
 
     #[test]
@@ -587,8 +547,7 @@ mod test {
         hello_world();
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -602,8 +561,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "0\n1\n3\n6\n10\n15\n21\n28\n36\n45\n");
+        assert_eq!(output, "0\n1\n3\n6\n10\n15\n21\n28\n36\n45\n");
     }
 
     #[test]
@@ -617,8 +575,7 @@ mod test {
         }
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "10\n19\n27\n34\n40\n45\n49\n52\n54\n55\n");
+        assert_eq!(output, "10\n19\n27\n34\n40\n45\n49\n52\n54\n55\n");
     }
 
     #[test]
@@ -631,8 +588,7 @@ mod test {
         print(get_int());
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "5\n");
+        assert_eq!(output, "5\n");
     }
 
     #[test]
@@ -645,8 +601,7 @@ mod test {
         add(10, 10);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "20\n");
+        assert_eq!(output, "20\n");
     }
 
     #[test]
@@ -658,8 +613,7 @@ mod test {
         print(add(5,5));
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "10\n");
+        assert_eq!(output, "10\n");
     }
 
     #[test]
@@ -671,8 +625,7 @@ mod test {
         print(mul(5,5));
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "25\n");
+        assert_eq!(output, "25\n");
     }
 
     #[test]
@@ -687,8 +640,7 @@ mod test {
         print(add_together());
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "29\n");
+        assert_eq!(output, "29\n");
     }
 
     #[test]
@@ -700,8 +652,7 @@ mod test {
         print(compare(true,false));
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
+        assert_eq!(output, "false\n");
     }
 
     #[test]
@@ -713,8 +664,7 @@ mod test {
         print(compare_ints(1000,1000));
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -729,8 +679,7 @@ mod test {
         print(expect_true());
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "true\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
@@ -745,8 +694,7 @@ mod test {
         print(expect_false());
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "false\n");
+        assert_eq!(output, "false\n");
     }
 
     #[test]
@@ -761,8 +709,7 @@ mod test {
         print(factorial(5));
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "120\n");
+        assert_eq!(output, "120\n");
     }
 
     #[test]
@@ -777,7 +724,6 @@ mod test {
         print(fib(20));
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "6765\n");
+        assert_eq!(output, "6765\n");
     }
 }
