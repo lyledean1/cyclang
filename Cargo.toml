@@ -13,3 +13,6 @@ pest = "2.7.0"
 pest_derive = "2.7.0"
 rustyline = "11.0.0"
 text-colorizer = "1.0.0"
+
+[profile.release]
+opt-level = 0
