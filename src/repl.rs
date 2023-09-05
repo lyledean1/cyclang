@@ -16,13 +16,14 @@ pub fn run() {
         println!();
     }
     loop {
-        let readline = rl.readline(">> ");
-        match readline {
+        let line = rl.readline(">> ");
+        match line {
             Ok(input) => {
                 match input.trim() {
                     "exit()" => break,
                     _ => {
-                        match parse_and_compile(input) {
+                       let _ = rl.add_history_entry(input.as_str());
+                        match parse_and_compile(input.to_string()) {
                             Ok(output) => {
                                 println!("{}", output)
                             },
