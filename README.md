@@ -16,6 +16,8 @@ fn fib(int n) -> int {
 print(fib(20));
 ```
 
+You will need [Rust](https://www.rust-lang.org/tools/install) installed, as it currently work only with Cargo.
+
 ```
 cargo run -- --file ./examples/fib.cyclo
 ```
