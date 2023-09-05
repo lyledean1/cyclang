@@ -3,11 +3,12 @@ use crate::parser;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use text_colorizer::*;
+use crate::cyclo_error::CycloError;
 
 pub fn run() {
     let version: &str = env!("CARGO_PKG_VERSION");
 
-    println!("{} version: {}", "a#".bold(), version.italic());
+    println!("{} version: {}", "#".bold(), version.italic());
     println!();
 
     let mut rl = DefaultEditor::new().unwrap();
@@ -18,27 +19,16 @@ pub fn run() {
         let readline = rl.readline(">> ");
         match readline {
             Ok(input) => {
-                // TODO: readd history
-                // let history_err = rl.add_history_entry(input.as_str());
-                // match history_err {
-                //     //TODO: decide how to handle
-                //     _ => {}
-                // }
                 match input.trim() {
                     "exit()" => break,
                     _ => {
-                        //TODO: to
-                        match parser::parse_cyclo_program(&input) {
-                            // add each
-                            Ok(exprs) => match compiler::compile(exprs, false) {
-                                Ok(output) => {
-                                    println!("{}", String::from_utf8_lossy(&output.stdout))
-                                }
-                                Err(e) => {
-                                    eprintln!("{}", e);
-                                }
+                        match parse_and_compile(input) {
+                            Ok(output) => {
+                                println!("{}", output)
                             },
-                            Err(e) => println!("Error: {}", e),
+                            Err(e) => {
+                                eprintln!("{}", e);
+                            } 
                         }
                     }
                 }
@@ -56,4 +46,11 @@ pub fn run() {
             }
         }
     }
+}
+
+
+fn parse_and_compile(input: String) -> Result<String, CycloError> {
+    let exprs = parser::parse_cyclo_program(&input)?;
+    let output = compiler::compile(exprs, true)?;
+    Ok(output)
 }

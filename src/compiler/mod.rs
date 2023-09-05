@@ -6,6 +6,7 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
+use crate::cyclo_error::CycloError;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -13,10 +14,6 @@ use std::ffi::CStr;
 use crate::compiler::llvm::context::*;
 use crate::compiler::llvm::control_flow::new_if_stmt;
 use crate::compiler::llvm::functions::*;
-
-use std::io::Error;
-use std::process::Output;
-
 use crate::parser::{Expression, Type};
 
 extern crate llvm_sys;
@@ -363,27 +360,23 @@ impl ASTContext {
     }
 }
 
-pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<Output, Error> {
+pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
     // output LLVM IR
-
+    
     llvm_compile_to_ir(input, is_execution_engine);
     // compile to binary
     if !is_execution_engine {
-        let output = Command::new("clang")
+        Command::new("clang")
             .arg("bin/main.ll")
             .arg("-o")
             .arg("bin/main")
-            .output();
-
-        match output {
-            Ok(_ok) => {}
-            Err(e) => return Err(e),
-        }
+            .output()?;
 
         // // //TODO: add this as a debug line
         // println!("main executable generated, running bin/main");
-        return Command::new("bin/main").output();
+        let output = Command::new("bin/main").output()?;
+        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
     }
     // todo handle no command
-    Command::new("ls").output()
+    Ok("".to_string())
 }
