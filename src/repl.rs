@@ -30,7 +30,7 @@ pub fn run() {
                         //TODO: to
                         match parser::parse_cyclo_program(&input) {
                             // add each
-                            Ok(exprs) => match compiler::compile(exprs) {
+                            Ok(exprs) => match compiler::compile(exprs, false) {
                                 Ok(output) => {
                                     println!("{}", String::from_utf8_lossy(&output.stdout))
                                 }
