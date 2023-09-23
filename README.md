@@ -26,14 +26,16 @@ This should output `6765`!
 
 ## LLVM Set Up 
 
-Install LLVM 16
+Install LLVM 17
 ```
 brew install llvm@16
 ```
 
-Set LLVM_SYS_160_PREFIX variable before you run `cargo run`
+The build.rs file should set this up, but incase you need to set this manually
+
+Set LLVM_SYS_170_PREFIX variable before you run `cargo run`
 ```
-export LLVM_SYS_160_PREFIX=/PATH/TO/LLVM16/VERSION
+export LLVM_SYS_170_PREFIX=/PATH/TO/LLVM17/VERSION
 ```
 
 ## Run

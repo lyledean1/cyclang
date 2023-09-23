@@ -29,8 +29,8 @@ fn main() {
 
     println!("Found LLVM version: {}", version_str);
 
-    if !version_str.starts_with("16.0") {
-        panic!("Unsupported LLVM version: {}. LLVM 16.0.x is required.", version_str);
+    if !version_str.starts_with("17.0") {
+        panic!("Unsupported LLVM version: {}. LLVM 17.0.x is required.", version_str);
     }
 
     let llvm_dir = Path::new(llvm_config_path)
@@ -41,6 +41,6 @@ fn main() {
 
     let llvm_dir_str = llvm_dir.to_str().expect("Failed to convert path to string");
 
-    env::set_var("LLVM_SYS_160_PREFIX", llvm_dir_str);
+    env::set_var("LLVM_SYS_170_PREFIX", llvm_dir_str);
     println!("cargo:rerun-if-changed=build.rs");
 }
