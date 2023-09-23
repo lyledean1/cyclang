@@ -11,3 +11,4 @@ Cargo.lock
 /bin/*
 .DS_Store
 /.idea
+build
