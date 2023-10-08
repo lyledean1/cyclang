@@ -28,7 +28,7 @@ This should output `6765`!
 
 Install LLVM 17
 ```
-brew install llvm@16
+brew install llvm@17
 ```
 
 The build.rs file should set this up, but incase you need to set this manually
