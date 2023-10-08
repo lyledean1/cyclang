@@ -53,8 +53,9 @@ Ensure you have the /bin folder set up (this will dump LLVM IR)
 ## Features
 
 - [x] cli
-- [ ] repl
-- [ ] JIT
+- [x] repl
+    - quite basic at the moment
+- [x] JIT 
 
 ## Grammar
 
@@ -86,3 +87,19 @@ Ensure you have the /bin folder set up (this will dump LLVM IR)
     - [ ] Lambda Functions
     - [ ] Closures
 - [ ] Classes
+
+## Debugging Release Mode Errors
+
+If getting errors with the release mode then use [Rust Sanitizer](https://github.com/japaric/rust-san) flags to debug.
+
+Run the following command to identify memory issues
+```
+RUSTFLAGS="-Z sanitizer=address" cargo run --target={TARGET_ARCH} --release -- --file ./examples/simple.cyclo --output-llvm-ir
+```
+
+Where target architecture is your architecture i.e aarch64-apple-darwin
+
+Also set proc_macro2 -> 1.66 if using Rust nightly compiler in the Cargo.toml
+```
+proc-macro2 = { version = "1.0.66", features=["default", "proc-macro"] }
+```
