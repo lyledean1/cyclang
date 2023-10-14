@@ -1,6 +1,7 @@
 use crate::c_str;
 use crate::compiler::llvm::*;
 use std::any::Any;
+use std::ffi::CString;
 
 use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
@@ -251,6 +252,8 @@ impl Debug for NumberType {
                     );
 
                     let print_args = [ast_context.printf_str_num_value, val].as_mut_ptr();
+                    // let mut print_args: [LLVMValueRef; 2] = [ast_context.printf_str_value, val];
+
                     match ast_context.llvm_func_cache.get("printf") {
                         Some(print_func) => {
                             LLVMBuildCall2(
@@ -259,7 +262,7 @@ impl Debug for NumberType {
                                 print_func.function,
                                 print_args,
                                 2,
-                                c_str!(""),
+                                c_str!("call_fun"),
                             );
                         }
                         _ => {
@@ -301,7 +304,10 @@ impl TypeBase for NumberType {
         };
         unsafe {
             let value = LLVMConstInt(int32_type(), value_as_i32.try_into().unwrap(), 0);
-            let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_str(_name.as_str()));
+            let c_string = CString::new(_name.clone()).unwrap();
+            let c_pointer: *const i8 = c_string.as_ptr() as *const i8;
+// Check if the global variable already exists
+            let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_pointer);
             LLVMBuildStore(_context.builder, value, ptr);
             let cname = c_str!("var_num_var");
             Box::new(NumberType {

@@ -3,6 +3,8 @@ use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::llvm::*;
 
 use std::any::Any;
+use std::ffi::CString;
+
 extern crate llvm_sys;
 use crate::compiler::types::{Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::*;
@@ -159,9 +161,9 @@ impl TypeBase for BoolType {
                 num = 1
             }
             let bool_value = LLVMConstInt(int1_type(), num, 0);
-            let var_name = c_str(_name.as_str());
-            // Check if the global variable already exists
-            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), var_name);
+            let c_string = CString::new(_name.clone()).unwrap();
+            let c_pointer: *const i8 = c_string.as_ptr() as *const i8;
+            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_pointer);
             LLVMBuildStore(_context.builder, bool_value, alloca);
             Box::new(BoolType {
                 name: _name,
