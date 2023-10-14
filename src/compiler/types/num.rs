@@ -252,7 +252,6 @@ impl Debug for NumberType {
                     );
 
                     let print_args = [ast_context.printf_str_num_value, val].as_mut_ptr();
-                    // let mut print_args: [LLVMValueRef; 2] = [ast_context.printf_str_value, val];
 
                     match ast_context.llvm_func_cache.get("printf") {
                         Some(print_func) => {
@@ -262,7 +261,7 @@ impl Debug for NumberType {
                                 print_func.function,
                                 print_args,
                                 2,
-                                c_str!("call_fun"),
+                                c_str!(""),
                             );
                         }
                         _ => {
