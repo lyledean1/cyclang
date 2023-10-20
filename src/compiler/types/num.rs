@@ -242,10 +242,16 @@ impl Debug for NumberType {
     fn print(&self, ast_context: &mut ASTContext) {
         // Load Value from Value Index Ptr
         match self.get_ptr() {
-            Some(e) => {
+            Some(v) => {
                 unsafe {
+                    let value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(
+                        ast_context.builder,
+                        int32_type(),
+                        v,
+                        self.get_name(),
+                    );
                     let mut print_args: Vec<LLVMValueRef> =
-                        vec![ast_context.printf_str_num_value, self.get_value()];
+                        vec![ast_context.printf_str_num_value, value];
                     match ast_context.llvm_func_cache.get("printf") {
                         Some(print_func) => {
                             LLVMBuildCall2(
