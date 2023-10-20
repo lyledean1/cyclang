@@ -1,7 +1,12 @@
 [package]
 name = "cyclo"
-version = "0.1.0"
+description = "Cyclolang is a toy language built in LLVM."
+version = "0.1.11"
 edition = "2021"
+readme = "./README.md"
+keywords = ["cyclolang", "llvm", "pest", "language"]
+license = "Apache-2.0/MIT"
+repository = "https://github.com/lyledean1/cyclolang"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
