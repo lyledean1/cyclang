@@ -2,11 +2,11 @@
 extern crate pest_derive;
 use clap::Parser;
 use std::fmt;
-use std::process::exit;
 use std::fs;
+use std::process::exit;
+mod cyclo_error;
 mod parser;
 mod repl;
-mod cyclo_error;
 
 #[macro_use]
 mod compiler;
@@ -64,7 +64,7 @@ mod test {
     fn compile_output_from_string_test(contents: String) -> String {
         compile_output_from_string(contents, false)
     }
-    
+
     #[test]
     fn test_compile_print_number_expression() {
         let input = r#"print(12);"#;

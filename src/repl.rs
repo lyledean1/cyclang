@@ -1,9 +1,9 @@
 use crate::compiler;
+use crate::cyclo_error::CycloError;
 use crate::parser;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use text_colorizer::*;
-use crate::cyclo_error::CycloError;
 
 pub fn run() {
     let version: &str = env!("CARGO_PKG_VERSION");
@@ -18,22 +18,20 @@ pub fn run() {
     loop {
         let line = rl.readline(">> ");
         match line {
-            Ok(input) => {
-                match input.trim() {
-                    "exit()" => break,
-                    _ => {
-                       let _ = rl.add_history_entry(input.as_str());
-                        match parse_and_compile(input.to_string()) {
-                            Ok(output) => {
-                                println!("{}", output)
-                            },
-                            Err(e) => {
-                                eprintln!("{}", e);
-                            } 
+            Ok(input) => match input.trim() {
+                "exit()" => break,
+                _ => {
+                    let _ = rl.add_history_entry(input.as_str());
+                    match parse_and_compile(input.to_string()) {
+                        Ok(output) => {
+                            println!("{}", output)
+                        }
+                        Err(e) => {
+                            eprintln!("{}", e);
                         }
                     }
                 }
-            }
+            },
             Err(ReadlineError::Interrupted) => {
                 println!("Did you want to exit? Type exit()");
             }
@@ -48,7 +46,6 @@ pub fn run() {
         }
     }
 }
-
 
 fn parse_and_compile(input: String) -> Result<String, CycloError> {
     let exprs = parser::parse_cyclo_program(&input)?;
