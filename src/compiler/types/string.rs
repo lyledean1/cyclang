@@ -122,14 +122,16 @@ impl Debug for StringType {
                 llvm_value_to_cstr,
             );
 
-            let print_args = [ast_context.printf_str_value, val].as_mut_ptr();
+            // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
+            let mut print_args: Vec<LLVMValueRef> =
+                vec![ast_context.printf_str_value, val];
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
                     LLVMBuildCall2(
                         ast_context.builder,
                         print_func.func_type,
                         print_func.function,
-                        print_args,
+                        print_args.as_mut_ptr(),
                         2,
                         c_str!(""),
                     );

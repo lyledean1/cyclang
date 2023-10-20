@@ -108,7 +108,7 @@ impl Debug for BoolType {
             let value =
                 get_value_for_print_argument(ast_context.builder, self.get_name(), self.clone());
 
-            let bool_func_args: *mut *mut llvm_sys::LLVMValue = [value].as_mut_ptr();
+            let mut bool_func_args: Vec<LLVMValueRef> = vec![value];
 
             match ast_context.llvm_func_cache.get("bool_to_str") {
                 Some(bool_to_string) => {
@@ -116,19 +116,19 @@ impl Debug for BoolType {
                         ast_context.builder,
                         bool_to_string.func_type,
                         bool_to_string.function,
-                        bool_func_args,
+                        bool_func_args.as_mut_ptr(),
                         1,
                         c_str!(""),
                     );
 
-                    let print_args: *mut *mut llvm_sys::LLVMValue = [str_value].as_mut_ptr();
+                    let mut print_args: Vec<LLVMValueRef> = vec![str_value];
                     match ast_context.llvm_func_cache.get("printf") {
                         Some(print_func) => {
                             LLVMBuildCall2(
                                 ast_context.builder,
                                 print_func.func_type,
                                 print_func.function,
-                                print_args,
+                                print_args.as_mut_ptr(),
                                 1,
                                 c_str!(""),
                             );
