@@ -31,7 +31,7 @@ impl Comparison for StringType {
         match _rhs.get_type() {
             BaseTypes::String => {
                 let value = self.get_str() == _rhs.get_str();
-                return BoolType::new(Box::new(value), self.name.clone(), _context);
+                BoolType::new(Box::new(value), self.name.clone(), _context)
             }
             _ => {
                 unreachable!(
@@ -47,7 +47,7 @@ impl Comparison for StringType {
         match _rhs.get_type() {
             BaseTypes::String => {
                 let value = self.get_str() != _rhs.get_str();
-                return BoolType::new(Box::new(value), self.name.clone(), _context);
+                BoolType::new(Box::new(value), self.name.clone(), _context)
             }
             _ => {
                 unreachable!(

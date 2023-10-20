@@ -154,21 +154,21 @@ impl ASTContext {
     fn try_match_with_var(&mut self, name: String, input: Expression) -> Box<dyn TypeBase> {
         match input {
             Expression::Number(input) => {
-                return NumberType::new(
+                NumberType::new(
                     Box::new(input),
                     var_type_str(name, "num_var".to_string()),
                     self,
                 )
             }
             Expression::String(input) => {
-                return StringType::new(
+                StringType::new(
                     Box::new(input),
                     var_type_str(name, "str_var".to_string()),
                     self,
                 )
             }
             Expression::Bool(input) => {
-                return BoolType::new(
+                BoolType::new(
                     Box::new(input),
                     var_type_str(name, "bool_var".to_string()),
                     self,
@@ -176,7 +176,7 @@ impl ASTContext {
             }
             _ => {
                 // just return without var
-                return self.match_ast(input);
+                self.match_ast(input)
             }
         }
     }
@@ -184,10 +184,10 @@ impl ASTContext {
     pub fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
         match input {
             Expression::Number(input) => {
-                return NumberType::new(Box::new(input), "num".to_string(), self);
+                NumberType::new(Box::new(input), "num".to_string(), self)
             }
             Expression::String(input) => {
-                return StringType::new(Box::new(input), "str".to_string(), self)
+                StringType::new(Box::new(input), "str".to_string(), self)
             }
             Expression::Bool(input) => BoolType::new(Box::new(input), "bool".to_string(), self),
             Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {
@@ -336,7 +336,7 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                return new_if_stmt(self, *condition, *if_stmt, *else_stmt);
+                new_if_stmt(self, *condition, *if_stmt, *else_stmt)
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 new_while_stmt(self, *condition, *while_block_stmt)

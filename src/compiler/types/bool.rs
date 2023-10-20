@@ -31,13 +31,13 @@ impl Comparison for BoolType {
     fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
-                return get_comparison_bool_type(
+                get_comparison_bool_type(
                     self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntEQ,
-                );
+                )
             },
             _ => {
                 unreachable!(
@@ -52,13 +52,13 @@ impl Comparison for BoolType {
     fn ne(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Bool => unsafe {
-                return get_comparison_bool_type(
+                get_comparison_bool_type(
                     self.name.clone(),
                     context,
                     _rhs.get_value(),
                     self.get_value(),
                     LLVMIntPredicate::LLVMIntNE,
-                );
+                )
             },
             _ => {
                 unreachable!(
@@ -162,7 +162,7 @@ impl TypeBase for BoolType {
             }
             let bool_value = LLVMConstInt(int1_type(), num, 0);
             let c_string = CString::new(_name.clone()).unwrap();
-            let c_pointer: *const i8 = c_string.as_ptr() as *const i8;
+            let c_pointer: *const i8 = c_string.as_ptr();
             let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_pointer);
             LLVMBuildStore(_context.builder, bool_value, alloca);
             Box::new(BoolType {
