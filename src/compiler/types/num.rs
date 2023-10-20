@@ -11,7 +11,9 @@ use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Fun
 extern crate llvm_sys;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-use llvm_sys::LLVMIntPredicate;
+use llvm_sys::LLVMIntPredicate::{
+    LLVMIntEQ, LLVMIntNE, LLVMIntSGE, LLVMIntSGT, LLVMIntSLE, LLVMIntSLT,
+};
 
 #[derive(Debug, Clone)]
 pub struct NumberType {
@@ -29,8 +31,12 @@ impl Base for NumberType {
 }
 
 macro_rules! generate_arithmetic_operation_fn {
-    ($number_type:ident, $llvm_fn:ident, $operation:ident) => {
-        fn $operation(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    ($number_type:ident, $llvm_fn:ident, $operation:ident, $name:expr) => {
+        fn $operation(
+            &self,
+            context: &mut ASTContext,
+            _rhs: Box<dyn TypeBase>,
+        ) -> Box<dyn TypeBase> {
             match _rhs.get_type() {
                 BaseTypes::Number => unsafe {
                     match self.get_ptr() {
@@ -48,14 +54,14 @@ macro_rules! generate_arithmetic_operation_fn {
                                 _rhs.get_name(),
                             );
                             let result =
-                                $llvm_fn(context.builder, lhs_value, rhs_value, c_str!("add_num"));
+                                $llvm_fn(context.builder, lhs_value, rhs_value, c_str!($name));
                             LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
                             //TODO: fix the new instruction
                             let c_str_ref = CStr::from_ptr(self.get_name());
                             // Convert the CStr to a String (handles invalid UTF-8)
                             let name = c_str_ref.to_string_lossy().to_string();
-                            Box::new(NumberType {
-                                name: name,
+                            Box::new($number_type {
+                                name,
                                 llmv_value: result,
                                 llmv_value_pointer: self.get_ptr(),
                                 cname: self.get_name(),
@@ -80,7 +86,7 @@ macro_rules! generate_arithmetic_operation_fn {
                             let name = c_str_ref.to_string_lossy().to_string();
                             //TODO: fix the new instruction
                             Box::new($number_type {
-                                name: name,
+                                name,
                                 llmv_value: result,
                                 llmv_value_pointer: Some(alloca),
                                 cname: self.get_name(),
@@ -103,15 +109,21 @@ macro_rules! generate_arithmetic_operation_fn {
 macro_rules! generate_arithmetic_trait {
     ($number_type:ident, $llvm_add_fn:ident, $llvm_sub_fn:ident, $llvm_mul_fn:ident, $llvm_div_fn:ident) => {
         impl Arithmetic for $number_type {
-            generate_arithmetic_operation_fn!($number_type, $llvm_add_fn, add);
-            generate_arithmetic_operation_fn!($number_type, $llvm_sub_fn, sub);
-            generate_arithmetic_operation_fn!($number_type, $llvm_mul_fn, mul);
-            generate_arithmetic_operation_fn!($number_type, $llvm_div_fn, div);
+            generate_arithmetic_operation_fn!($number_type, $llvm_add_fn, add, "add");
+            generate_arithmetic_operation_fn!($number_type, $llvm_sub_fn, sub, "sub");
+            generate_arithmetic_operation_fn!($number_type, $llvm_mul_fn, mul, "mul");
+            generate_arithmetic_operation_fn!($number_type, $llvm_div_fn, div, "div");
         }
     };
 }
 
-generate_arithmetic_trait!(NumberType, LLVMBuildAdd, LLVMBuildSub, LLVMBuildMul, LLVMBuildSDiv);
+generate_arithmetic_trait!(
+    NumberType,
+    LLVMBuildAdd,
+    LLVMBuildSub,
+    LLVMBuildMul,
+    LLVMBuildSDiv
+);
 
 impl Debug for NumberType {
     fn print(&self, ast_context: &mut ASTContext) {
@@ -227,145 +239,97 @@ unsafe fn get_int32_arg_for_comp_self(
     }
 }
 
-impl Comparison for NumberType {
-    fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unsafe {
-            get_comparison_number_type(
-                self.name.clone(),
-                context,
-                _rhs.clone(),
-                self.clone(),
-                LLVMIntPredicate::LLVMIntEQ,
-            )
+macro_rules! generate_comparison_operation_fn {
+    ($number_type:ident, $llvm_int_predicate:ident, $operation:ident, $name:expr) => {
+        fn $operation(
+            &self,
+            context: &mut ASTContext,
+            rhs: Box<dyn TypeBase>,
+        ) -> Box<dyn TypeBase> {
+            match rhs.get_type() {
+                BaseTypes::Number => {}
+                _ => {
+                    unreachable!(
+                        "Can't $operation type {:?} and type {:?}",
+                        self.get_type(),
+                        rhs.get_type()
+                    )
+                }
+            }
+            unsafe {
+                // then do comparison
+                match self.get_ptr() {
+                    Some(lhs_ptr) => {
+                        // If loading a pointer
+                        let lhs_val = LLVMBuildLoad2(
+                            context.builder,
+                            int8_type(),
+                            lhs_ptr,
+                            c_str!("lhs_bool"),
+                        );
+                        let rhs_val = LLVMBuildLoad2(
+                            context.builder,
+                            int8_type(),
+                            rhs.get_ptr().unwrap(),
+                            c_str!("rhs_bool"),
+                        );
+                        let cmp = LLVMBuildICmp(
+                            context.builder,
+                            $llvm_int_predicate,
+                            lhs_val,
+                            rhs_val,
+                            c_str!("result"),
+                        );
+                        let alloca =
+                            LLVMBuildAlloca(context.builder, int1_type(), c_str!("bool_cmp"));
+                        LLVMBuildStore(context.builder, cmp, alloca);
+                        Box::new(BoolType {
+                            name: self.name.clone(),
+                            builder: context.builder,
+                            llmv_value: cmp,
+                            llmv_value_pointer: alloca,
+                        })
+                    }
+                    None => {
+                        // If loading a raw value
+                        let cmp = LLVMBuildICmp(
+                            context.builder,
+                            $llvm_int_predicate,
+                            self.get_value(),
+                            rhs.get_value(),
+                            c_str!("result"),
+                        );
+                        let alloca =
+                            LLVMBuildAlloca(context.builder, int1_type(), c_str!("bool_cmp"));
+                        LLVMBuildStore(context.builder, cmp, alloca);
+                        Box::new(BoolType {
+                            name: self.name.clone(),
+                            builder: context.builder,
+                            llmv_value: cmp,
+                            llmv_value_pointer: alloca,
+                        })
+                    }
+                }
+            }
         }
-    }
-
-    fn ne(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unsafe {
-            get_comparison_number_type(
-                self.name.clone(),
-                context,
-                _rhs.clone(),
-                self.clone(),
-                LLVMIntPredicate::LLVMIntNE,
-            )
-        }
-    }
-
-    fn gt(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unsafe {
-            get_comparison_number_type(
-                self.name.clone(),
-                context,
-                _rhs.clone(),
-                self.clone(),
-                LLVMIntPredicate::LLVMIntSGT,
-            )
-        }
-    }
-
-    fn gte(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unsafe {
-            get_comparison_number_type(
-                self.name.clone(),
-                context,
-                _rhs.clone(),
-                self.clone(),
-                LLVMIntPredicate::LLVMIntSGE,
-            )
-        }
-    }
-
-    fn lt(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unsafe {
-            get_comparison_number_type(
-                self.name.clone(),
-                context,
-                _rhs.clone(),
-                self.clone(),
-                LLVMIntPredicate::LLVMIntSLT,
-            )
-        }
-    }
-
-    fn lte(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unsafe {
-            get_comparison_number_type(
-                self.name.clone(),
-                context,
-                _rhs.clone(),
-                self.clone(),
-                LLVMIntPredicate::LLVMIntSLE,
-            )
-        }
-    }
+    };
 }
+
+macro_rules! generate_comparison_trait {
+    ($number_type:ident, $llvm_eqeq_predicate:ident, $llvm_ne_predicate:ident, $llvm_gt_predicate:ident, $llvm_gte_predicate:ident, $llvm_lt_predicate:ident, $llvm_lte_predicate:ident) => {
+        impl Comparison for $number_type {
+            generate_comparison_operation_fn!($number_type, $llvm_eqeq_predicate, eqeq, "eqeq");
+            generate_comparison_operation_fn!($number_type, $llvm_ne_predicate, ne, "ne");
+            generate_comparison_operation_fn!($number_type, $llvm_gt_predicate, gt, "gt");
+            generate_comparison_operation_fn!($number_type, $llvm_gte_predicate, gte, "gte");
+            generate_comparison_operation_fn!($number_type, $llvm_lt_predicate, lt, "lt");
+            generate_comparison_operation_fn!($number_type, $llvm_lte_predicate, lte, "lte");
+        }
+    };
+}
+
+generate_comparison_trait!(
+    NumberType, LLVMIntEQ, LLVMIntNE, LLVMIntSGT, LLVMIntSGE, LLVMIntSLT, LLVMIntSLE
+);
 
 impl Func for NumberType {}
-
-unsafe fn get_comparison_number_type(
-    _name: String,
-    _context: &mut ASTContext,
-    rhs: Box<dyn TypeBase>,
-    lhs: NumberType,
-    comparison: LLVMIntPredicate,
-) -> Box<dyn TypeBase> {
-    // First check type
-    match rhs.get_type() {
-        BaseTypes::Number => {}
-        _ => {
-            unreachable!(
-                "Can't add type {:?} and type {:?}",
-                lhs.get_type(),
-                rhs.get_type()
-            )
-        }
-    }
-    // then do comparison
-    match lhs.get_ptr() {
-        Some(lhs_ptr) => {
-            // If loading a pointer
-            let lhs_val =
-                LLVMBuildLoad2(_context.builder, int8_type(), lhs_ptr, c_str!("lhs_bool"));
-            let rhs_val = LLVMBuildLoad2(
-                _context.builder,
-                int8_type(),
-                rhs.get_ptr().unwrap(),
-                c_str!("rhs_bool"),
-            );
-            let cmp = LLVMBuildICmp(
-                _context.builder,
-                comparison,
-                lhs_val,
-                rhs_val,
-                c_str!("result"),
-            );
-            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
-            LLVMBuildStore(_context.builder, cmp, alloca);
-            Box::new(BoolType {
-                name: _name,
-                builder: _context.builder,
-                llmv_value: cmp,
-                llmv_value_pointer: alloca,
-            })
-        }
-        None => {
-            // If loading a raw value
-            let cmp = LLVMBuildICmp(
-                _context.builder,
-                comparison,
-                lhs.get_value(),
-                rhs.get_value(),
-                c_str!("result"),
-            );
-            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
-            LLVMBuildStore(_context.builder, cmp, alloca);
-            Box::new(BoolType {
-                name: _name,
-                builder: _context.builder,
-                llmv_value: cmp,
-                llmv_value_pointer: alloca,
-            })
-        }
-    }
-}

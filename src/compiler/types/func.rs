@@ -20,7 +20,7 @@ pub struct FuncType {
 
 impl Base for FuncType {
     fn get_llvm_type(&self) -> LLVMTypeRef {
-        return self.llvm_type;
+        self.llvm_type
     }
     fn get_type(&self) -> BaseTypes {
         BaseTypes::Func
