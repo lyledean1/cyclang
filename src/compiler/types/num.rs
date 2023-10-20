@@ -228,17 +228,6 @@ impl TypeBase for NumberType {
         self.llmv_value_pointer
     }
 }
-
-unsafe fn get_int32_arg_for_comp_self(
-    val: NumberType,
-    rhs: Box<dyn TypeBase>,
-) -> [LLVMValueRef; 2] {
-    match val.get_ptr() {
-        Some(v) => [v, rhs.get_ptr().unwrap()],
-        None => [val.get_value(), rhs.get_value()],
-    }
-}
-
 macro_rules! generate_comparison_operation_fn {
     ($number_type:ident, $llvm_int_predicate:ident, $operation:ident, $name:expr) => {
         fn $operation(
