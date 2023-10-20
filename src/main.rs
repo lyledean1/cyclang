@@ -7,7 +7,6 @@ use std::process::exit;
 mod cyclo_error;
 mod parser;
 mod repl;
-
 #[macro_use]
 mod compiler;
 

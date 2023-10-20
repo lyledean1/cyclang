@@ -17,5 +17,11 @@ libc = "0.2.149"
 llvm-sys = "170.0.0"
 pest = "2.7.0"
 pest_derive = "2.7.0"
+proc-macro2 = "1.0.69"
+quote = "1.0.33"
 rustyline = "11.0.0"
+syn = "2.0.38"
 text-colorizer = "1.0.0"
+
+[lib]
+proc-macro = true

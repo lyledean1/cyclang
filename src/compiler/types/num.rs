@@ -3,7 +3,6 @@ use crate::c_str;
 use crate::compiler::llvm::*;
 use std::any::Any;
 use std::ffi::{CStr, CString};
-
 use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
@@ -15,7 +14,9 @@ use llvm_sys::LLVMIntPredicate::{
     LLVMIntEQ, LLVMIntNE, LLVMIntSGE, LLVMIntSGT, LLVMIntSLE, LLVMIntSLT,
 };
 
+
 #[derive(Debug, Clone)]
+// #[derive(generate_arithmetic_trait)]
 pub struct NumberType {
     //TODO: remove pub use of these
     pub llmv_value: LLVMValueRef,
