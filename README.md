@@ -19,23 +19,23 @@ print(fib(20));
 You will need [Rust](https://www.rust-lang.org/tools/install) installed to run the below command.
 
 ```
-cargo run -- --file ./examples/fib.cyclo
+cylang --file ./examples/fib.cyc
 ```
 
 This should output `6765`! 
 
-## LLVM Set Up 
+##  Installing and Running (MacOS)
 
-Install LLVM 17
+*Note*: I've only tested this on MacOS.
+
+You will need LLVM 17 before you install Install LLVM 17
 ```
 brew install llvm@17
 ```
 
-The build.rs file should set this up, but incase you need to set this manually
-
-Set LLVM_SYS_170_PREFIX variable before you run `cargo run`
+Then the easiest way to install the binary currently is through the Rust package manager Cargo - see [Install Rust](https://www.rust-lang.org/tools/install). Once the step above is done, then run 
 ```
-export LLVM_SYS_170_PREFIX=/PATH/TO/LLVM17/VERSION
+cargo install cyclang
 ```
 
 ## Run
