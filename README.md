@@ -28,7 +28,7 @@ This should output `6765`!
 
 *Note*: I've only tested this on MacOS.
 
-You will need LLVM 17 before you install Install LLVM 17
+You will need LLVM 17 installed before you install cyclang, runn the following command
 ```
 brew install llvm@17
 ```
