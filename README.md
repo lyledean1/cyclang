@@ -1,8 +1,8 @@
-# Cyclo-lang
+# Cyclang
 
 A programming language I built in Rust - mainly for fun and my own learning! Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) as the backend to compile to machine code binary.
 
-Try the Fibonacci example in `/examples/fib.cyclo`
+Try the Fibonacci example in `/examples/fib.cyc`
 
 *Note*: *this isn't the most efficient Fibonacci algorithm but it's just an example of using recursion in the language, its also only been tested on an M1 Mac, so there might be bugs on other architectures*
 
@@ -40,10 +40,10 @@ export LLVM_SYS_170_PREFIX=/PATH/TO/LLVM17/VERSION
 
 ## Run
 
-Run the .cyclo file
+Run the .cyc file
 
 ```
-cyclo --file /path/to/file.cyclo
+cyclang --file /path/to/file.cyc
 ```
 
 ## Test
