@@ -1,6 +1,7 @@
 use crate::c_str;
 use crate::compiler::llvm::*;
 use std::any::Any;
+use std::ffi::CString;
 
 use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
@@ -239,46 +240,25 @@ impl Arithmetic for NumberType {
 
 impl Debug for NumberType {
     fn print(&self, ast_context: &mut ASTContext) {
-        unsafe {
-            // Load Value from Value Index Ptr
-            match self.get_ptr() {
-                Some(e) => {
-                    let val = LLVMBuildLoad2(
+        // Load Value from Value Index Ptr
+        match self.get_ptr() {
+            Some(v) => {
+                unsafe {
+                    let value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(
                         ast_context.builder,
-                        int32_ptr_type(),
-                        e,
-                        c_str!("num_printf_ptr_val"),
+                        int32_type(),
+                        v,
+                        self.get_name(),
                     );
-
-                    let print_args = [ast_context.printf_str_num_value, val].as_mut_ptr();
+                    let mut print_args: Vec<LLVMValueRef> =
+                        vec![ast_context.printf_str_num_value, value];
                     match ast_context.llvm_func_cache.get("printf") {
                         Some(print_func) => {
                             LLVMBuildCall2(
                                 ast_context.builder,
                                 print_func.func_type,
                                 print_func.function,
-                                print_args,
-                                2,
-                                c_str!(""),
-                            );
-                        }
-                        _ => {
-                            unreachable!()
-                        }
-                    }
-                }
-                None => {
-                    // let alloca = LLVMBuildAlloca(ast_context.builder, int32_ptr_type(), c_str!("print_num_ptr"));
-                    // LLVMBuildStore(ast_context.builder, self.get_value(), alloca);
-                    let print_args =
-                        [ast_context.printf_str_num_value, self.get_value()].as_mut_ptr();
-                    match ast_context.llvm_func_cache.get("printf") {
-                        Some(print_func) => {
-                            LLVMBuildCall2(
-                                ast_context.builder,
-                                print_func.func_type,
-                                print_func.function,
-                                print_args,
+                                print_args.as_mut_ptr(),
                                 2,
                                 c_str!(""),
                             );
@@ -289,6 +269,26 @@ impl Debug for NumberType {
                     }
                 }
             }
+            None => match ast_context.llvm_func_cache.get("printf") {
+                Some(print_func) => {
+                    unsafe {
+                    let mut print_args: Vec<LLVMValueRef> =
+                        vec![ast_context.printf_str_num_value, self.get_value()];
+
+                        LLVMBuildCall2(
+                            ast_context.builder,
+                            print_func.func_type,
+                            print_func.function,
+                            print_args.as_mut_ptr(),
+                            2,
+                            c_str!(""),
+                        );
+                    }
+                }
+                _ => {
+                    unreachable!()
+                }
+            },
         }
     }
 }
@@ -301,7 +301,10 @@ impl TypeBase for NumberType {
         };
         unsafe {
             let value = LLVMConstInt(int32_type(), value_as_i32.try_into().unwrap(), 0);
-            let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_str(_name.as_str()));
+            let c_string = CString::new(_name.clone()).unwrap();
+            let c_pointer: *const i8 = c_string.as_ptr() as *const i8;
+            // Check if the global variable already exists
+            let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_pointer);
             LLVMBuildStore(_context.builder, value, ptr);
             let cname = c_str!("var_num_var");
             Box::new(NumberType {

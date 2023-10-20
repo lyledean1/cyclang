@@ -362,7 +362,7 @@ impl ASTContext {
 
 pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
     // output LLVM IR
-    
+
     llvm_compile_to_ir(input, is_execution_engine);
     // compile to binary
     if !is_execution_engine {

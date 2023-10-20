@@ -3,6 +3,8 @@ use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::llvm::*;
 
 use std::any::Any;
+use std::ffi::CString;
+
 extern crate llvm_sys;
 use crate::compiler::types::{Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::*;
@@ -106,7 +108,7 @@ impl Debug for BoolType {
             let value =
                 get_value_for_print_argument(ast_context.builder, self.get_name(), self.clone());
 
-            let bool_func_args: *mut *mut llvm_sys::LLVMValue = [value].as_mut_ptr();
+            let mut bool_func_args: Vec<LLVMValueRef> = vec![value];
 
             match ast_context.llvm_func_cache.get("bool_to_str") {
                 Some(bool_to_string) => {
@@ -114,19 +116,19 @@ impl Debug for BoolType {
                         ast_context.builder,
                         bool_to_string.func_type,
                         bool_to_string.function,
-                        bool_func_args,
+                        bool_func_args.as_mut_ptr(),
                         1,
                         c_str!(""),
                     );
 
-                    let print_args: *mut *mut llvm_sys::LLVMValue = [str_value].as_mut_ptr();
+                    let mut print_args: Vec<LLVMValueRef> = vec![str_value];
                     match ast_context.llvm_func_cache.get("printf") {
                         Some(print_func) => {
                             LLVMBuildCall2(
                                 ast_context.builder,
                                 print_func.func_type,
                                 print_func.function,
-                                print_args,
+                                print_args.as_mut_ptr(),
                                 1,
                                 c_str!(""),
                             );
@@ -159,9 +161,9 @@ impl TypeBase for BoolType {
                 num = 1
             }
             let bool_value = LLVMConstInt(int1_type(), num, 0);
-            let var_name = c_str(_name.as_str());
-            // Check if the global variable already exists
-            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), var_name);
+            let c_string = CString::new(_name.clone()).unwrap();
+            let c_pointer: *const i8 = c_string.as_ptr() as *const i8;
+            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_pointer);
             LLVMBuildStore(_context.builder, bool_value, alloca);
             Box::new(BoolType {
                 name: _name,
