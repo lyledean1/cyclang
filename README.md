@@ -19,7 +19,7 @@ print(fib(20));
 You will need [Rust](https://www.rust-lang.org/tools/install) installed to run the below command.
 
 ```
-cylang --file ./examples/fib.cyc
+cyclang --file ./examples/fib.cyc
 ```
 
 This should output `6765`! 
