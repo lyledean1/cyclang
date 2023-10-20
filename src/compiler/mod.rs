@@ -153,27 +153,21 @@ impl ASTContext {
     //TODO: figure a better way to create a named variable in the LLVM IR
     fn try_match_with_var(&mut self, name: String, input: Expression) -> Box<dyn TypeBase> {
         match input {
-            Expression::Number(input) => {
-                NumberType::new(
-                    Box::new(input),
-                    var_type_str(name, "num_var".to_string()),
-                    self,
-                )
-            }
-            Expression::String(input) => {
-                StringType::new(
-                    Box::new(input),
-                    var_type_str(name, "str_var".to_string()),
-                    self,
-                )
-            }
-            Expression::Bool(input) => {
-                BoolType::new(
-                    Box::new(input),
-                    var_type_str(name, "bool_var".to_string()),
-                    self,
-                )
-            }
+            Expression::Number(input) => NumberType::new(
+                Box::new(input),
+                var_type_str(name, "num_var".to_string()),
+                self,
+            ),
+            Expression::String(input) => StringType::new(
+                Box::new(input),
+                var_type_str(name, "str_var".to_string()),
+                self,
+            ),
+            Expression::Bool(input) => BoolType::new(
+                Box::new(input),
+                var_type_str(name, "bool_var".to_string()),
+                self,
+            ),
             _ => {
                 // just return without var
                 self.match_ast(input)
@@ -183,12 +177,8 @@ impl ASTContext {
 
     pub fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
         match input {
-            Expression::Number(input) => {
-                NumberType::new(Box::new(input), "num".to_string(), self)
-            }
-            Expression::String(input) => {
-                StringType::new(Box::new(input), "str".to_string(), self)
-            }
+            Expression::Number(input) => NumberType::new(Box::new(input), "num".to_string(), self),
+            Expression::String(input) => StringType::new(Box::new(input), "str".to_string(), self),
             Expression::Bool(input) => BoolType::new(Box::new(input), "bool".to_string(), self),
             Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {
                 Some(val) => val.clone(),

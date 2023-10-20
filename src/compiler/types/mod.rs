@@ -10,13 +10,20 @@ pub mod string;
 pub mod void;
 
 //TODO: Upgrade to LLVMGetValueName2
-use llvm_sys::core::LLVMGetValueName;
+use llvm_sys::core::{LLVMBuildAlloca, LLVMBuildLoad2, LLVMBuildStore, LLVMGetValueName};
 use std::any::Any;
+use std::ffi::CStr;
 
-use crate::{compiler::llvm::context::ASTContext, parser::Expression};
+use crate::{c_str, compiler::llvm::context::ASTContext, parser::Expression};
 use dyn_clone::DynClone;
+extern crate libc;
+use libc::c_char;
 
 extern crate llvm_sys;
+use crate::compiler::llvm::{
+    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int8_ptr_type, int8_type,
+};
+use crate::compiler::types::num::NumberType;
 use llvm_sys::prelude::*;
 
 #[derive(Debug)]
@@ -29,9 +36,45 @@ pub enum BaseTypes {
     Return,
 }
 
+#[derive(Debug)]
+pub enum LLVMBaseTypes {
+    int32,
+    int64,
+    float32,
+    float64,
+    bool,
+}
+
 pub trait Base: DynClone {
     fn get_type(&self) -> BaseTypes;
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        match self.get_type() {
+            BaseTypes::String => int8_type(),
+            BaseTypes::Bool => int1_type(),
+            BaseTypes::Number => int32_type(),
+            _ => {
+                unreachable!("LLVMType for Type {:?} not found", self.get_type())
+            }
+        }
+    }
+    fn get_llvm_ptr_type(&self) -> LLVMTypeRef {
+        match self.get_type() {
+            BaseTypes::String => int8_ptr_type(),
+            BaseTypes::Bool => int1_ptr_type(),
+            BaseTypes::Number => int32_ptr_type(),
+            _ => {
+                unreachable!("LLVMType for Type {:?} not found", self.get_type())
+            }
+        }
+    }
 }
+
+type LLVMArithmeticFn = unsafe extern "C" fn(
+    arg1: LLVMBuilderRef,
+    LHS: LLVMValueRef,
+    RHS: LLVMValueRef,
+    Name: *const c_char,
+) -> LLVMValueRef;
 
 pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
     // TODO: remove on implementation
@@ -47,12 +90,6 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
     }
     unsafe fn get_name(&self) -> *const i8 {
         LLVMGetValueName(self.get_value())
-    }
-    fn get_llvm_type(&self) -> LLVMTypeRef {
-        unimplemented!(
-            "{:?} type does not implement get_llvm_type",
-            self.get_type()
-        )
     }
     fn get_value(&self) -> LLVMValueRef;
     fn get_ptr(&self) -> Option<LLVMValueRef> {

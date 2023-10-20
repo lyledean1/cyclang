@@ -123,8 +123,7 @@ impl Debug for StringType {
             );
 
             // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
-            let mut print_args: Vec<LLVMValueRef> =
-                vec![ast_context.printf_str_value, val];
+            let mut print_args: Vec<LLVMValueRef> = vec![ast_context.printf_str_value, val];
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
                     LLVMBuildCall2(
