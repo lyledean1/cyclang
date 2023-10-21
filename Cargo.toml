@@ -22,6 +22,4 @@ quote = "1.0.33"
 rustyline = "11.0.0"
 syn = "2.0.38"
 text-colorizer = "1.0.0"
-
-[lib]
-proc-macro = true
+cyclang-macros = { path = "./cyclang-macros" }

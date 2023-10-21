@@ -1,26 +1,21 @@
-extern crate proc_macro;
-
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{parse_macro_input, DeriveInput, Ident};
 
-#[proc_macro]
-pub fn generate_arithmetic_trait(input: TokenStream) -> TokenStream {
-    // Parse the input into a syntax tree
+pub fn generate_arithmetic_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-
-    // Extract the struct or enum name
     let struct_name = &input.ident;
 
-    // Generate code for each operation
-    let add_impl = generate_arithmetic_operation(struct_name, "add");
-    let sub_impl = generate_arithmetic_operation(struct_name, "sub");
-    let mul_impl = generate_arithmetic_operation(struct_name, "mul");
-    let div_impl = generate_arithmetic_operation(struct_name, "div");
+    let add_impl = generate_arithmetic_operation(struct_name, "LLVMBuildAdd", "add");
+    let sub_impl = generate_arithmetic_operation(struct_name, "LLVMBuildSub", "sub");
+    let mul_impl = generate_arithmetic_operation(struct_name, "LLVMBuildMul", "mul");
+    let div_impl = generate_arithmetic_operation(struct_name, "LLVMBuildSDiv", "div");
 
-    // Combine all generated code into a single TokenStream
+    let imports = quote! {
+        use std::ffi::CStr;
+    };
     let expanded = quote! {
-        // Trait implementation for Arithmetic
+        #imports
         impl Arithmetic for #struct_name {
             #add_impl
             #sub_impl
@@ -28,18 +23,21 @@ pub fn generate_arithmetic_trait(input: TokenStream) -> TokenStream {
             #div_impl
         }
     };
-
     // Return the generated code as a TokenStream
     TokenStream::from(expanded)
 }
 
-// Helper function to generate code for an arithmetic operation
-fn generate_arithmetic_operation(struct_name: &syn::Ident, operation: &str) -> proc_macro2::TokenStream {
-    let llvm_fn_ident = format!("LLVMBuild{}", operation.to_uppercase());
+fn generate_arithmetic_operation(
+    struct_name: &syn::Ident,
+    llvm_fn_name_str: &str,
+    operation: &str,
+) -> proc_macro2::TokenStream {
     let name = format!("\"{}\"", operation);
+    let fn_name = Ident::new(operation, proc_macro2::Span::call_site());
+    let llvm_fn_name = Ident::new(llvm_fn_name_str, proc_macro2::Span::call_site());
 
     quote! {
-        fn #operation(
+        fn #fn_name(
             &self,
             context: &mut ASTContext,
             _rhs: Box<dyn TypeBase>,
@@ -61,9 +59,8 @@ fn generate_arithmetic_operation(struct_name: &syn::Ident, operation: &str) -> p
                                 _rhs.get_name(),
                             );
                             let result =
-                                #llvm_fn_ident(context.builder, lhs_value, rhs_value, c_str!(#name));
+                                #llvm_fn_name(context.builder, lhs_value, rhs_value, c_str!(#name));
                             LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
-                            //TODO: fix the new instruction
                             let c_str_ref = CStr::from_ptr(self.get_name());
                             // Convert the CStr to a String (handles invalid UTF-8)
                             let name = c_str_ref.to_string_lossy().to_string();
@@ -75,7 +72,7 @@ fn generate_arithmetic_operation(struct_name: &syn::Ident, operation: &str) -> p
                             })
                         }
                         None => {
-                            let result = #llvm_fn_ident(
+                            let result = #llvm_fn_name(
                                 context.builder,
                                 self.get_value(),
                                 _rhs.get_value(),

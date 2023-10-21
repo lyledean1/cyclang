@@ -198,6 +198,7 @@ name = "cyclang"
 version = "0.1.14"
 dependencies = [
  "clap",
+ "cyclang-macros",
  "dyn-clone",
  "libc",
  "llvm-sys",
@@ -208,6 +209,15 @@ dependencies = [
  "rustyline",
  "syn 2.0.38",
  "text-colorizer",
+]
+
+[[package]]
+name = "cyclang-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.38",
 ]
 
 [[package]]

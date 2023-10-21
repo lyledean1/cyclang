@@ -5,7 +5,7 @@ use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
-use crate::compiler::types::TypeBase;
+use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::cyclo_error::CycloError;
 
 use std::collections::HashMap;
@@ -171,6 +171,17 @@ impl ASTContext {
             _ => {
                 // just return without var
                 self.match_ast(input)
+            }
+        }
+    }
+
+    fn get_printf_str(&mut self, val: BaseTypes) -> LLVMValueRef {
+        match val {
+            BaseTypes::Number => self.printf_str_num_value,
+            BaseTypes::Bool => self.printf_str_value,
+            BaseTypes::String => self.printf_str_value,
+            _ => {
+                unreachable!("get_printf_str not implemented for type {:?}", val)
             }
         }
     }

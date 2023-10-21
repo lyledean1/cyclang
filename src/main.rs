@@ -1,5 +1,8 @@
 #[macro_use]
 extern crate pest_derive;
+
+extern crate cyclang_macros;
+
 use clap::Parser;
 use std::fmt;
 use std::fs;
