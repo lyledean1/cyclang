@@ -14,5 +14,3 @@ syn = "2.0.38"
 [lib]
 proc-macro = true
 
-[package]
-publish = false
