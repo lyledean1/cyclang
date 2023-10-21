@@ -32,7 +32,7 @@ install-mdbook:
 	cargo install mdbook && cargo install mdbook-mermaid
 
 
-s serve-book:
+s serve:
 	cd book && mdbook serve
 
 
