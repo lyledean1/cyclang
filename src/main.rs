@@ -469,16 +469,18 @@ mod test {
     #[test]
     fn test_compile_while_stmt_with_if() {
         let input = r#"
-        let value = true;
-        let number = 0;
-        while(value) {
-            let other_value = true;
-            let value = false;
-            print(number + 1);
-        }
+            let cond = true;
+            let val = 0;
+            while (cond) {
+                val = val + 1;
+                if (val == 10) {
+                   cond = false;
+                }
+            }
+            print(val);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        assert_eq!(output, "1\n");
+        assert_eq!(output, "10\n");
     }
 
     #[test]
