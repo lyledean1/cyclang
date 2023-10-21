@@ -59,7 +59,7 @@ fn generate_arithmetic_operation(
                                 _rhs.get_name(),
                             );
                             let result =
-                                #llvm_fn_name(context.builder, lhs_value, rhs_value, cstr_from_string(#name));
+                                #llvm_fn_name(context.builder, lhs_value, rhs_value, cstr_from_string(#name).as_ptr());
                             LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
                             let c_str_ref = CStr::from_ptr(self.get_name());
                             // Convert the CStr to a String (handles invalid UTF-8)
@@ -76,12 +76,12 @@ fn generate_arithmetic_operation(
                                 context.builder,
                                 self.get_value(),
                                 _rhs.get_value(),
-                                cstr_from_string(#name),
+                                cstr_from_string(#name).as_ptr(),
                             );
                             let alloca = LLVMBuildAlloca(
                                 context.builder,
                                 self.get_llvm_ptr_type(),
-                                cstr_from_string("param_add"),
+                                cstr_from_string("param_add").as_ptr(),
                             );
                             LLVMBuildStore(context.builder, result, alloca);
                             let c_str_ref = CStr::from_ptr(self.get_name());

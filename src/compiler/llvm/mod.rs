@@ -1,6 +1,6 @@
 extern crate llvm_sys;
 
-use std::ffi::{CStr, CString};
+use std::ffi::{CString};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
@@ -9,9 +9,9 @@ pub mod control_flow;
 pub mod functions;
 pub mod types;
 
-pub fn cstr_from_string(name: &str) -> *const i8 {
-    let c_string = CString::new(name.clone()).unwrap();
-    c_string.as_ptr() as *const i8
+pub fn cstr_from_string(name: &str) -> CString {
+    // can't return pointer type since it will get dropped due to lifetimes
+    CString::new(name).unwrap()
 }
 
 pub fn int1_type() -> LLVMTypeRef {
@@ -36,10 +36,6 @@ pub fn int32_ptr_type() -> LLVMTypeRef {
 
 pub fn int8_ptr_type() -> LLVMTypeRef {
     unsafe { LLVMPointerType(LLVMInt8Type(), 0) }
-}
-
-pub fn c_str(format_str: &str) -> *const i8 {
-    format_str.as_ptr() as *const i8
 }
 
 pub fn var_type_str(name: String, type_name: String) -> String {

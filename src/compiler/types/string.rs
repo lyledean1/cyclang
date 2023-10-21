@@ -79,7 +79,7 @@ impl Arithmetic for StringType {
                         _ast_context.builder,
                         value,
                         LLVMPointerType(LLVMInt8Type(), 0),
-                        c_str("buffer_ptr"),
+                        cstr_from_string("buffer_ptr").as_ptr(),
                     );
                     Box::new(StringType {
                         name: self.name.clone(),
@@ -128,7 +128,7 @@ impl Debug for StringType {
                         print_func.function,
                         print_args.as_mut_ptr(),
                         2,
-                        cstr_from_string(""),
+                        cstr_from_string("").as_ptr(),
                     );
                 }
                 _ => {
@@ -162,7 +162,7 @@ impl TypeBase for StringType {
                 _context.builder,
                 value,
                 LLVMPointerType(LLVMInt8Type(), 0),
-                c_str(_name.as_str()),
+                cstr_from_string(_name.as_str()).as_ptr(),
             );
             Box::new(StringType {
                 name: _name,

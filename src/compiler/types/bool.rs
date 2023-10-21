@@ -50,7 +50,7 @@ impl Debug for BoolType {
                         bool_to_string.function,
                         bool_func_args.as_mut_ptr(),
                         1,
-                        cstr_from_string(""),
+                        cstr_from_string("").as_ptr(),
                     );
 
                     let mut print_args: Vec<LLVMValueRef> = vec![str_value];
@@ -62,7 +62,7 @@ impl Debug for BoolType {
                                 print_func.function,
                                 print_args.as_mut_ptr(),
                                 1,
-                                cstr_from_string(""),
+                                cstr_from_string("").as_ptr(),
                             );
                         }
                         _ => {
@@ -112,7 +112,7 @@ impl TypeBase for BoolType {
                     _ast_context.builder,
                     int1_type(),
                     _rhs.get_ptr().unwrap(),
-                    cstr_from_string("load_bool"),
+                    cstr_from_string("load_bool").as_ptr(),
                 );
                 LLVMBuildStore(self.builder, rhs_val, self.get_ptr().unwrap());
             },

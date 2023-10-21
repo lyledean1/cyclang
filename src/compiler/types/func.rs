@@ -51,14 +51,14 @@ impl Func for FuncType {
                 self.get_value(),
                 call_args.as_mut_ptr(),
                 LLVMCountParamTypes(self.get_llvm_type()),
-                cstr_from_string(""),
+                cstr_from_string("").as_ptr(),
             );
             match self.return_type {
                 Type::Int => {
                     let ptr = LLVMBuildAlloca(
                         _context.builder,
                         int32_ptr_type(),
-                        cstr_from_string("call_value_int"),
+                        cstr_from_string("call_value_int").as_ptr(),
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);
 
@@ -66,14 +66,14 @@ impl Func for FuncType {
                         llmv_value: call_value,
                         llmv_value_pointer: None,
                         name: "call_value".into(),
-                        cname: cstr_from_string("call_value"),
+                        cname: cstr_from_string("call_value").as_ptr(),
                     });
                 }
                 Type::Bool => {
                     let ptr = LLVMBuildAlloca(
                         _context.builder,
                         int1_ptr_type(),
-                        cstr_from_string("call_value_int"),
+                        cstr_from_string("call_value_int").as_ptr(),
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);
                     return Box::new(BoolType {

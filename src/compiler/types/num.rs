@@ -34,7 +34,7 @@ impl TypeBase for NumberType {
             // Check if the global variable already exists
             let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_pointer);
             LLVMBuildStore(_context.builder, value, ptr);
-            let cname = cstr_from_string("var_num_var");
+            let cname = cstr_from_string("var_num_var").as_ptr();
             Box::new(NumberType {
                 name: _name,
                 llmv_value: value,

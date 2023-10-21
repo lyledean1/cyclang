@@ -6,7 +6,6 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
-use crate::compiler::llvm::c_str;
 use crate::compiler::types::func::FuncType;
 use crate::parser::{Expression, Type};
 use llvm_sys::core::*;
@@ -138,7 +137,7 @@ impl LLVMFunction {
         body: Expression,
         block: LLVMBasicBlockRef,
     ) -> Self {
-        let function_name = c_str(&name);
+        let function_name = cstr_from_string(&name).as_ptr();
         let param_types: &mut Vec<*mut llvm_sys::LLVMType> =
             &mut LLVMFunction::get_arg_types(args.clone());
 
@@ -177,7 +176,7 @@ impl LLVMFunction {
         context.func_cache.set(&name, Box::new(func), context.depth);
 
         let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
-            LLVMAppendBasicBlock(function, cstr_from_string("entry"));
+            LLVMAppendBasicBlock(function, cstr_from_string("entry").as_ptr());
 
         let previous_func = context.current_function.clone();
         let mut new_function = LLVMFunction {
@@ -199,7 +198,7 @@ impl LLVMFunction {
                             llmv_value: val,
                             llmv_value_pointer: None,
                             name: "param".into(),
-                            cname: cstr_from_string("param"),
+                            cname: cstr_from_string("param").as_ptr(),
                         };
                         new_function.set_func_var(v, Box::new(num));
                     }

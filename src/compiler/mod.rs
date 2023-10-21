@@ -41,7 +41,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
         LLVM_InitializeNativeAsmPrinter();
 
         let context = LLVMContextCreate();
-        let module = LLVMModuleCreateWithName(cstr_from_string("main"));
+        let module = LLVMModuleCreateWithName(cstr_from_string("main").as_ptr());
         let builder = LLVMCreateBuilderInContext(context);
 
         // common void type
@@ -49,8 +49,8 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
 
         // our "main" function which will be the entry point when we run the executable
         let main_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
-        let main_func = LLVMAddFunction(module, cstr_from_string("main"), main_func_type);
-        let main_block = LLVMAppendBasicBlockInContext(context, main_func, cstr_from_string("main"));
+        let main_func = LLVMAddFunction(module, cstr_from_string("main").as_ptr(), main_func_type);
+        let main_block = LLVMAppendBasicBlockInContext(context, main_func, cstr_from_string("main").as_ptr());
         LLVMPositionBuilderAtEnd(builder, main_block);
 
         // Define common functions
@@ -64,10 +64,10 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
         let printf_str_num_value = LLVMBuildGlobalStringPtr(
             builder,
             format_str.as_ptr() as *const i8,
-            cstr_from_string("number_printf_val"),
+            cstr_from_string("number_printf_val").as_ptr(),
         );
         let printf_str_value =
-            LLVMBuildGlobalStringPtr(builder, cstr_from_string("%s\n"), cstr_from_string("str_printf_val"));
+            LLVMBuildGlobalStringPtr(builder, cstr_from_string("%s\n").as_ptr(), cstr_from_string("str_printf_val").as_ptr());
 
         let mut ast_ctx = ASTContext {
             builder,
@@ -113,7 +113,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
             main_func();
         }
         if !is_execution_engine {
-            LLVMPrintModuleToFile(module, cstr_from_string("bin/main.ll"), ptr::null_mut());
+            LLVMPrintModuleToFile(module, cstr_from_string("bin/main.ll").as_ptr(), ptr::null_mut());
         }
         // Use Clang to output LLVM IR -> Binary
         // LLVMWriteBitcodeToFile(module, cstr_from_string("bin/main.bc"));
