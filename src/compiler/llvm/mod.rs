@@ -1,4 +1,6 @@
 extern crate llvm_sys;
+
+use std::ffi::{CStr, CString};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
@@ -7,11 +9,9 @@ pub mod control_flow;
 pub mod functions;
 pub mod types;
 
-#[macro_export]
-macro_rules! c_str {
-    ($s:expr) => {
-        concat!($s, "\0").as_ptr() as *const i8
-    };
+pub fn cstr_from_string(name: &str) -> *const i8 {
+    let c_string = CString::new(name.clone()).unwrap();
+    c_string.as_ptr() as *const i8
 }
 
 pub fn int1_type() -> LLVMTypeRef {

@@ -7,7 +7,7 @@ use std::any::Any;
 use std::ffi::CString;
 
 extern crate llvm_sys;
-use crate::c_str;
+use crate::compiler::llvm::{cstr_from_string};
 use crate::compiler::llvm::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -128,7 +128,7 @@ impl Debug for StringType {
                         print_func.function,
                         print_args.as_mut_ptr(),
                         2,
-                        c_str!(""),
+                        cstr_from_string(""),
                     );
                 }
                 _ => {

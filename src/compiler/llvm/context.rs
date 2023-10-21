@@ -1,12 +1,11 @@
 #![allow(dead_code)]
 
-use crate::compiler::llvm::{int32_type, int8_ptr_type};
+use crate::compiler::llvm::{cstr_from_string, int32_type, int8_ptr_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 extern crate llvm_sys;
-use crate::c_str;
 use crate::compiler::llvm::c_str;
 use crate::compiler::types::func::FuncType;
 use crate::parser::{Expression, Type};
@@ -178,7 +177,7 @@ impl LLVMFunction {
         context.func_cache.set(&name, Box::new(func), context.depth);
 
         let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
-            LLVMAppendBasicBlock(function, c_str!("entry"));
+            LLVMAppendBasicBlock(function, cstr_from_string("entry"));
 
         let previous_func = context.current_function.clone();
         let mut new_function = LLVMFunction {
@@ -200,7 +199,7 @@ impl LLVMFunction {
                             llmv_value: val,
                             llmv_value_pointer: None,
                             name: "param".into(),
-                            cname: c_str!("param"),
+                            cname: cstr_from_string("param"),
                         };
                         new_function.set_func_var(v, Box::new(num));
                     }

@@ -28,7 +28,7 @@ pub fn generate_debug_derive(input: TokenStream) -> TokenStream {
                                         print_func.function,
                                         print_args.as_mut_ptr(),
                                         2,
-                                        c_str!(""),
+                                        cstr_from_string(""),
                                     );
                                 }
                                 _ => {
@@ -47,7 +47,7 @@ pub fn generate_debug_derive(input: TokenStream) -> TokenStream {
                                     print_func.function,
                                     print_args.as_mut_ptr(),
                                     2,
-                                    c_str!(""),
+                                    cstr_from_string(""),
                                 );
                             },
                             _ => {

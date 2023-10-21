@@ -76,23 +76,23 @@ fn generate_comparison_operation(
                             context.builder,
                             self.get_llvm_type(),
                             lhs_ptr,
-                            c_str!("lhs_bool"),
+                            cstr_from_string("lhs_bool"),
                         );
                         let rhs_val = LLVMBuildLoad2(
                             context.builder,
                             rhs.get_llvm_type(),
                             rhs.get_ptr().unwrap(),
-                            c_str!("rhs_bool"),
+                            cstr_from_string("rhs_bool"),
                         );
                         let cmp = LLVMBuildICmp(
                             context.builder,
                             #llvm_predicate_name,
                             lhs_val,
                             rhs_val,
-                            c_str!("result"),
+                            cstr_from_string("result"),
                         );
                         let alloca =
-                            LLVMBuildAlloca(context.builder, int1_type(), c_str!("bool_cmp"));
+                            LLVMBuildAlloca(context.builder, int1_type(), cstr_from_string("bool_cmp"));
                         LLVMBuildStore(context.builder, cmp, alloca);
                         Box::new(BoolType {
                             name: self.name.clone(),
@@ -107,10 +107,10 @@ fn generate_comparison_operation(
                             #llvm_predicate_name,
                             self.get_value(),
                             rhs.get_value(),
-                            c_str!("result"),
+                            cstr_from_string("result"),
                         );
                         let alloca =
-                            LLVMBuildAlloca(context.builder, int1_type(), c_str!("bool_cmp"));
+                            LLVMBuildAlloca(context.builder, int1_type(), cstr_from_string("bool_cmp"));
                         LLVMBuildStore(context.builder, cmp, alloca);
                         Box::new(BoolType {
                             name: self.name.clone(),
