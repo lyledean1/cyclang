@@ -8,6 +8,9 @@ build-ir:
 test: 
 	cargo test -- --test-threads=1
 
+test-release:
+	cargo test --release -- --test-threads=1
+
 test-parser:
 	cargo test -- parser
 
