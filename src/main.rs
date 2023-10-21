@@ -148,6 +148,18 @@ mod test {
     }
 
     #[test]
+    fn test_compile_assign_adding() {
+        let input = r#"
+        let varOne = 1;
+        let varTwo = 2;
+        let varThree = varOne + varTwo;
+        print(varThree);
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "3\n");
+    }
+
+    #[test]
     fn test_compile_addition() {
         let input = r#"
         print(2 + 4);
@@ -494,6 +506,21 @@ mod test {
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n");
     }
+
+    //Todo: readd for loop edge case
+    // #[test]
+    // fn test_compile_for_loop_with_assign() {
+    //     let input = r#"
+    //     let value = 0;
+    //     for (let i = 0; i < 10; i++)
+    //     {
+    //         value = i + value;
+    //     }
+    //     print(value);
+    //     "#;
+    //     let output = compile_output_from_string_test(input.to_string());
+    //     assert_eq!(output, "45\n");
+    // }
 
     #[test]
     fn test_compile_block_stmt_bool() {

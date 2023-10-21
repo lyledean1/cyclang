@@ -137,7 +137,6 @@ impl LLVMFunction {
         body: Expression,
         block: LLVMBasicBlockRef,
     ) -> Self {
-        let function_name = cstr_from_string(&name).as_ptr();
         let param_types: &mut Vec<*mut llvm_sys::LLVMType> =
             &mut LLVMFunction::get_arg_types(args.clone());
 
@@ -164,9 +163,8 @@ impl LLVMFunction {
                 unimplemented!("not implemented")
             }
         }
-
         // get correct function return type
-        let function = LLVMAddFunction(context.module, function_name, function_type);
+        let function = LLVMAddFunction(context.module, cstr_from_string(&name).as_ptr(), function_type);
 
         let func = FuncType {
             llvm_type: function_type,

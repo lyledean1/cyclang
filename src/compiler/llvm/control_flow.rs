@@ -6,10 +6,10 @@ use crate::parser::Expression;
 extern crate llvm_sys;
 use super::context::ASTContext;
 use crate::compiler::int1_type;
+use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::NumberType;
 use llvm_sys::core::*;
 use llvm_sys::LLVMIntPredicate;
-use crate::compiler::llvm::{cstr_from_string};
 
 pub fn new_if_stmt(
     context: &mut ASTContext,
@@ -94,12 +94,19 @@ pub fn new_while_stmt(
     unsafe {
         let function = context.current_function.function;
 
-        let loop_cond_block = LLVMAppendBasicBlock(function, cstr_from_string("loop_cond").as_ptr());
-        let loop_body_block = LLVMAppendBasicBlock(function, cstr_from_string("loop_body").as_ptr());
-        let loop_exit_block = LLVMAppendBasicBlock(function, cstr_from_string("loop_exit").as_ptr());
+        let loop_cond_block =
+            LLVMAppendBasicBlock(function, cstr_from_string("loop_cond").as_ptr());
+        let loop_body_block =
+            LLVMAppendBasicBlock(function, cstr_from_string("loop_body").as_ptr());
+        let loop_exit_block =
+            LLVMAppendBasicBlock(function, cstr_from_string("loop_exit").as_ptr());
 
         // Set bool type in entry block
-        let bool_type_ptr = LLVMBuildAlloca(context.builder, int1_type(), cstr_from_string("while_value_bool_var").as_ptr());
+        let bool_type_ptr = LLVMBuildAlloca(
+            context.builder,
+            int1_type(),
+            cstr_from_string("while_value_bool_var").as_ptr(),
+        );
         let value_condition = context.match_ast(condition);
 
         let cmp = LLVMBuildLoad2(
@@ -154,24 +161,27 @@ pub fn new_for_loop(
         let for_block = context.current_function.block;
 
         context.set_current_block(for_block);
-        let loop_cond_block =
-            LLVMAppendBasicBlock(context.current_function.function, cstr_from_string("loop_cond").as_ptr());
-        let loop_body_block =
-            LLVMAppendBasicBlock(context.current_function.function, cstr_from_string("loop_body").as_ptr());
-        // is this not needed?
-        // let loop_incr_block =
-        //     LLVMAppendBasicBlock(context.current_function.function, cstr_from_string("loop_incr"));
-        let loop_exit_block =
-            LLVMAppendBasicBlock(context.current_function.function, cstr_from_string("loop_exit").as_ptr());
+        let loop_cond_block = LLVMAppendBasicBlock(
+            context.current_function.function,
+            cstr_from_string("loop_cond").as_ptr(),
+        );
+        let loop_body_block = LLVMAppendBasicBlock(
+            context.current_function.function,
+            cstr_from_string("loop_body").as_ptr(),
+        );
+        let loop_exit_block = LLVMAppendBasicBlock(
+            context.current_function.function,
+            cstr_from_string("loop_exit").as_ptr(),
+        );
 
-        let i: Box<dyn TypeBase> = NumberType::new(Box::new(init), "i".to_string(), context);
+        let i: Box<dyn TypeBase> =
+            NumberType::new(Box::new(init), "i".to_string(), context);
 
         let value = i.get_value();
         let ptr = i.get_ptr();
         context.var_cache.set(&var_name, i, context.depth);
 
         LLVMBuildStore(context.builder, value, ptr.unwrap());
-
         // Branch to loop condition block
         LLVMBuildBr(context.builder, loop_cond_block);
 
@@ -193,7 +203,7 @@ pub fn new_for_loop(
                 context.builder,
                 LLVMInt32TypeInContext(context.context),
                 op_lhs.unwrap(),
-                cstr_from_string("").as_ptr(),
+                cstr_from_string("i").as_ptr(),
             ),
             LLVMConstInt(
                 LLVMInt32TypeInContext(context.context),
@@ -219,10 +229,10 @@ pub fn new_for_loop(
                 context.builder,
                 LLVMInt32TypeInContext(context.context),
                 ptr.unwrap(),
-                cstr_from_string("").as_ptr(),
+                cstr_from_string("i").as_ptr(),
             ),
             LLVMConstInt(LLVMInt32TypeInContext(context.context), increment as u64, 0),
-            cstr_from_string("").as_ptr(),
+            cstr_from_string("i").as_ptr(),
         );
         LLVMBuildStore(context.builder, new_value, ptr.unwrap());
         LLVMBuildBr(context.builder, loop_cond_block); // Jump back to loop condition

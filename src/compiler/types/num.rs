@@ -1,11 +1,10 @@
-
 use crate::compiler::llvm::context::ASTContext;
+use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::llvm::*;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use cyclang_macros::{ArithmeticMacro, BaseMacro, ComparisonMacro, DebugMacro};
 use std::any::Any;
 use std::ffi::CString;
-use crate::compiler::llvm::{cstr_from_string};
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
@@ -34,7 +33,7 @@ impl TypeBase for NumberType {
             // Check if the global variable already exists
             let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_pointer);
             LLVMBuildStore(_context.builder, value, ptr);
-            let cname = cstr_from_string("var_num_var").as_ptr();
+            let cname = cstr_from_string(_name.as_str()).as_ptr();
             Box::new(NumberType {
                 name: _name,
                 llmv_value: value,
@@ -47,7 +46,7 @@ impl TypeBase for NumberType {
         self.cname
     }
     fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
-        match _rhs.get_type() {
+        match self.get_type() {
             BaseTypes::Number => unsafe {
                 let alloca = self.get_ptr().unwrap();
                 let name = LLVMGetValueName(self.get_value());
