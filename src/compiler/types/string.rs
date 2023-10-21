@@ -7,7 +7,7 @@ use std::any::Any;
 use std::ffi::CString;
 
 extern crate llvm_sys;
-use crate::compiler::llvm::{cstr_from_string};
+use crate::compiler::llvm::cstr_from_string;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 

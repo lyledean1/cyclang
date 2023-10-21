@@ -32,9 +32,10 @@ fn generate_arithmetic_operation(
     llvm_fn_name_str: &str,
     operation: &str,
 ) -> proc_macro2::TokenStream {
-    let name = format!("\"{}\"", operation);
+    let name = format!("{}", operation);
     let fn_name = Ident::new(operation, proc_macro2::Span::call_site());
     let llvm_fn_name = Ident::new(llvm_fn_name_str, proc_macro2::Span::call_site());
+    let add_name = format!("add{}", struct_name.to_string());
 
     quote! {
         fn #fn_name(
@@ -52,14 +53,14 @@ fn generate_arithmetic_operation(
                                 self.get_ptr().unwrap(),
                                 self.get_name(),
                             );
-                            let rhs_value: *mut llvm_sys::LLVMValue = LLVMBuildLoad2(
+                            let rhs_value = LLVMBuildLoad2(
                                 context.builder,
-                                self.get_llvm_type(),
+                                _rhs.get_llvm_type(),
                                 _rhs.get_ptr().unwrap(),
                                 _rhs.get_name(),
                             );
                             let result =
-                                #llvm_fn_name(context.builder, lhs_value, rhs_value, cstr_from_string(#name).as_ptr());
+                                #llvm_fn_name(context.builder, lhs_value, rhs_value, cstr_from_string(#add_name).as_ptr());
                             LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
                             let c_str_ref = CStr::from_ptr(self.get_name());
                             // Convert the CStr to a String (handles invalid UTF-8)

@@ -7,10 +7,10 @@ use std::ffi::CString;
 
 extern crate llvm_sys;
 use super::Arithmetic;
+use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::types::{Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-use crate::compiler::llvm::{cstr_from_string};
 
 #[derive(Debug, Clone, BaseMacro, ComparisonMacro)]
 #[base_type("BaseTypes::Bool")]

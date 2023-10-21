@@ -1,4 +1,14 @@
-fn compare(bool x, bool y) -> bool {
-   return (x == y);
+fn addOne() -> int {
+    let varOne = 1;
+    let varTwo = 2;
+    let varThree = varTwo + varOne;
+    return varThree;
 }
-print(compare(true,false));
+fn addTwo() -> int {
+    let varOne = 3;
+    let varTwo = 4;
+    let varThree = varOne + varTwo;
+    return varThree;
+}
+print(addOne());
+print(addTwo());

@@ -29,7 +29,7 @@ use std::ptr;
 
 use self::llvm::control_flow::{new_for_loop, new_while_stmt};
 use self::types::return_type::ReturnType;
-use crate::compiler::llvm::{cstr_from_string};
+use crate::compiler::llvm::cstr_from_string;
 
 pub mod llvm;
 pub mod types;
@@ -50,7 +50,8 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
         // our "main" function which will be the entry point when we run the executable
         let main_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
         let main_func = LLVMAddFunction(module, cstr_from_string("main").as_ptr(), main_func_type);
-        let main_block = LLVMAppendBasicBlockInContext(context, main_func, cstr_from_string("main").as_ptr());
+        let main_block =
+            LLVMAppendBasicBlockInContext(context, main_func, cstr_from_string("main").as_ptr());
         LLVMPositionBuilderAtEnd(builder, main_block);
 
         // Define common functions
@@ -66,8 +67,11 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
             format_str.as_ptr() as *const i8,
             cstr_from_string("number_printf_val").as_ptr(),
         );
-        let printf_str_value =
-            LLVMBuildGlobalStringPtr(builder, cstr_from_string("%s\n").as_ptr(), cstr_from_string("str_printf_val").as_ptr());
+        let printf_str_value = LLVMBuildGlobalStringPtr(
+            builder,
+            cstr_from_string("%s\n").as_ptr(),
+            cstr_from_string("str_printf_val").as_ptr(),
+        );
 
         let mut ast_ctx = ASTContext {
             builder,
@@ -113,7 +117,11 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
             main_func();
         }
         if !is_execution_engine {
-            LLVMPrintModuleToFile(module, cstr_from_string("bin/main.ll").as_ptr(), ptr::null_mut());
+            LLVMPrintModuleToFile(
+                module,
+                cstr_from_string("bin/main.ll").as_ptr(),
+                ptr::null_mut(),
+            );
         }
         // Use Clang to output LLVM IR -> Binary
         // LLVMWriteBitcodeToFile(module, cstr_from_string("bin/main.bc"));
@@ -153,11 +161,13 @@ impl ASTContext {
     //TODO: figure a better way to create a named variable in the LLVM IR
     fn try_match_with_var(&mut self, name: String, input: Expression) -> Box<dyn TypeBase> {
         match input {
-            Expression::Number(input) => NumberType::new(
-                Box::new(input),
-                var_type_str(name, "num_var".to_string()),
-                self,
-            ),
+            Expression::Number(input) => {
+                NumberType::new(
+                    Box::new(input),
+                    name,
+                    self,
+                )
+            },
             Expression::String(input) => StringType::new(
                 Box::new(input),
                 var_type_str(name, "str_var".to_string()),
@@ -275,15 +285,16 @@ impl ASTContext {
 
                         // Assign a temp variable to the stack
                         let lhs: Box<dyn TypeBase> = self.match_ast(*lhs);
-
                         // Assign this new value
                         val.assign(self, lhs);
                         val
                     }
                     _ => {
+                        // todo: figure out how to handle assignment
+                        // currently let varThree = varTwo + varOne works;
+                        // but let varThree = varOne + varTwo; doesn't work;
                         let lhs = self.try_match_with_var(var.clone(), *lhs);
                         self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
-                        //TODO: figure out best way to handle a let stmt return
                         lhs
                     }
                 }
@@ -372,9 +383,6 @@ pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<Stri
             .arg("-o")
             .arg("bin/main")
             .output()?;
-
-        // // //TODO: add this as a debug line
-        // println!("main executable generated, running bin/main");
         let output = Command::new("bin/main").output()?;
         return Ok(String::from_utf8_lossy(&output.stdout).to_string());
     }

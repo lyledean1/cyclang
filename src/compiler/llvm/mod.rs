@@ -1,8 +1,8 @@
 extern crate llvm_sys;
 
-use std::ffi::{CString};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use std::ffi::CString;
 
 pub mod context;
 pub mod control_flow;
