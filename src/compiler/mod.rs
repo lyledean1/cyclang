@@ -5,7 +5,7 @@ use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
-use crate::compiler::types::TypeBase;
+use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::cyclo_error::CycloError;
 
 use std::collections::HashMap;
@@ -153,42 +153,43 @@ impl ASTContext {
     //TODO: figure a better way to create a named variable in the LLVM IR
     fn try_match_with_var(&mut self, name: String, input: Expression) -> Box<dyn TypeBase> {
         match input {
-            Expression::Number(input) => {
-                return NumberType::new(
-                    Box::new(input),
-                    var_type_str(name, "num_var".to_string()),
-                    self,
-                )
-            }
-            Expression::String(input) => {
-                return StringType::new(
-                    Box::new(input),
-                    var_type_str(name, "str_var".to_string()),
-                    self,
-                )
-            }
-            Expression::Bool(input) => {
-                return BoolType::new(
-                    Box::new(input),
-                    var_type_str(name, "bool_var".to_string()),
-                    self,
-                )
-            }
+            Expression::Number(input) => NumberType::new(
+                Box::new(input),
+                var_type_str(name, "num_var".to_string()),
+                self,
+            ),
+            Expression::String(input) => StringType::new(
+                Box::new(input),
+                var_type_str(name, "str_var".to_string()),
+                self,
+            ),
+            Expression::Bool(input) => BoolType::new(
+                Box::new(input),
+                var_type_str(name, "bool_var".to_string()),
+                self,
+            ),
             _ => {
                 // just return without var
-                return self.match_ast(input);
+                self.match_ast(input)
+            }
+        }
+    }
+
+    fn get_printf_str(&mut self, val: BaseTypes) -> LLVMValueRef {
+        match val {
+            BaseTypes::Number => self.printf_str_num_value,
+            BaseTypes::Bool => self.printf_str_value,
+            BaseTypes::String => self.printf_str_value,
+            _ => {
+                unreachable!("get_printf_str not implemented for type {:?}", val)
             }
         }
     }
 
     pub fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
         match input {
-            Expression::Number(input) => {
-                return NumberType::new(Box::new(input), "num".to_string(), self);
-            }
-            Expression::String(input) => {
-                return StringType::new(Box::new(input), "str".to_string(), self)
-            }
+            Expression::Number(input) => NumberType::new(Box::new(input), "num".to_string(), self),
+            Expression::String(input) => StringType::new(Box::new(input), "str".to_string(), self),
             Expression::Bool(input) => BoolType::new(Box::new(input), "bool".to_string(), self),
             Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {
                 Some(val) => val.clone(),
@@ -336,7 +337,7 @@ impl ASTContext {
                 unimplemented!()
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                return new_if_stmt(self, *condition, *if_stmt, *else_stmt);
+                new_if_stmt(self, *condition, *if_stmt, *else_stmt)
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 new_while_stmt(self, *condition, *while_block_stmt)

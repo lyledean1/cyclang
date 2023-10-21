@@ -2,91 +2,23 @@ use crate::c_str;
 use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::llvm::*;
 
+use cyclang_macros::{BaseMacro, ComparisonMacro};
 use std::any::Any;
 use std::ffi::CString;
 
 extern crate llvm_sys;
+use super::Arithmetic;
 use crate::compiler::types::{Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-use llvm_sys::LLVMIntPredicate;
 
-use super::Arithmetic;
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, BaseMacro, ComparisonMacro)]
+#[base_type("BaseTypes::Bool")]
 pub struct BoolType {
     pub builder: LLVMBuilderRef,
     pub llmv_value: LLVMValueRef,
     pub llmv_value_pointer: LLVMValueRef,
     pub name: String,
-}
-
-impl Base for BoolType {
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::Bool
-    }
-}
-
-impl Comparison for BoolType {
-    fn eqeq(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Bool => unsafe {
-                return get_comparison_bool_type(
-                    self.name.clone(),
-                    context,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntEQ,
-                );
-            },
-            _ => {
-                unreachable!(
-                    "Can't run '==' on type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn ne(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Bool => unsafe {
-                return get_comparison_bool_type(
-                    self.name.clone(),
-                    context,
-                    _rhs.get_value(),
-                    self.get_value(),
-                    LLVMIntPredicate::LLVMIntNE,
-                );
-            },
-            _ => {
-                unreachable!(
-                    "Can't run '!=' type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-}
-
-unsafe fn get_comparison_bool_type(
-    _name: String,
-    _context: &mut ASTContext,
-    rhs: LLVMValueRef,
-    lhs: LLVMValueRef,
-    comparison: LLVMIntPredicate,
-) -> Box<dyn TypeBase> {
-    let cmp = LLVMBuildICmp(_context.builder, comparison, rhs, lhs, c_str!("result"));
-    let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_str!("bool_cmp"));
-    LLVMBuildStore(_context.builder, cmp, alloca);
-    Box::new(BoolType {
-        name: _name,
-        builder: _context.builder,
-        llmv_value: cmp,
-        llmv_value_pointer: alloca,
-    })
 }
 
 impl Arithmetic for BoolType {}
@@ -162,7 +94,7 @@ impl TypeBase for BoolType {
             }
             let bool_value = LLVMConstInt(int1_type(), num, 0);
             let c_string = CString::new(_name.clone()).unwrap();
-            let c_pointer: *const i8 = c_string.as_ptr() as *const i8;
+            let c_pointer: *const i8 = c_string.as_ptr();
             let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_pointer);
             LLVMBuildStore(_context.builder, bool_value, alloca);
             Box::new(BoolType {

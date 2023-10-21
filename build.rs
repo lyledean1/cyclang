@@ -1,6 +1,6 @@
-use std::process::Command;
 use std::env;
 use std::path::Path;
+use std::process::Command;
 
 fn main() {
     let which_output = Command::new("which")
@@ -30,7 +30,10 @@ fn main() {
     println!("Found LLVM version: {}", version_str);
 
     if !version_str.starts_with("17.0") {
-        panic!("Unsupported LLVM version: {}. LLVM 17.0.x is required.", version_str);
+        panic!(
+            "Unsupported LLVM version: {}. LLVM 17.0.x is required.",
+            version_str
+        );
     }
 
     let llvm_dir = Path::new(llvm_config_path)

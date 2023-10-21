@@ -1,10 +1,4 @@
-fn example(arg1, arg2) {
-    let total = arg1 + arg2;
-    print(total);
-};
-example();
-
-for (let i = 0; i < 20; i++)
-{
-    print(i);
+fn compare(bool x, bool y) -> bool {
+   return (x == y);
 }
+print(compare(true,false));

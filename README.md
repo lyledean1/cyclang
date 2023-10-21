@@ -19,7 +19,7 @@ print(fib(20));
 You will need [Rust](https://www.rust-lang.org/tools/install) installed to run the below command.
 
 ```
-cylang --file ./examples/fib.cyc
+cyclang --file ./examples/fib.cyc
 ```
 
 This should output `6765`! 
@@ -28,7 +28,7 @@ This should output `6765`!
 
 *Note*: I've only tested this on MacOS.
 
-You will need LLVM 17 before you install Install LLVM 17
+You will need LLVM 17 installed before you install cyclang, runn the following command
 ```
 brew install llvm@17
 ```

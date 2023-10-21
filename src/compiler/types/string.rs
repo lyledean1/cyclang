@@ -2,6 +2,7 @@ use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 
+use cyclang_macros::BaseMacro;
 use std::any::Any;
 use std::ffi::CString;
 
@@ -11,7 +12,8 @@ use crate::compiler::llvm::*;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, BaseMacro)]
+#[base_type("BaseTypes::String")]
 pub struct StringType {
     name: String,
     llmv_value: LLVMValueRef,
@@ -20,18 +22,12 @@ pub struct StringType {
     str_value: String,
 }
 
-impl Base for StringType {
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::String
-    }
-}
-
 impl Comparison for StringType {
     fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::String => {
                 let value = self.get_str() == _rhs.get_str();
-                return BoolType::new(Box::new(value), self.name.clone(), _context);
+                BoolType::new(Box::new(value), self.name.clone(), _context)
             }
             _ => {
                 unreachable!(
@@ -47,7 +43,7 @@ impl Comparison for StringType {
         match _rhs.get_type() {
             BaseTypes::String => {
                 let value = self.get_str() != _rhs.get_str();
-                return BoolType::new(Box::new(value), self.name.clone(), _context);
+                BoolType::new(Box::new(value), self.name.clone(), _context)
             }
             _ => {
                 unreachable!(
@@ -123,8 +119,7 @@ impl Debug for StringType {
             );
 
             // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
-            let mut print_args: Vec<LLVMValueRef> =
-                vec![ast_context.printf_str_value, val];
+            let mut print_args: Vec<LLVMValueRef> = vec![ast_context.printf_str_value, val];
             match ast_context.llvm_func_cache.get("printf") {
                 Some(print_func) => {
                     LLVMBuildCall2(
