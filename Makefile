@@ -1,3 +1,7 @@
+default: install
+
+all: hooks install build
+
 run:
 	./bin/main
 
@@ -16,3 +20,21 @@ test-parser:
 
 clean:
 	rm -rf ./bin/main*
+
+h help:
+	@grep '^[a-z]' Makefile
+
+.PHONY: hooks
+hooks:
+	cd .git/hooks && ln -s -f ../../hooks/pre-push pre-push
+
+install-mdbook:
+	cargo install mdbook
+
+
+s serve-book:
+	cd cyclang-book && mdbook serve
+
+
+build-book:
+	cd cyclang-book && mdbook build
