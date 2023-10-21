@@ -1,0 +1,16 @@
+[book]
+authors = ["Lyle Dean"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Cyclang"
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output]
+
+[output.html]
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
