@@ -29,12 +29,12 @@ hooks:
 	cd .git/hooks && ln -s -f ../../hooks/pre-push pre-push
 
 install-mdbook:
-	cargo install mdbook
+	cargo install mdbook && cargo install mdbook-mermaid
 
 
 s serve-book:
-	cd cyclang-book && mdbook serve
+	cd book && mdbook serve
 
 
 build-book:
-	cd cyclang-book && mdbook build
+	cd book && mdbook build
