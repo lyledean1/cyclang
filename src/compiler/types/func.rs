@@ -1,7 +1,6 @@
 use crate::parser::{Expression, Type};
 extern crate llvm_sys;
-use crate::c_str;
-use crate::compiler::llvm::{c_str, int1_ptr_type, int32_ptr_type};
+use crate::compiler::llvm::{cstr_from_string, int1_ptr_type, int32_ptr_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
@@ -52,14 +51,14 @@ impl Func for FuncType {
                 self.get_value(),
                 call_args.as_mut_ptr(),
                 LLVMCountParamTypes(self.get_llvm_type()),
-                c_str!(""),
+                cstr_from_string("").as_ptr(),
             );
             match self.return_type {
                 Type::Int => {
                     let ptr = LLVMBuildAlloca(
                         _context.builder,
                         int32_ptr_type(),
-                        c_str!("call_value_int"),
+                        cstr_from_string("call_value_int").as_ptr(),
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);
 
@@ -67,14 +66,14 @@ impl Func for FuncType {
                         llmv_value: call_value,
                         llmv_value_pointer: None,
                         name: "call_value".into(),
-                        cname: c_str("call_value"),
+                        cname: cstr_from_string("call_value").as_ptr(),
                     });
                 }
                 Type::Bool => {
                     let ptr = LLVMBuildAlloca(
                         _context.builder,
                         int1_ptr_type(),
-                        c_str!("call_value_int"),
+                        cstr_from_string("call_value_int").as_ptr(),
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);
                     return Box::new(BoolType {
