@@ -38,3 +38,6 @@ s serve:
 
 build-book:
 	cd book && mdbook build
+
+cargo-publish:
+	cargo publish cyclang-macros && cargo publish cyclang
