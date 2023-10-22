@@ -10,6 +10,7 @@ use crate::cyclo_error::CycloError;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
+use std::io::{Error, ErrorKind};
 
 use crate::compiler::llvm::context::*;
 use crate::compiler::llvm::control_flow::new_if_stmt;
@@ -30,11 +31,12 @@ use std::ptr;
 use self::llvm::control_flow::{new_for_loop, new_while_stmt};
 use self::types::return_type::ReturnType;
 use crate::compiler::llvm::cstr_from_string;
+use crate::cyclo_error::CycloError::CompileError;
 
 pub mod llvm;
 pub mod types;
 
-fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> String {
+fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
     unsafe {
         LLVMLinkInMCJIT();
         LLVM_InitializeNativeTarget();
@@ -94,7 +96,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
             printf_str_num_value,
         };
         for expr in exprs {
-            ast_ctx.match_ast(expr);
+            ast_ctx.match_ast(expr)?;
         }
         LLVMBuildRetVoid(builder);
 
@@ -138,7 +140,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
             LLVMDisposeModule(module);
         }
         LLVMContextDispose(context);
-        module_string
+        Ok(module_string)
     }
 }
 
@@ -159,25 +161,25 @@ impl ASTContext {
     }
 
     //TODO: figure a better way to create a named variable in the LLVM IR
-    fn try_match_with_var(&mut self, name: String, input: Expression) -> Box<dyn TypeBase> {
+    fn try_match_with_var(&mut self, name: String, input: Expression) -> Result<Box<dyn TypeBase>, CycloError> {
         match input {
             Expression::Number(input) => {
-                NumberType::new(
+                Ok(NumberType::new(
                     Box::new(input),
                     name,
                     self,
-                )
+                ))
             },
-            Expression::String(input) => StringType::new(
+            Expression::String(input) => Ok(StringType::new(
                 Box::new(input),
                 var_type_str(name, "str_var".to_string()),
                 self,
-            ),
-            Expression::Bool(input) => BoolType::new(
+            )),
+            Expression::Bool(input) => Ok(BoolType::new(
                 Box::new(input),
                 var_type_str(name, "bool_var".to_string()),
                 self,
-            ),
+            )),
             _ => {
                 // just return without var
                 self.match_ast(input)
@@ -196,20 +198,21 @@ impl ASTContext {
         }
     }
 
-    pub fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
+    pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>, CycloError> {
         match input {
-            Expression::Number(input) => NumberType::new(Box::new(input), "num".to_string(), self),
-            Expression::String(input) => StringType::new(Box::new(input), "str".to_string(), self),
-            Expression::Bool(input) => BoolType::new(Box::new(input), "bool".to_string(), self),
+            Expression::Number(input) => Ok(NumberType::new(Box::new(input), "num".to_string(), self)),
+            Expression::String(input) => Ok(StringType::new(Box::new(input), "str".to_string(), self)),
+            Expression::Bool(input) => Ok(BoolType::new(Box::new(input), "bool".to_string(), self)),
             Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {
-                Some(val) => val.clone(),
+                Some(val) => Ok(val.clone()),
                 None => {
                     // check if variable is in function
                     // TODO: should this be reversed i.e check func var first then global
                     match self.var_cache.get(&input) {
-                        Some(val) => val,
+                        Some(val) => Ok(val),
                         None => {
-                            unreachable!()
+                            let error_message = format!("Unknown variable {}", input);
+                            Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
                         }
                     }
                 }
@@ -219,60 +222,61 @@ impl ASTContext {
             }
             Expression::Binary(lhs, op, rhs) => match op.as_str() {
                 "+" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.add(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.add(self, rhs))
                 }
                 "-" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.sub(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.sub(self, rhs))
                 }
                 "/" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.div(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.div(self, rhs))
                 }
                 "*" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.mul(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.mul(self, rhs))
                 }
                 "^" => {
-                    unimplemented!()
+                    Err(CompileError(Error::new(ErrorKind::Unsupported, "^ is not implemented yet".to_string())))
                 }
                 "==" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.eqeq(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.eqeq(self, rhs))
                 }
                 "!=" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.ne(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.ne(self, rhs))
                 }
                 "<" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.lt(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.lt(self, rhs))
                 }
                 "<=" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.lte(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.lte(self, rhs))
                 }
                 ">" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.gt(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.gt(self, rhs))
                 }
                 ">=" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.gte(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.gte(self, rhs))
                 }
                 _ => {
-                    unimplemented!()
+                    let error_message = format!("Invalid operator found for {:?} {} {:?}", lhs, op, rhs);
+                    Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
                 }
             },
             Expression::Grouping(_input) => self.match_ast(*_input),
@@ -284,18 +288,18 @@ impl ASTContext {
                         // reassign variable
 
                         // Assign a temp variable to the stack
-                        let lhs: Box<dyn TypeBase> = self.match_ast(*lhs);
+                        let lhs: Box<dyn TypeBase> = self.match_ast(*lhs)?;
                         // Assign this new value
                         val.assign(self, lhs);
-                        val
+                        Ok(val)
                     }
                     _ => {
                         // todo: figure out how to handle assignment
                         // currently let varThree = varTwo + varOne works;
                         // but let varThree = varOne + varTwo; doesn't work;
-                        let lhs = self.try_match_with_var(var.clone(), *lhs);
+                        let lhs = self.try_match_with_var(var.clone(), *lhs)?;
                         self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
-                        lhs
+                        Ok(lhs)
                     }
                 }
             }
@@ -306,22 +310,23 @@ impl ASTContext {
                 self.incr();
                 let mut val: Box<dyn TypeBase> = Box::new(VoidType {});
                 for expr in exprs {
-                    val = self.match_ast(expr);
+                    val = self.match_ast(expr)?;
                 }
                 // Delete Variables
                 self.var_cache.del_locals(self.get_depth());
                 self.decr();
-                val
+                Ok(val)
             }
             Expression::CallStmt(name, args) => match self.func_cache.get(&name) {
                 Some(val) => {
-                    let call_val = val.call(self, args);
+                    let call_val = val.call(self, args)?;
                     self.var_cache
                         .set(name.as_str(), call_val.clone(), self.depth);
-                    call_val
+                    Ok(call_val)
                 }
                 _ => {
-                    unreachable!("call does not exists for function {:?}", name);
+                    let error_message = format!("call does not exist for function {:?}", name);
+                    Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
                 }
             },
             Expression::FuncStmt(name, args, _return_type, body) => unsafe {
@@ -332,7 +337,7 @@ impl ASTContext {
                     _return_type.clone(),
                     *body.clone(),
                     self.current_function.block,
-                );
+                )?;
 
                 let func = FuncType {
                     llvm_type: llvm_func.func_type,
@@ -342,10 +347,11 @@ impl ASTContext {
                 // Set Func as a variable
                 self.func_cache
                     .set(&name, Box::new(func.clone()), self.depth);
-                Box::new(func)
+                Ok(Box::new(func))
             },
             Expression::FuncArg(arg_name, arg_type) => {
-                unimplemented!()
+                let error_message = format!("this should be unreachable code, for Expression::FuncArg arg_name:{} arg_type:{:?}", arg_name, arg_type);
+                Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
                 new_if_stmt(self, *condition, *if_stmt, *else_stmt)
@@ -357,16 +363,16 @@ impl ASTContext {
                 new_for_loop(self, var_name, init, length, increment, *for_block_expr)
             }
             Expression::Print(input) => {
-                let expression_value = self.match_ast(*input);
+                let expression_value = self.match_ast(*input)?;
                 expression_value.print(self);
-                expression_value
+                Ok(expression_value)
             }
             Expression::ReturnStmt(input) => {
-                let expression_value = self.match_ast(*input);
+                let expression_value = self.match_ast(*input)?;
                 unsafe {
                     LLVMBuildRet(self.builder, expression_value.get_value());
                 }
-                Box::new(ReturnType {})
+                Ok(Box::new(ReturnType {}))
             }
         }
     }
@@ -375,7 +381,7 @@ impl ASTContext {
 pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
     // output LLVM IR
 
-    llvm_compile_to_ir(input, is_execution_engine);
+    llvm_compile_to_ir(input, is_execution_engine)?;
     // compile to binary
     if !is_execution_engine {
         Command::new("clang")

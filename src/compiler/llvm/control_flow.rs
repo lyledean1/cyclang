@@ -10,13 +10,14 @@ use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::NumberType;
 use llvm_sys::core::*;
 use llvm_sys::LLVMIntPredicate;
+use crate::cyclo_error::CycloError;
 
 pub fn new_if_stmt(
     context: &mut ASTContext,
     condition: Expression,
     if_stmt: Expression,
     else_stmt: Option<Expression>,
-) -> Box<dyn TypeBase> {
+) -> Result<Box<dyn TypeBase>, CycloError> {
     unsafe {
         let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
         let function = context.current_function.function;
@@ -24,14 +25,14 @@ pub fn new_if_stmt(
 
         LLVMPositionBuilderAtEnd(context.builder, if_entry_block);
 
-        let cond: Box<dyn TypeBase> = context.match_ast(condition);
+        let cond: Box<dyn TypeBase> = context.match_ast(condition)?;
         // Build If Block
         let then_block = LLVMAppendBasicBlock(function, cstr_from_string("then_block").as_ptr());
         let merge_block = LLVMAppendBasicBlock(function, cstr_from_string("merge_block").as_ptr());
 
         context.set_current_block(then_block);
 
-        let stmt = context.match_ast(if_stmt);
+        let stmt = context.match_ast(if_stmt)?;
 
         match stmt.get_type() {
             BaseTypes::Return => {
@@ -50,7 +51,7 @@ pub fn new_if_stmt(
 
         match else_stmt {
             Some(v_stmt) => {
-                let stmt = context.match_ast(v_stmt);
+                let stmt = context.match_ast(v_stmt)?;
                 match stmt.get_type() {
                     BaseTypes::Return => {
                         // if its a return type we will skip branching in the LLVM IR
@@ -82,7 +83,7 @@ pub fn new_if_stmt(
         LLVMBuildCondBr(context.builder, cmp, then_block, else_block);
 
         context.set_current_block(merge_block);
-        return_type
+        Ok(return_type)
     }
 }
 
@@ -90,7 +91,7 @@ pub fn new_while_stmt(
     context: &mut ASTContext,
     condition: Expression,
     while_block_stmt: Expression,
-) -> Box<dyn TypeBase> {
+) -> Result<Box<dyn TypeBase>, CycloError> {
     unsafe {
         let function = context.current_function.function;
 
@@ -107,7 +108,7 @@ pub fn new_while_stmt(
             int1_type(),
             cstr_from_string("while_value_bool_var").as_ptr(),
         );
-        let value_condition = context.match_ast(condition);
+        let value_condition = context.match_ast(condition)?;
 
         let cmp = LLVMBuildLoad2(
             context.builder,
@@ -123,7 +124,7 @@ pub fn new_while_stmt(
         context.set_current_block(loop_body_block);
         // Check if the global variable already exists
 
-        context.match_ast(while_block_stmt);
+        context.match_ast(while_block_stmt)?;
 
         LLVMBuildBr(context.builder, loop_cond_block); // Jump back to loop condition
 
@@ -145,7 +146,7 @@ pub fn new_while_stmt(
 
         // Position builder at loop exit block
         context.set_current_block(loop_exit_block);
-        value_condition
+        Ok(value_condition)
     }
 }
 
@@ -156,7 +157,7 @@ pub fn new_for_loop(
     length: i32,
     increment: i32,
     for_block_expr: Expression,
-) -> Box<dyn TypeBase> {
+) -> Result<Box<dyn TypeBase>, CycloError> {
     unsafe {
         let for_block = context.current_function.block;
 
@@ -221,7 +222,7 @@ pub fn new_for_loop(
 
         // Build loop body block
         context.set_current_block(loop_body_block);
-        let for_block_cond = context.match_ast(for_block_expr);
+        let for_block_cond = context.match_ast(for_block_expr)?;
 
         let new_value = LLVMBuildAdd(
             context.builder,
@@ -240,6 +241,6 @@ pub fn new_for_loop(
         // Position builder at loop exit block
         context.set_current_block(loop_exit_block);
 
-        for_block_cond
+        Ok(for_block_cond)
     }
 }

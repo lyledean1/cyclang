@@ -7,6 +7,7 @@ use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::{LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildStore, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
+use crate::cyclo_error::CycloError;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution
@@ -37,13 +38,13 @@ impl Func for FuncType {
         &self,
         _context: &mut crate::compiler::llvm::context::ASTContext,
         args: Vec<Expression>,
-    ) -> Box<dyn TypeBase> {
+    ) -> Result<Box<dyn TypeBase>, CycloError> {
         unsafe {
             // need to build up call with actual LLVMValue
 
             let call_args = &mut vec![];
             for arg in args.iter() {
-                call_args.push(_context.match_ast(arg.clone()).get_value());
+                call_args.push(_context.match_ast(arg.clone())?.get_value());
             }
             let call_value = LLVMBuildCall2(
                 _context.builder,
@@ -62,12 +63,12 @@ impl Func for FuncType {
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);
 
-                    return Box::new(NumberType {
+                    return Ok(Box::new(NumberType {
                         llmv_value: call_value,
                         llmv_value_pointer: None,
                         name: "call_value".into(),
                         cname: cstr_from_string("call_value").as_ptr(),
-                    });
+                    }));
                 }
                 Type::Bool => {
                     let ptr = LLVMBuildAlloca(
@@ -76,17 +77,17 @@ impl Func for FuncType {
                         cstr_from_string("call_value_int").as_ptr(),
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);
-                    return Box::new(BoolType {
+                    return Ok(Box::new(BoolType {
                         builder: _context.builder,
                         llmv_value: call_value,
                         llmv_value_pointer: ptr,
                         name: "call_value".into(),
-                    });
+                    }));
                 }
                 Type::String => {}
                 Type::None => {
                     //Return void
-                    return Box::new(VoidType {});
+                    return Ok(Box::new(VoidType {}));
                 }
             }
             unreachable!("type {:?} not found", self.return_type);
