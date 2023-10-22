@@ -13,7 +13,7 @@ pub fn generate_comparison_derive(input: TokenStream) -> TokenStream {
     let lt_impl = generate_comparison_operation("LLVMIntSLT", "lt");
     let lte_impl = generate_comparison_operation("LLVMIntSLE", "lte");
 
-    let import_bool_type = if struct_name.to_string() != "BoolType" {
+    let import_bool_type = if *struct_name != "BoolType" {
         quote! {
         use crate::compiler::BoolType;
     }
