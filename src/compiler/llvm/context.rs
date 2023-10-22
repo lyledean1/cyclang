@@ -11,6 +11,7 @@ use crate::parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
+use crate::cyclo_error::CycloError;
 
 use super::int1_type;
 
@@ -136,7 +137,7 @@ impl LLVMFunction {
         return_type: Type,
         body: Expression,
         block: LLVMBasicBlockRef,
-    ) -> Self {
+    ) -> Result<Self, CycloError> {
         let param_types: &mut Vec<*mut llvm_sys::LLVMType> =
             &mut LLVMFunction::get_arg_types(args.clone());
 
@@ -226,7 +227,7 @@ impl LLVMFunction {
         LLVMPositionBuilderAtEnd(context.builder, function_entry_block);
 
         // Set func args here
-        context.match_ast(body.clone());
+        context.match_ast(body.clone())?;
 
         // Delete func args here
         // // Check to see if there is a Return type
@@ -246,7 +247,7 @@ impl LLVMFunction {
         );
         //reset previous function
         context.current_function = previous_func;
-        new_function
+        Ok(new_function)
     }
 
     fn get_arg_types(args: Vec<Expression>) -> Vec<*mut LLVMType> {

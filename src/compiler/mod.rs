@@ -10,6 +10,7 @@ use crate::cyclo_error::CycloError;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
+use std::io::{Error, ErrorKind};
 
 use crate::compiler::llvm::context::*;
 use crate::compiler::llvm::control_flow::new_if_stmt;
@@ -30,11 +31,12 @@ use std::ptr;
 use self::llvm::control_flow::{new_for_loop, new_while_stmt};
 use self::types::return_type::ReturnType;
 use crate::compiler::llvm::cstr_from_string;
+use crate::cyclo_error::CycloError::CompileError;
 
 pub mod llvm;
 pub mod types;
 
-fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> String {
+fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
     unsafe {
         LLVMLinkInMCJIT();
         LLVM_InitializeNativeTarget();
@@ -94,7 +96,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
             printf_str_num_value,
         };
         for expr in exprs {
-            ast_ctx.match_ast(expr);
+            ast_ctx.match_ast(expr)?;
         }
         LLVMBuildRetVoid(builder);
 
@@ -138,7 +140,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Stri
             LLVMDisposeModule(module);
         }
         LLVMContextDispose(context);
-        module_string
+        Ok(module_string)
     }
 }
 
@@ -272,7 +274,8 @@ impl ASTContext {
                     Ok(lhs.gte(self, rhs))
                 }
                 _ => {
-                    unimplemented!()
+                    let error_message = format!("Invalid operator found for {:?} {} {:?}", lhs, op, rhs);
+                    Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
                 }
             },
             Expression::Grouping(_input) => self.match_ast(*_input),
@@ -332,7 +335,7 @@ impl ASTContext {
                     _return_type.clone(),
                     *body.clone(),
                     self.current_function.block,
-                );
+                )?;
 
                 let func = FuncType {
                     llvm_type: llvm_func.func_type,
@@ -375,7 +378,7 @@ impl ASTContext {
 pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
     // output LLVM IR
 
-    llvm_compile_to_ir(input, is_execution_engine);
+    llvm_compile_to_ir(input, is_execution_engine)?;
     // compile to binary
     if !is_execution_engine {
         Command::new("clang")
