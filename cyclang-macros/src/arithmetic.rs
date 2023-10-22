@@ -32,10 +32,10 @@ fn generate_arithmetic_operation(
     llvm_fn_name_str: &str,
     operation: &str,
 ) -> proc_macro2::TokenStream {
-    let name = format!("{}", operation);
+    let name = operation.to_string();
     let fn_name = Ident::new(operation, proc_macro2::Span::call_site());
     let llvm_fn_name = Ident::new(llvm_fn_name_str, proc_macro2::Span::call_site());
-    let add_name = format!("add{}", struct_name.to_string());
+    let add_name = format!("add{}", struct_name);
 
     quote! {
         fn #fn_name(
