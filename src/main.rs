@@ -7,6 +7,8 @@ use clap::Parser;
 use std::fmt;
 use std::fs;
 use std::process::exit;
+use text_colorizer::Colorize;
+
 mod cyclo_error;
 mod parser;
 mod repl;
@@ -15,6 +17,8 @@ mod compiler;
 
 #[derive(Parser, Debug)]
 struct Args {
+    #[arg(short, long)]
+    version: bool,
     #[arg(short, long)]
     file: Option<String>,
     #[arg(short, long)]
@@ -51,12 +55,17 @@ fn compile_output_from_string(contents: String, is_execution_engine: bool) -> St
 
 fn main() {
     let args = Args::parse();
+    if args.version {
+        let version: &str = env!("CARGO_PKG_VERSION");
+        println!("{} {}", "cyclang".italic(), version.italic());
+        return
+    }
     if let Some(filename) = args.file {
         let contents = fs::read_to_string(filename).expect("Failed to read file");
         compile_output_from_string(contents, !args.output_llvm_ir);
-    } else {
-        repl::run();
+        return
     }
+    repl::run();
 }
 
 #[cfg(test)]
