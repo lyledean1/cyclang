@@ -211,7 +211,8 @@ impl ASTContext {
                     match self.var_cache.get(&input) {
                         Some(val) => Ok(val),
                         None => {
-                            unreachable!()
+                            let error_message = format!("Unknown variable {}", input);
+                            Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
                         }
                     }
                 }
@@ -241,7 +242,7 @@ impl ASTContext {
                     Ok(lhs.mul(self, rhs))
                 }
                 "^" => {
-                    unimplemented!()
+                    Err(CompileError(Error::new(ErrorKind::Unsupported, "^ is not implemented yet".to_string())))
                 }
                 "==" => {
                     let lhs = self.match_ast(*lhs)?;
@@ -324,7 +325,8 @@ impl ASTContext {
                     Ok(call_val)
                 }
                 _ => {
-                    unreachable!("call does not exists for function {:?}", name);
+                    let error_message = format!("call does not exist for function {:?}", name);
+                    Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
                 }
             },
             Expression::FuncStmt(name, args, _return_type, body) => unsafe {
@@ -348,7 +350,8 @@ impl ASTContext {
                 Ok(Box::new(func))
             },
             Expression::FuncArg(arg_name, arg_type) => {
-                unimplemented!()
+                let error_message = format!("this should be unreachable code, for Expression::FuncArg arg_name:{} arg_type:{:?}", arg_name, arg_type);
+                Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
                 new_if_stmt(self, *condition, *if_stmt, *else_stmt)
