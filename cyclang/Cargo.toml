@@ -1,21 +1,17 @@
-[workspace]
-members = [
-"cyclang-macros", "cyclang"]
-
-[workspace.package]
+[package]
 name = "cyclang"
 description = "Cyclang is a toy language built in LLVM."
-version = "0.1.15"
-edition = "2021"
-readme = "./README.md"
-keywords = ["cyclang", "llvm", "pest", "language"]
-license = "Apache-2.0/MIT"
-repository = "https://github.com/lyledean1/cyclang"
-categories = ["compilers"]
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+categories.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[workspace.dependencies]
+[dependencies]
 clap = {version = "4.1.8", features = ["derive"]}
 dyn-clone = "1.0.11"
 libc = "0.2.149"
@@ -27,4 +23,4 @@ quote = "1.0.33"
 rustyline = "12.0.0"
 syn = "2.0.38"
 text-colorizer = "1.0.0"
-cyclang-macros = { path = "./cyclang-macros" , version = "0.1.15"}
+cyclang-macros = { workspace = true}
