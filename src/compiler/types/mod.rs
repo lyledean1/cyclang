@@ -24,6 +24,7 @@ use crate::compiler::llvm::{
 };
 
 use llvm_sys::prelude::*;
+use crate::cyclo_error::CycloError;
 
 #[derive(Debug)]
 pub enum BaseTypes {
@@ -140,7 +141,7 @@ pub trait Func: Base {
         &self,
         _context: &mut ASTContext,
         _call_arguments: Vec<Expression>,
-    ) -> Box<dyn TypeBase> {
+    ) -> Result<Box<dyn TypeBase>, CycloError> {
         unimplemented!("{:?} type does not implement call", self.get_type())
     }
 }

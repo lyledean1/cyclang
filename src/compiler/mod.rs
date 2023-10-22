@@ -159,25 +159,25 @@ impl ASTContext {
     }
 
     //TODO: figure a better way to create a named variable in the LLVM IR
-    fn try_match_with_var(&mut self, name: String, input: Expression) -> Box<dyn TypeBase> {
+    fn try_match_with_var(&mut self, name: String, input: Expression) -> Result<Box<dyn TypeBase>, CycloError> {
         match input {
             Expression::Number(input) => {
-                NumberType::new(
+                Ok(NumberType::new(
                     Box::new(input),
                     name,
                     self,
-                )
+                ))
             },
-            Expression::String(input) => StringType::new(
+            Expression::String(input) => Ok(StringType::new(
                 Box::new(input),
                 var_type_str(name, "str_var".to_string()),
                 self,
-            ),
-            Expression::Bool(input) => BoolType::new(
+            )),
+            Expression::Bool(input) => Ok(BoolType::new(
                 Box::new(input),
                 var_type_str(name, "bool_var".to_string()),
                 self,
-            ),
+            )),
             _ => {
                 // just return without var
                 self.match_ast(input)
@@ -196,18 +196,18 @@ impl ASTContext {
         }
     }
 
-    pub fn match_ast(&mut self, input: Expression) -> Box<dyn TypeBase> {
+    pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>, CycloError> {
         match input {
-            Expression::Number(input) => NumberType::new(Box::new(input), "num".to_string(), self),
-            Expression::String(input) => StringType::new(Box::new(input), "str".to_string(), self),
-            Expression::Bool(input) => BoolType::new(Box::new(input), "bool".to_string(), self),
+            Expression::Number(input) => Ok(NumberType::new(Box::new(input), "num".to_string(), self)),
+            Expression::String(input) => Ok(StringType::new(Box::new(input), "str".to_string(), self)),
+            Expression::Bool(input) => Ok(BoolType::new(Box::new(input), "bool".to_string(), self)),
             Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {
-                Some(val) => val.clone(),
+                Some(val) => Ok(val.clone()),
                 None => {
                     // check if variable is in function
                     // TODO: should this be reversed i.e check func var first then global
                     match self.var_cache.get(&input) {
-                        Some(val) => val,
+                        Some(val) => Ok(val),
                         None => {
                             unreachable!()
                         }
@@ -219,57 +219,57 @@ impl ASTContext {
             }
             Expression::Binary(lhs, op, rhs) => match op.as_str() {
                 "+" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.add(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.add(self, rhs))
                 }
                 "-" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.sub(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.sub(self, rhs))
                 }
                 "/" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.div(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.div(self, rhs))
                 }
                 "*" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.mul(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.mul(self, rhs))
                 }
                 "^" => {
                     unimplemented!()
                 }
                 "==" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.eqeq(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.eqeq(self, rhs))
                 }
                 "!=" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.ne(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.ne(self, rhs))
                 }
                 "<" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.lt(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.lt(self, rhs))
                 }
                 "<=" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.lte(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.lte(self, rhs))
                 }
                 ">" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.gt(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.gt(self, rhs))
                 }
                 ">=" => {
-                    let lhs = self.match_ast(*lhs);
-                    let rhs = self.match_ast(*rhs);
-                    lhs.gte(self, rhs)
+                    let lhs = self.match_ast(*lhs)?;
+                    let rhs = self.match_ast(*rhs)?;
+                    Ok(lhs.gte(self, rhs))
                 }
                 _ => {
                     unimplemented!()
@@ -284,18 +284,18 @@ impl ASTContext {
                         // reassign variable
 
                         // Assign a temp variable to the stack
-                        let lhs: Box<dyn TypeBase> = self.match_ast(*lhs);
+                        let lhs: Box<dyn TypeBase> = self.match_ast(*lhs)?;
                         // Assign this new value
                         val.assign(self, lhs);
-                        val
+                        Ok(val)
                     }
                     _ => {
                         // todo: figure out how to handle assignment
                         // currently let varThree = varTwo + varOne works;
                         // but let varThree = varOne + varTwo; doesn't work;
-                        let lhs = self.try_match_with_var(var.clone(), *lhs);
+                        let lhs = self.try_match_with_var(var.clone(), *lhs)?;
                         self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
-                        lhs
+                        Ok(lhs)
                     }
                 }
             }
@@ -306,19 +306,19 @@ impl ASTContext {
                 self.incr();
                 let mut val: Box<dyn TypeBase> = Box::new(VoidType {});
                 for expr in exprs {
-                    val = self.match_ast(expr);
+                    val = self.match_ast(expr)?;
                 }
                 // Delete Variables
                 self.var_cache.del_locals(self.get_depth());
                 self.decr();
-                val
+                Ok(val)
             }
             Expression::CallStmt(name, args) => match self.func_cache.get(&name) {
                 Some(val) => {
-                    let call_val = val.call(self, args);
+                    let call_val = val.call(self, args)?;
                     self.var_cache
                         .set(name.as_str(), call_val.clone(), self.depth);
-                    call_val
+                    Ok(call_val)
                 }
                 _ => {
                     unreachable!("call does not exists for function {:?}", name);
@@ -342,7 +342,7 @@ impl ASTContext {
                 // Set Func as a variable
                 self.func_cache
                     .set(&name, Box::new(func.clone()), self.depth);
-                Box::new(func)
+                Ok(Box::new(func))
             },
             Expression::FuncArg(arg_name, arg_type) => {
                 unimplemented!()
@@ -357,16 +357,16 @@ impl ASTContext {
                 new_for_loop(self, var_name, init, length, increment, *for_block_expr)
             }
             Expression::Print(input) => {
-                let expression_value = self.match_ast(*input);
+                let expression_value = self.match_ast(*input)?;
                 expression_value.print(self);
-                expression_value
+                Ok(expression_value)
             }
             Expression::ReturnStmt(input) => {
-                let expression_value = self.match_ast(*input);
+                let expression_value = self.match_ast(*input)?;
                 unsafe {
                     LLVMBuildRet(self.builder, expression_value.get_value());
                 }
-                Box::new(ReturnType {})
+                Ok(Box::new(ReturnType {}))
             }
         }
     }
