@@ -217,7 +217,7 @@ impl ASTContext {
                     }
                 }
             },
-            Expression::Array(array) => {
+            Expression::List(array) => {
                 unimplemented!()
             }
             Expression::Nil => {

@@ -21,7 +21,7 @@ pub enum Expression {
     String(String),
     Bool(bool),
     Nil,
-    Array(Vec<Expression>),
+    List(Vec<Expression>),
     Variable(String),
     Binary(Box<Expression>, String, Box<Expression>),
     Grouping(Box<Expression>),
@@ -54,7 +54,7 @@ impl Expression {
         Self::Bool(b)
     }
 
-    fn new_array(array: Vec<Expression>) -> Self { Self::Array(array) }
+    fn new_list(list: Vec<Expression>) -> Self { Self::List(list) }
 
     fn new_nil() -> Self {
         Self::Nil
@@ -351,20 +351,20 @@ fn parse_expression(
             let while_block_expr = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_while_stmt(cond, while_block_expr))
         }
-        Rule::array => {
+        Rule::list => {
             let mut inner_pairs = pair.into_inner();
-            let mut array = vec![];
+            let mut list = vec![];
             while inner_pairs.peek().map_or(false, |p| {
-                p.as_rule() != Rule::right_bracket
+                p.as_rule() != Rule::rbracket
             }) {
                 let next = inner_pairs.next().unwrap();
                 let next_rule = next.as_rule();
-                if next_rule != Rule::comma && next_rule != Rule::left_bracket {
+                if next_rule != Rule::comma && next_rule != Rule::lbracket {
                     let expr = parse_expression(next)?;
-                    array.push(expr);
+                    list.push(expr);
                 }
             }
-            Ok(Expression::new_array(array))
+            Ok(Expression::new_list(list))
         }
         _ => Err(Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
@@ -661,25 +661,25 @@ mod test {
     }
 
     #[test]
-    fn test_parse_let_stmt_array() {
+    fn test_parse_let_stmt_list() {
         let input = r#"let value = [1, 2, 3, 4];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
-    fn test_parse_let_stmt_array_string() {
+    fn test_parse_let_stmt_list_string() {
         let input = r#"let value = ["1", "2", "3", "4"];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
-    fn test_parse_let_stmt_array_bool() {
+    fn test_parse_let_stmt_list_bool() {
         let input = r#"let value = [true, false, true, false];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
-    fn test_parse_let_stmt_array_arrays() {
+    fn test_parse_let_stmt_list_of_lists() {
         let input = r#"let value = [[1,2], [1,2], [1,2], [1,2]];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
@@ -763,8 +763,8 @@ mod test {
     #[test]
     fn test_fn_return_and_print() {
         let input = r#"
-        fn get_ten() -> int {
-            return 10;
+        fn get_ten() -> list<list<int>> {
+            return [[1,2],[1,3]];
         }
         print(get_ten());
         "#;
