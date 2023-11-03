@@ -1,9 +1,9 @@
 [workspace]
 members = [
 "cyclang-macros", "cyclang"]
+resolver = "2"
 
 [workspace.package]
-name = "cyclang"
 description = "Cyclang is a toy language built in LLVM."
 version = "0.1.15"
 edition = "2021"
