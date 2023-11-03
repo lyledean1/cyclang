@@ -22,7 +22,7 @@ struct Args {
     #[arg(short, long)]
     file: Option<String>,
     #[arg(short, long)]
-    output_llvm_ir: bool,
+    emit_llvm_ir: bool,
 }
 
 #[derive(Debug)]
@@ -62,7 +62,7 @@ fn main() {
     }
     if let Some(filename) = args.file {
         let contents = fs::read_to_string(filename).expect("Failed to read file");
-        compile_output_from_string(contents, !args.output_llvm_ir);
+        compile_output_from_string(contents, !args.emit_llvm_ir);
         return
     }
     repl::run();
