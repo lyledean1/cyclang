@@ -21,6 +21,7 @@ pub enum Expression {
     String(String),
     Bool(bool),
     Nil,
+    Array(Vec<Expression>),
     Variable(String),
     Binary(Box<Expression>, String, Box<Expression>),
     Grouping(Box<Expression>),
@@ -52,6 +53,8 @@ impl Expression {
     fn new_bool(b: bool) -> Self {
         Self::Bool(b)
     }
+
+    fn new_array(array: Vec<Expression>) -> Self { Self::Array(array) }
 
     fn new_nil() -> Self {
         Self::Nil
@@ -348,6 +351,21 @@ fn parse_expression(
             let while_block_expr = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_while_stmt(cond, while_block_expr))
         }
+        Rule::array => {
+            let mut inner_pairs = pair.into_inner();
+            let mut array = vec![];
+            while inner_pairs.peek().map_or(false, |p| {
+                p.as_rule() != Rule::right_bracket
+            }) {
+                let next = inner_pairs.next().unwrap();
+                let next_rule = next.as_rule();
+                if next_rule != Rule::comma && next_rule != Rule::left_bracket {
+                    let expr = parse_expression(next)?;
+                    array.push(expr);
+                }
+            }
+            Ok(Expression::new_array(array))
+        }
         _ => Err(Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
                 message: format!(
@@ -639,6 +657,30 @@ mod test {
     #[test]
     fn test_parse_let_stmt_nil() {
         let input = r#"let value = nil;"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_let_stmt_array() {
+        let input = r#"let value = [1, 2, 3, 4];"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_let_stmt_array_string() {
+        let input = r#"let value = ["1", "2", "3", "4"];"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_let_stmt_array_bool() {
+        let input = r#"let value = [true, false, true, false];"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_let_stmt_array_arrays() {
+        let input = r#"let value = [[1,2], [1,2], [1,2], [1,2]];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
