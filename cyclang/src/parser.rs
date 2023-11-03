@@ -172,7 +172,7 @@ fn parse_expression(
         }
         Rule::let_stmt => {
             let mut inner_pairs = pair.into_inner();
-            let name = inner_pairs.next().unwrap().as_str().to_string();
+            let name = inner_pairs.next().unwrap().as_str().to_string().replace(' ', "");
             inner_pairs.next(); // Skip the equal sign
             let value = parse_expression(inner_pairs.next().unwrap())?;
             Ok(Expression::new_let_stmt(name, value))
