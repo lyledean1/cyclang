@@ -159,10 +159,10 @@ mod test {
     #[test]
     fn test_compile_assign_adding() {
         let input = r#"
-        let varOne = 1;
-        let varTwo = 2;
-        let varThree = varOne + varTwo;
-        print(varThree);
+        let a = 1;
+        let b = 2;
+        let c = a + b;
+        print(c);
         "#;
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "3\n");
