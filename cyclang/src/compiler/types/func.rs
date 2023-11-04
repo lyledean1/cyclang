@@ -84,13 +84,17 @@ impl Func for FuncType {
                         name: "call_value".into(),
                     }));
                 }
-                Type::String => {}
+                Type::String => {
+                    unimplemented!("String types haven't been implemented yet for functions")
+                }
+                Type::List(_) => {
+                    unimplemented!("List types haven't been implemented yet for functions")
+                }
                 Type::None => {
                     //Return void
                     return Ok(Box::new(VoidType {}));
                 }
             }
-            unreachable!("type {:?} not found", self.return_type);
         }
     }
 }
