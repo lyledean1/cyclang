@@ -13,6 +13,7 @@ pub enum Type {
     Int,
     String,
     Bool,
+    List(Box<Type>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -125,15 +126,21 @@ impl Expression {
 }
 
 fn get_type(next:  pest::iterators::Pair<Rule>) -> Type {
-    match next.as_str() {
-        "string" => {
+    let mut inner_pairs = next.into_inner();
+    let next = inner_pairs.next().unwrap();
+    match next.as_rule() {
+        Rule::string_type => {
             Type::String
         }
-        "bool" => {
+        Rule::bool_type => {
             Type::Bool
         }
-        "int" => {
+        Rule::int_type => {
             Type::Int
+        }
+        Rule::list_type => {
+            let list_inner_type = get_type(next);
+            Type::List(Box::new(list_inner_type))
         }
         _ => {
             Type::None
@@ -422,7 +429,8 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::Expression::{FuncArg, Variable};
+    use crate::parser::Expression::{FuncArg, Number, Variable};
+
     #[test]
     fn test_parse_string_expression() {
         let input = r#""hello";"#;
@@ -678,19 +686,41 @@ mod test {
     #[test]
     fn test_parse_let_stmt_list_string() {
         let input = r#"let value: List<string> = ["1", "2", "3", "4"];"#;
-        assert!(parse_cyclo_program(input).is_ok());
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let list_expr = Expression::List(vec![Expression::String("\"1\"".to_string()), Expression::String("\"2\"".to_string()), Expression::String("\"3\"".to_string()), Expression::String("\"4\"".to_string())]);
+        let list_type = Type::List(Box::new(Type::String));
+        let let_stmt_expr = Expression::LetStmt("value".to_string(), list_type, Box::new(list_expr));
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&let_stmt_expr))
     }
 
     #[test]
-    fn test_parse_let_stmt_list_bool() {
-        let input = r#"let value: List<bool> = [true, false, true, false];"#;
-        assert!(parse_cyclo_program(input).is_ok());
+    fn test_parse_let_stmt_list_of_lists_bool() {
+        let input = r#"let value: List<List<bool>> = [[true,false],[true,false]];"#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let list_expr = Expression::List(vec![Expression::Bool(true), Expression::Bool(false)]);
+        let list_of_list_expr = Expression::List(vec![list_expr.clone(), list_expr]);
+        let list_type = Type::List(Box::new(Type::Bool));
+        let list_of_list_type = Type::List(Box::new(list_type));
+        let let_stmt_expr = Expression::LetStmt("value".to_string(), list_of_list_type, Box::new(list_of_list_expr));
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&let_stmt_expr))
     }
 
     #[test]
-    fn test_parse_let_stmt_list_of_lists() {
-        let input = r#"let value = [[1,2], [1,2], [1,2], [1,2]];"#;
-        assert!(parse_cyclo_program(input).is_ok());
+    fn test_parse_let_stmt_list_of_lists_int() {
+        let input = r#"let value: List<List<int>> = [[1,2],[1,2]];"#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let list_expr = Expression::List(vec![Number(1), Number(2)]);
+        let list_of_list_expr = Expression::List(vec![list_expr.clone(), list_expr]);
+        let list_type = Type::List(Box::new(Type::Int));
+        let list_of_list_type = Type::List(Box::new(list_type));
+        let let_stmt_expr = Expression::LetStmt("value".to_string(), list_of_list_type, Box::new(list_of_list_expr));
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&let_stmt_expr))
     }
 
     #[test]
