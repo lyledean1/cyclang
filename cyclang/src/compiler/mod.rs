@@ -297,9 +297,6 @@ impl ASTContext {
                         Ok(val)
                     }
                     _ => {
-                        // todo: figure out how to handle assignment
-                        // currently let varThree = varTwo + varOne works;
-                        // but let varThree = varOne + varTwo; doesn't work;
                         let lhs = self.try_match_with_var(var.clone(), *lhs)?;
                         self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
                         Ok(lhs)

@@ -20,7 +20,7 @@ block_stmt = { "{" ~ WHITESPACE? ~ (return_stmt | expression_list_inner | stmt_i
 let_stmt = { ("let" ~ WHITESPACE?)? ~ name ~ WHITESPACE? ~ (colon ~ type_name ~ WHITESPACE?)? ~ equal ~ WHITESPACE? ~ (call_stmt | expression | grouping | name )}
 func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~ arrow ~ WHITESPACE? ~ type_name)? ~ WHITESPACE? ~ block_stmt }
 func_arg = { WHITESPACE? ~ type_name ~ WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
-type_name = { "string" | "int" | "bool" | "list<" ~ type_name ~ ">"}
+type_name = { "string" | "int" | "bool" | "List<" ~ type_name ~ ">"}
 call_stmt = { name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
 print_stmt = { "print(" ~ (call_stmt | expression | name) ~ ")" }
 

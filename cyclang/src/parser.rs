@@ -2,7 +2,6 @@ extern crate pest;
 
 use pest::Parser;
 use std::num::ParseIntError;
-use crate::parser::Rule::type_name;
 
 #[derive(Parser)]
 #[grammar = "../grammar/cyclo.pest"]
@@ -125,6 +124,23 @@ impl Expression {
     }
 }
 
+fn get_type(next:  pest::iterators::Pair<Rule>) -> Type {
+    match next.as_str() {
+        "string" => {
+            Type::String
+        }
+        "bool" => {
+            Type::Bool
+        }
+        "int" => {
+            Type::Int
+        }
+        _ => {
+            Type::None
+        }
+    }
+}
+
 fn parse_expression(
     pair: pest::iterators::Pair<Rule>,
 ) -> Result<Expression, Box<pest::error::Error<Rule>>> {
@@ -176,23 +192,9 @@ fn parse_expression(
             let name = inner_pairs.next().unwrap().as_str().to_string().replace(' ', "");
             let mut let_type = Type::None;
 
-            let mut next = inner_pairs.next().unwrap();
+            let next = inner_pairs.next().unwrap();
             if next.as_rule() == Rule::colon {
-                next = inner_pairs.next().unwrap();
-                match next.as_str() {
-                    "string" => {
-                        let_type = Type::String;
-                    }
-                    "bool" => {
-                        let_type = Type::Bool;
-                    }
-                    "int" => {
-                        let_type = Type::Int;
-                    }
-                    _ => {
-                        let_type = Type::None;
-                    }
-                }
+                let_type = get_type(inner_pairs.next().unwrap());
                 inner_pairs.next();
             }
             let value = parse_expression(inner_pairs.next().unwrap())?;
@@ -236,30 +238,16 @@ fn parse_expression(
             }) {
                 let next: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
                 if next.as_rule() == Rule::type_name {
-                    match next.as_str() {
-                        "string" => {
-                            func_type = Type::String;
-                        }
-                        "bool" => {
-                            func_type = Type::Bool;
-                        }
-                        "int" => {
-                            func_type = Type::Int;
-                        }
-                        _ => {
-                            func_type = Type::None;
-                        }
-                    }
+                    func_type = get_type(next);
                 }
             }
-
             let inner = inner_pairs.next().unwrap();
             let body = parse_expression(inner)?;
             let func = Expression::new_func_stmt(name, func_args, func_type, body);
             Ok(func)
         }
         Rule::func_arg => {
-            let mut inner_pairs = pair.into_inner();
+            let mut inner_pairs = pair.clone().into_inner();
             while inner_pairs.peek().map_or(false, |p| {
                 p.as_rule() == Rule::comma
                     || p.as_rule() == Rule::name
@@ -270,20 +258,20 @@ fn parse_expression(
                     continue;
                 }
                 if next.as_rule() == Rule::type_name {
-                    let arg_type = next.as_str().to_string();
+                    let arg_type = get_type(next);
                     let arg_name = inner_pairs.next().unwrap().as_str().to_string();
-                    match arg_type.as_str() {
-                        "string" => return Ok(Expression::new_func_arg(arg_name, Type::String)),
-                        "bool" => return Ok(Expression::new_func_arg(arg_name, Type::Bool)),
-                        "int" => return Ok(Expression::new_func_arg(arg_name, Type::Int)),
-                        _ => {
-                            unimplemented!(
-                                "No rule for arg {:?} with arg type {:?}",
-                                arg_name,
-                                arg_type
-                            );
-                        }
+                    if arg_type == Type::None {
+                        return Err(Box::new(pest::error::Error::new_from_span(
+                            pest::error::ErrorVariant::CustomError {
+                                message: format!(
+                                    "Unable to find argument type for {:?}",
+                                    pair.as_rule()
+                                ),
+                            },
+                            pair.as_span(),
+                        )));
                     }
+                    return Ok(Expression::new_func_arg(arg_name, arg_type));
                 }
             }
             unreachable!("Unable to parse args {:?}", inner_pairs)
@@ -683,19 +671,19 @@ mod test {
 
     #[test]
     fn test_parse_let_stmt_list() {
-        let input = r#"let value: list<int> = [1, 2, 3, 4];"#;
+        let input = r#"let value: List<int> = [1, 2, 3, 4];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_list_string() {
-        let input = r#"let value: list<string> = ["1", "2", "3", "4"];"#;
+        let input = r#"let value: List<string> = ["1", "2", "3", "4"];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_list_bool() {
-        let input = r#"let value: list<bool> = [true, false, true, false];"#;
+        let input = r#"let value: List<bool> = [true, false, true, false];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
@@ -784,7 +772,7 @@ mod test {
     #[test]
     fn test_fn_return_and_print() {
         let input = r#"
-        fn get_ten() -> list<list<int>> {
+        fn get_ten() -> List<List<int>> {
             return [[1,2],[1,3]];
         }
         print(get_ten());
