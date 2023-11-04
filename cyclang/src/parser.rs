@@ -680,14 +680,6 @@ mod test {
     #[test]
     fn test_parse_let_stmt_list() {
         let input = r#"let value: List<int> = [1, 2, 3, 4];"#;
-        match parse_cyclo_program(input) {
-            Ok(v) => {
-                println!("{:?}", v)
-            }
-            _ => {
-
-            }
-        }
         assert!(parse_cyclo_program(input).is_ok());
     }
 

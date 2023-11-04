@@ -63,12 +63,12 @@ impl Func for FuncType {
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);
 
-                    return Ok(Box::new(NumberType {
+                    Ok(Box::new(NumberType {
                         llmv_value: call_value,
                         llmv_value_pointer: None,
                         name: "call_value".into(),
                         cname: cstr_from_string("call_value").as_ptr(),
-                    }));
+                    }))
                 }
                 Type::Bool => {
                     let ptr = LLVMBuildAlloca(
@@ -77,12 +77,12 @@ impl Func for FuncType {
                         cstr_from_string("call_value_int").as_ptr(),
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);
-                    return Ok(Box::new(BoolType {
+                    Ok(Box::new(BoolType {
                         builder: _context.builder,
                         llmv_value: call_value,
                         llmv_value_pointer: ptr,
                         name: "call_value".into(),
-                    }));
+                    }))
                 }
                 Type::String => {
                     unimplemented!("String types haven't been implemented yet for functions")
@@ -92,7 +92,7 @@ impl Func for FuncType {
                 }
                 Type::None => {
                     //Return void
-                    return Ok(Box::new(VoidType {}));
+                    Ok(Box::new(VoidType {}))
                 }
             }
         }
