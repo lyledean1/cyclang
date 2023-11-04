@@ -61,7 +61,7 @@ fn parse_and_compile(input: String, rl: &mut DefaultEditor) -> Result<String, Cy
     let output = compiler::compile(exprs.clone(), true)?;
 
     for expr in parser::parse_cyclo_program(&input)? {
-        if let Expression::LetStmt(_, _) | Expression::FuncStmt(_, _, _, _) = expr {
+        if let Expression::LetStmt(_,_, _) | Expression::FuncStmt(_, _, _, _) = expr {
             let _ = rl.add_history_entry(input.as_str());
         }
     }

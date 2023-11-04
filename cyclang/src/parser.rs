@@ -2,6 +2,7 @@ extern crate pest;
 
 use pest::Parser;
 use std::num::ParseIntError;
+use crate::parser::Rule::type_name;
 
 #[derive(Parser)]
 #[grammar = "../grammar/cyclo.pest"]
@@ -25,7 +26,7 @@ pub enum Expression {
     Variable(String),
     Binary(Box<Expression>, String, Box<Expression>),
     Grouping(Box<Expression>),
-    LetStmt(String, Box<Expression>),
+    LetStmt(String, Type, Box<Expression>),
     BlockStmt(Vec<Expression>),
     FuncArg(String, Type),
     FuncStmt(String, Vec<Expression>, Type, Box<Expression>),
@@ -64,8 +65,8 @@ impl Expression {
         Self::Variable(name)
     }
 
-    fn new_let_stmt(name: String, value: Expression) -> Self {
-        Self::LetStmt(name, Box::new(value))
+    fn new_let_stmt(name: String, let_type: Type, value: Expression) -> Self {
+        Self::LetStmt(name, let_type, Box::new(value))
     }
 
     fn new_block_stmt(exprs: Vec<Expression>) -> Self {
@@ -173,9 +174,29 @@ fn parse_expression(
         Rule::let_stmt => {
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string().replace(' ', "");
-            inner_pairs.next(); // Skip the equal sign
+            let mut let_type = Type::None;
+
+            let mut next = inner_pairs.next().unwrap();
+            if next.as_rule() == Rule::colon {
+                next = inner_pairs.next().unwrap();
+                match next.as_str() {
+                    "string" => {
+                        let_type = Type::String;
+                    }
+                    "bool" => {
+                        let_type = Type::Bool;
+                    }
+                    "int" => {
+                        let_type = Type::Int;
+                    }
+                    _ => {
+                        let_type = Type::None;
+                    }
+                }
+                inner_pairs.next();
+            }
             let value = parse_expression(inner_pairs.next().unwrap())?;
-            Ok(Expression::new_let_stmt(name, value))
+            Ok(Expression::new_let_stmt(name, let_type, value))
         }
         Rule::expression => {
             let mut inner_pairs = pair.into_inner();
@@ -638,13 +659,13 @@ mod test {
 
     #[test]
     fn test_parse_let_stmt_bool_without_comma() {
-        let input = r#"let value = true"#;
+        let input = r#"let value: bool = true"#;
         assert!(parse_cyclo_program(input).is_err());
     }
 
     #[test]
     fn test_parse_let_stmt_digit() {
-        let input = r#"let value = 5;"#;
+        let input = r#"let value: int = 5;"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
@@ -662,19 +683,19 @@ mod test {
 
     #[test]
     fn test_parse_let_stmt_list() {
-        let input = r#"let value = [1, 2, 3, 4];"#;
+        let input = r#"let value: list<int> = [1, 2, 3, 4];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_list_string() {
-        let input = r#"let value = ["1", "2", "3", "4"];"#;
+        let input = r#"let value: list<string> = ["1", "2", "3", "4"];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]
     fn test_parse_let_stmt_list_bool() {
-        let input = r#"let value = [true, false, true, false];"#;
+        let input = r#"let value: list<bool> = [true, false, true, false];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 

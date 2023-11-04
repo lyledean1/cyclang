@@ -17,7 +17,7 @@ while_stmt = {"while" ~ WHITESPACE? ~ "(" ~ (expression | name) ~ ")" ~ WHITESPA
 block_stmt = { "{" ~ WHITESPACE? ~ (return_stmt | expression_list_inner | stmt_inner | WHITESPACE?) ~ (WHITESPACE? ~ (return_stmt | expression_list_inner | stmt_inner)*) ~ (WHITESPACE*)? ~ return_stmt? ~ WHITESPACE? ~ "}" }
 
 // let statements and functions
-let_stmt = { ("let" ~ WHITESPACE?)? ~ name ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (call_stmt | expression | grouping | name )}
+let_stmt = { ("let" ~ WHITESPACE?)? ~ name ~ WHITESPACE? ~ (colon ~ type_name ~ WHITESPACE?)? ~ equal ~ WHITESPACE? ~ (call_stmt | expression | grouping | name )}
 func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~ arrow ~ WHITESPACE? ~ type_name)? ~ WHITESPACE? ~ block_stmt }
 func_arg = { WHITESPACE? ~ type_name ~ WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
 type_name = { "string" | "int" | "bool" | "list<" ~ type_name ~ ">"}
@@ -43,6 +43,7 @@ nil = { "nil" }
 bool = { "true" | "false" }
 equal = { "=" }
 semicolon = { ";" }
+colon = { ":" }
 arrow = { "->" }
 lbracket  = {"["}
 rbracket = {"]"}
