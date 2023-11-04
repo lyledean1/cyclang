@@ -217,7 +217,7 @@ impl ASTContext {
                     }
                 }
             },
-            Expression::Array(array) => {
+            Expression::List(array) => {
                 unimplemented!()
             }
             Expression::Nil => {
@@ -283,7 +283,7 @@ impl ASTContext {
                 }
             },
             Expression::Grouping(_input) => self.match_ast(*_input),
-            Expression::LetStmt(var, lhs) => {
+            Expression::LetStmt(var, _, lhs) => {
                 match self.var_cache.get(&var) {
                     Some(mut val) => {
                         // Check Variables are the same Type
@@ -297,9 +297,6 @@ impl ASTContext {
                         Ok(val)
                     }
                     _ => {
-                        // todo: figure out how to handle assignment
-                        // currently let varThree = varTwo + varOne works;
-                        // but let varThree = varOne + varTwo; doesn't work;
                         let lhs = self.try_match_with_var(var.clone(), *lhs)?;
                         self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
                         Ok(lhs)
