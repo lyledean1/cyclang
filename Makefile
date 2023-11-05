@@ -9,6 +9,9 @@ run:
 build-ir:
 	clang ./bin/main.ll -o ./bin/main
 
+install-locally:
+	cargo install --path=./cyclang
+
 test: 
 	cargo test -- --test-threads=1
 
