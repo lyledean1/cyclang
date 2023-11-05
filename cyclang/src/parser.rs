@@ -1132,14 +1132,6 @@ mod test {
         let val: int = array[i+1];
         array[i+1] = 1;
         "#;
-        match parse_cyclo_program(input) {
-            Err(e) => {
-                println!("{:?}", e)
-            }
-            Ok(v) => {
-                println!("{:?}", v)
-            }
-        }
         assert!(parse_cyclo_program(input).is_ok());
     }
 }
