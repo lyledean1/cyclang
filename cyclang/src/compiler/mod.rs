@@ -217,7 +217,13 @@ impl ASTContext {
                     }
                 }
             },
-            Expression::List(array) => {
+            Expression::List(_) => {
+                unimplemented!()
+            }
+            Expression::ListIndex(_, _) => {
+                unimplemented!()
+            }
+            Expression::ListAssign(_, _, _) => {
                 unimplemented!()
             }
             Expression::Nil => {

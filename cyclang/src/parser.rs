@@ -23,6 +23,8 @@ pub enum Expression {
     Bool(bool),
     Nil,
     List(Vec<Expression>),
+    ListIndex(Box<Expression>, Box<Expression>),
+    ListAssign(String, Box<Expression>, Box<Expression>),
     Variable(String),
     Binary(Box<Expression>, String, Box<Expression>),
     Grouping(Box<Expression>),
@@ -56,6 +58,14 @@ impl Expression {
     }
 
     fn new_list(list: Vec<Expression>) -> Self { Self::List(list) }
+
+    fn new_list_index(list: Expression, index: Expression) -> Self {
+        Self::ListIndex(Box::new(list), Box::new(index))
+    }
+
+    fn new_list_assign(var: String, index: Expression, value: Expression) -> Self {
+        Self::ListAssign(var, Box::new(index), Box::new(value))
+    }
 
     fn new_nil() -> Self {
         Self::Nil
@@ -381,6 +391,24 @@ fn parse_expression(
                 }
             }
             Ok(Expression::new_list(list))
+        }
+        Rule::list_index => {
+            let mut inner_pairs = pair.into_inner();
+            let array_expr = parse_expression(inner_pairs.next().unwrap())?;
+            inner_pairs.next(); // consume lbracket [
+            let index_expr = parse_expression(inner_pairs.next().unwrap())?;
+            Ok(Expression::new_list_index(array_expr, index_expr))
+        }
+        Rule::index_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let mut array_expr_inner = inner_pairs.next().unwrap().into_inner();
+            // could array var be an expression?
+            let array_var = array_expr_inner.next().unwrap().as_str();
+            array_expr_inner.next(); // skip [
+            let array_index = parse_expression(array_expr_inner.next().unwrap())?;
+            inner_pairs.next(); // skip = sign
+            let array_assign = parse_expression(inner_pairs.next().unwrap())?;
+            Ok(Expression::new_list_assign(array_var.to_string(), array_index, array_assign))
         }
         _ => Err(Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
@@ -1095,6 +1123,23 @@ mod test {
             print(i);
         }
         "#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_access_and_set_value_in_list() {
+        let input = r#"
+        let val: int = array[i+1];
+        array[i+1] = 1;
+        "#;
+        match parse_cyclo_program(input) {
+            Err(e) => {
+                println!("{:?}", e)
+            }
+            Ok(v) => {
+                println!("{:?}", v)
+            }
+        }
         assert!(parse_cyclo_program(input).is_ok());
     }
 }
