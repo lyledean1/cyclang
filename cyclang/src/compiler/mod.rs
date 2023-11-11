@@ -31,6 +31,7 @@ use std::ptr;
 use self::llvm::control_flow::{new_for_loop, new_while_stmt};
 use self::types::return_type::ReturnType;
 use crate::compiler::llvm::cstr_from_string;
+use crate::compiler::types::list::ListType;
 use crate::cyclo_error::CycloError::CompileError;
 
 pub mod llvm;
@@ -217,8 +218,32 @@ impl ASTContext {
                     }
                 }
             },
-            Expression::List(_) => {
-                unimplemented!()
+            Expression::List(v) => {
+                let mut vec_expr = vec![];
+                let mut previous_type: BaseTypes = BaseTypes::Void;
+                for x in v {
+                    let expr = self.match_ast(x)?;
+                    let current_type = expr.get_type();
+                    // if previous_type != BaseTypes::Void && previous_type != current_type {
+                    //     unreachable!("add error for mismatching types")
+                    // }
+                    vec_expr.push(expr)
+                }
+                let first_element = vec_expr.get(0).unwrap();
+                let mut elements = vec![];
+                for x in vec_expr.iter() {
+                    elements.push(x.get_value());
+                }
+
+                unsafe {
+                    let llvm_array_value = LLVMConstArray2(first_element.get_llvm_type(), elements.as_mut_ptr(), vec_expr.len() as u64);
+                    let llvm_array_type = LLVMArrayType2(first_element.get_llvm_type(), elements.len() as u64);
+                    let array_ptr = LLVMBuildAlloca(self.builder, llvm_array_type, b"my_array\0".as_ptr() as *const _);
+                    LLVMBuildStore(self.builder, llvm_array_value, array_ptr);
+                    Ok(Box::new(ListType {
+                        llvm_value: llvm_array_value,
+                    }))
+                }
             }
             Expression::ListIndex(_, _) => {
                 unimplemented!()

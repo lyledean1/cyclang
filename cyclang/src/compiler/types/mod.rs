@@ -8,6 +8,7 @@ pub mod num;
 pub mod return_type;
 pub mod string;
 pub mod void;
+pub mod list;
 
 //TODO: Upgrade to LLVMGetValueName2
 use llvm_sys::core::LLVMGetValueName;
@@ -31,6 +32,7 @@ pub enum BaseTypes {
     String,
     Number,
     Bool,
+    List(Box<BaseTypes>),
     Func,
     Void,
     Return,

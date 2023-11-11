@@ -277,6 +277,15 @@ mod test {
     }
 
     #[test]
+    fn test_compile_list() {
+        let input = r#"
+        let listExample: List<int> = [1, 2, 3, 4];
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "true\n");
+    }
+
+    #[test]
     fn test_if_stmt_with_let_stmt() {
         let input = r#"
         let is_value = true;
