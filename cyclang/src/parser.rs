@@ -8,9 +8,10 @@ use std::num::ParseIntError;
 struct CycloParser;
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(non_camel_case_types)]
 pub enum Type {
     None,
-    Int,
+    i32,
     String,
     Bool,
     List(Box<Type>),
@@ -145,8 +146,8 @@ fn get_type(next:  pest::iterators::Pair<Rule>) -> Type {
         Rule::bool_type => {
             Type::Bool
         }
-        Rule::int_type => {
-            Type::Int
+        Rule::i32_type => {
+            Type::i32
         }
         Rule::list_type => {
             let list_inner_type = get_type(next);
@@ -689,7 +690,7 @@ mod test {
 
     #[test]
     fn test_parse_let_stmt_digit() {
-        let input = r#"let value: int = 5;"#;
+        let input = r#"let value: i32 = 5;"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
@@ -707,7 +708,7 @@ mod test {
 
     #[test]
     fn test_parse_let_stmt_list() {
-        let input = r#"let value: List<int> = [1, 2, 3, 4];"#;
+        let input = r#"let value: List<i32> = [1, 2, 3, 4];"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 
@@ -739,12 +740,12 @@ mod test {
 
     #[test]
     fn test_parse_let_stmt_list_of_lists_int() {
-        let input = r#"let value: List<List<int>> = [[1,2],[1,2]];"#;
+        let input = r#"let value: List<List<i32>> = [[1,2],[1,2]];"#;
         let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
             parse_cyclo_program(input);
         let list_expr = Expression::List(vec![Number(1), Number(2)]);
         let list_of_list_expr = Expression::List(vec![list_expr.clone(), list_expr]);
-        let list_type = Type::List(Box::new(Type::Int));
+        let list_type = Type::List(Box::new(Type::i32));
         let list_of_list_type = Type::List(Box::new(list_type));
         let let_stmt_expr = Expression::LetStmt("value".to_string(), list_of_list_type, Box::new(list_of_list_expr));
         assert!(output.is_ok());
@@ -802,7 +803,7 @@ mod test {
             let b = 5;
             {
                 {
-                    fn example(int arg1, int arg2) {
+                    fn example(i32 arg1, i32 arg2) {
                         print(arg1 + arg2);
                     }
                     example(5,5);
@@ -830,7 +831,7 @@ mod test {
     #[test]
     fn test_fn_return_and_print() {
         let input = r#"
-        fn get_ten() -> List<List<int>> {
+        fn get_ten() -> List<List<i32>> {
             return [[1,2],[1,3]];
         }
         print(get_ten());
@@ -843,7 +844,7 @@ mod test {
     #[test]
     fn test_fn_return_int_num() {
         let input = r#"
-        fn get_ten() -> int {
+        fn get_ten() -> i32 {
             return 10;
         }
         let var = get_ten();
@@ -853,7 +854,7 @@ mod test {
         let func_expr = build_basic_func_ast(
             "get_ten".into(),
             [].to_vec(),
-            Type::Int,
+            Type::i32,
             vec![Expression::ReturnStmt(Box::new(Expression::Number(10)))],
         );
         assert!(output.is_ok());
@@ -863,7 +864,7 @@ mod test {
     #[test]
     fn test_fn_return_int_value() {
         let input = r#"
-        fn get_value(int value) -> int {
+        fn get_value(i32 value) -> i32 {
             return value;
         }
         "#;
@@ -871,8 +872,8 @@ mod test {
             parse_cyclo_program(input);
         let func_expr = build_basic_func_ast(
             "get_value".into(),
-            [FuncArg("value".into(), Type::Int)].to_vec(),
-            Type::Int,
+            [FuncArg("value".into(), Type::i32)].to_vec(),
+            Type::i32,
             vec![Expression::ReturnStmt(Box::new(Expression::Variable(
                 "value".into(),
             )))],
@@ -908,7 +909,7 @@ mod test {
     #[test]
     fn test_fn_return_int_add() {
         let input = r#"
-        fn add(int x, int y) -> int {
+        fn add(i32 x, i32 y) -> i32 {
             return x + y;
         }
         "#;
@@ -917,11 +918,11 @@ mod test {
         let func_expr = build_basic_func_ast(
             "add".into(),
             [
-                FuncArg("x".into(), Type::Int),
-                FuncArg("y".into(), Type::Int),
+                FuncArg("x".into(), Type::i32),
+                FuncArg("y".into(), Type::i32),
             ]
             .to_vec(),
-            Type::Int,
+            Type::i32,
             vec![Expression::ReturnStmt(Box::new(Expression::Binary(
                 Box::new(Variable("x".into())),
                 "+".into(),
@@ -988,7 +989,7 @@ mod test {
     #[test]
     fn test_fn_return_call_fn_binary_add() {
         let input = r#"
-        fn sum_square(int x, int y) -> int {
+        fn sum_square(i32 x, i32 y) -> i32 {
             return square(x) + square(y);
         }
         let val = sum_square(x,y);
@@ -998,11 +999,11 @@ mod test {
         let func_expr = build_basic_func_ast(
             "sum_square".into(),
             [
-                FuncArg("x".into(), Type::Int),
-                FuncArg("y".into(), Type::Int),
+                FuncArg("x".into(), Type::i32),
+                FuncArg("y".into(), Type::i32),
             ]
             .to_vec(),
-            Type::Int,
+            Type::i32,
             vec![Expression::ReturnStmt(Box::new(Expression::Binary(
                 Box::new(Expression::CallStmt(
                     "square".into(),
@@ -1022,7 +1023,7 @@ mod test {
     #[test]
     fn test_fibonacci_fn() {
         let input = r#"
-        fn fib(int n) -> int {
+        fn fib(i32 n) -> i32 {
             if (n < 2) {
                 return 0;
             }
@@ -1129,7 +1130,7 @@ mod test {
     #[test]
     fn test_access_and_set_value_in_list() {
         let input = r#"
-        let val: int = array[i+1];
+        let val: i32 = array[i+1];
         array[i+1] = 1;
         "#;
         assert!(parse_cyclo_program(input).is_ok());

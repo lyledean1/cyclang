@@ -21,7 +21,7 @@ flowchart LR;
 This functional example demonstrates how to write a recursive function in *cyclang* to compute the Fibonacci series.
 
 ```rust
-fn fib(int n) -> int {
+fn fib(i32 n) -> i32 {
     if (n < 2) {
         return n;
     }

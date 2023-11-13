@@ -621,7 +621,7 @@ mod test {
     #[test]
     fn test_compile_function_return_int() {
         let input = r#"
-        fn get_int() -> int {
+        fn get_int() -> i32 {
             return 5;
         }
         let val = get_int();
@@ -635,7 +635,7 @@ mod test {
     fn test_compile_function_with_two_args_and_ignore_top_level_var() {
         let input = r#"
         let var = 0;
-        fn add(int x, int y) {
+        fn add(i32 x, i32 y) {
             print(x + y);
         }
         add(10, 10);
@@ -647,7 +647,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_int_value() {
         let input = r#"
-        fn add(int x, int y) -> int {
+        fn add(i32 x, i32 y) -> i32 {
             return x + y;
         }
         print(add(5,5));
@@ -659,7 +659,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_int_value_mul() {
         let input = r#"
-        fn mul(int x, int y) -> int {
+        fn mul(i32 x, i32 y) -> i32 {
             return x * y;
         }
         print(mul(5,5));
@@ -671,10 +671,10 @@ mod test {
     #[test]
     fn test_compile_fn_return_int_value_with_call_stmts() {
         let input = r#"
-        fn add(int x, int y) -> int {
+        fn add(i32 x, i32 y) -> i32 {
             return x + y;
         }
-        fn add_together() -> int {
+        fn add_together() -> i32 {
             return add(5,10) + add(10,4);
         }
         print(add_together());
@@ -698,7 +698,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_bool_value_cmp_ints() {
         let input = r#"
-        fn compare_ints(int x, int y) -> bool {
+        fn compare_ints(i32 x, i32 y) -> bool {
             return (x == y);
         }
         print(compare_ints(1000,1000));
@@ -710,7 +710,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_bool_true_value_cmp_ints_in_another_fn() {
         let input = r#"
-        fn compare(int x, int y) -> bool {
+        fn compare(i32 x, i32 y) -> bool {
             return (x == y);
         }
         fn expect_true() -> bool {
@@ -725,7 +725,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_bool_false_value_cmp_ints_in_another_fn() {
         let input = r#"
-        fn compare(int x, int y) -> bool {
+        fn compare(i32 x, i32 y) -> bool {
             return (x == y);
         }
         fn expect_false() -> bool {
@@ -740,7 +740,7 @@ mod test {
     #[test]
     fn test_recursive_factorial_fn() {
         let input = r#"
-        fn factorial(int n) -> int {
+        fn factorial(i32 n) -> i32 {
             if (n == 0) {
                 return 1;
             }
@@ -755,7 +755,7 @@ mod test {
     #[test]
     fn test_recursive_fib_fn() {
         let input = r#"
-        fn fib(int n) -> int {
+        fn fib(i32 n) -> i32 {
             if (n < 2) {
                 return n;
             }

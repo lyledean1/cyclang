@@ -55,7 +55,7 @@ impl Func for FuncType {
                 cstr_from_string("").as_ptr(),
             );
             match self.return_type {
-                Type::Int => {
+                Type::i32 => {
                     let ptr = LLVMBuildAlloca(
                         _context.builder,
                         int32_ptr_type(),

@@ -149,7 +149,7 @@ impl LLVMFunction {
         );
 
         match return_type {
-            Type::Int => {
+            Type::i32 => {
                 function_type =
                     LLVMFunctionType(int32_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
             }
@@ -191,7 +191,7 @@ impl LLVMFunction {
         for (i, val) in args.iter().enumerate() {
             match val {
                 Expression::FuncArg(v, t) => match t {
-                    Type::Int => {
+                    Type::i32 => {
                         let val = LLVMGetParam(function, i as u32);
                         let num = NumberType {
                             llmv_value: val,
@@ -256,7 +256,7 @@ impl LLVMFunction {
             match arg {
                 Expression::FuncArg(_, t) => match t {
                     Type::Bool => args_vec.push(int1_type()),
-                    Type::Int => args_vec.push(int32_type()),
+                    Type::i32 => args_vec.push(int32_type()),
                     Type::String => args_vec.push(int8_ptr_type()),
                     _ => {
                         unreachable!("unknown type {:?}", t)

@@ -5,7 +5,7 @@ A programming language I built in Rust - mainly for fun and my own learning! Use
 Try the Fibonacci example in `/examples/fib.cyc`
 
 ```rust
-fn fib(int n) -> int {
+fn fib(i32 n) -> i32 {
     if (n < 2) {
         return n;
     }
