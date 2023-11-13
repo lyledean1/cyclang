@@ -1,9 +1,2 @@
-fn fib(i32 n) -> i32 {
-    if (n < 2) {
-        return n;
-    }
-    return fib(n - 1) + fib(n - 2);
-}
-
-let output: i32 = fib(20);
-print(output);
+let val: i64 = 9223372036854775807;
+print(val);

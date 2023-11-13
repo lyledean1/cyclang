@@ -12,6 +12,7 @@ struct CycloParser;
 pub enum Type {
     None,
     i32,
+    i64,
     String,
     Bool,
     List(Box<Type>),
@@ -20,6 +21,7 @@ pub enum Type {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Number(i32),
+    Number64(i64),
     String(String),
     Bool(bool),
     Nil,
@@ -44,6 +46,9 @@ pub enum Expression {
 impl Expression {
     fn new_number(n: i32) -> Self {
         Self::Number(n)
+    }
+    fn new_number64(n: i64) -> Self {
+        Self::Number64(n)
     }
 
     fn new_string(s: String) -> Self {
@@ -149,6 +154,9 @@ fn get_type(next:  pest::iterators::Pair<Rule>) -> Type {
         Rule::i32_type => {
             Type::i32
         }
+        Rule::i64_type => {
+            Type::i64
+        }
         Rule::list_type => {
             let list_inner_type = get_type(next);
             Type::List(Box::new(list_inner_type))
@@ -164,7 +172,20 @@ fn parse_expression(
 ) -> Result<Expression, Box<pest::error::Error<Rule>>> {
     match pair.as_rule() {
         Rule::number => {
-            let n = pair.as_str().parse().map_err(|e: ParseIntError| {
+            let val_str = pair.as_str();
+            // hack, need to do this through the type system i.e let val: i64 = ..;
+            if val_str.len() > 9 {
+                let n64 = val_str.parse::<i64>().map_err(|e: ParseIntError| {
+                    pest::error::Error::new_from_span(
+                        pest::error::ErrorVariant::CustomError {
+                            message: e.to_string(),
+                        },
+                        pair.as_span(),
+                    )
+                })?;
+                return Ok(Expression::new_number64(n64));
+            }
+            let n: i32 = val_str.parse().map_err(|e: ParseIntError| {
                 pest::error::Error::new_from_span(
                     pest::error::ErrorVariant::CustomError {
                         message: e.to_string(),
