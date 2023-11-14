@@ -72,18 +72,29 @@ fn generate_comparison_operation(
                  match (self.get_ptr(), self.get_type()) {
                 (Some(lhs_ptr), BaseTypes::Number) => {
                         // If loading a pointer
-                        let lhs_val = LLVMBuildLoad2(
+                        let mut lhs_val = LLVMBuildLoad2(
                             context.builder,
                             self.get_llvm_type(),
                             lhs_ptr,
                             cstr_from_string("lhs_bool").as_ptr(),
                         );
-                        let rhs_val = LLVMBuildLoad2(
+                        let mut rhs_val = LLVMBuildLoad2(
                             context.builder,
                             rhs.get_llvm_type(),
                             rhs.get_ptr().unwrap(),
                             cstr_from_string("rhs_bool").as_ptr(),
                         );
+                        match (self.get_type(), rhs.get_type()) {
+                                (BaseTypes::Number, BaseTypes::Number64) => {
+                                    lhs_val = LLVMBuildSExt(context.builder, lhs_val, rhs.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
+                                }
+                                (BaseTypes::Number64, BaseTypes::Number) => {
+                                    rhs_val = LLVMBuildSExt(context.builder, rhs_val, self.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
+                                }
+                                _ => {
+                                    // do nothing
+                                }
+                            }
                         let cmp = LLVMBuildICmp(
                             context.builder,
                             #llvm_predicate_name,
@@ -102,11 +113,25 @@ fn generate_comparison_operation(
                         })
                     }
                     _ => {
+                        let mut lhs_value = self.get_value();
+                        let mut rhs_value = rhs.get_value();
+                                                        // // convert to i64 if mismatched types
+                            match (self.get_type(), rhs.get_type()) {
+                                (BaseTypes::Number, BaseTypes::Number64) => {
+                                    lhs_value = LLVMBuildSExt(context.builder, lhs_value, rhs.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
+                                }
+                                (BaseTypes::Number64, BaseTypes::Number) => {
+                                    rhs_value = LLVMBuildSExt(context.builder, rhs_value, self.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
+                                }
+                                _ => {
+                                    // do nothing
+                                }
+                            }
                         let cmp = LLVMBuildICmp(
                             context.builder,
                             #llvm_predicate_name,
-                            self.get_value(),
-                            rhs.get_value(),
+                            lhs_value,
+                            rhs_value,
                             cstr_from_string("result").as_ptr(),
                         );
                         let alloca =

@@ -1,2 +1,10 @@
-let val: i64 = 9223372036854775807;
-print(val);
+fn fib(i64 n) -> i64 {
+    if (n < 2) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+let val = 20;
+let output: i64 = fib(val);
+print(output);
