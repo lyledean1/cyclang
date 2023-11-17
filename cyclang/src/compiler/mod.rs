@@ -437,7 +437,7 @@ pub fn compile(input: Vec<Expression>, compile_options: Option<CompileOptions>) 
     llvm_compile_to_ir(input, compile_options)?;
     // compile to binary
     if let Some(compile_options) = compile_options {
-        if compile_options.is_execution_engine {
+        if !compile_options.is_execution_engine {
             Command::new("clang")
                 .arg("bin/main.ll")
                 .arg("-o")
