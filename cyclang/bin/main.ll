@@ -10,11 +10,15 @@ target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 define void @main() {
 main:
   %num = alloca ptr, align 8
-  store i32 20, ptr %num, align 4
-  %0 = call i32 @fib(i32 20)
-  %call_value_int = alloca ptr, align 8
-  store i32 %0, ptr %call_value_int, align 4
-  call void (ptr, ...) @printf(ptr @number_printf_val, i32 %0)
+  store i32 2, ptr %num, align 4
+  %num1 = alloca ptr, align 8
+  store i32 4, ptr %num1, align 4
+  %0 = load i32, ptr %num, align 4
+  %"\F0\A402\01" = load i32, ptr %num1, align 4
+  %addNumberType = add i32 %0, %"\F0\A402\01"
+  store i32 %addNumberType, ptr %num, align 4
+  %"\00\00\00\00\00" = load i32, ptr %num, align 4
+  call void (ptr, ...) @printf(ptr @number_printf_val, i32 %"\00\00\00\00\00")
   ret void
 }
 
@@ -27,40 +31,3 @@ entry:
 declare void @printf(ptr, ...)
 
 declare ptr @sprintf(ptr, ptr, ptr, ptr, ...)
-
-define i32 @fib(i32 %0) {
-entry:
-  %num = alloca ptr, align 8
-  store i32 2, ptr %num, align 4
-  %result = icmp slt i32 %0, 2
-  %bool_cmp = alloca i1, align 1
-  store i1 %result, ptr %bool_cmp, align 1
-  %cmp = load i1, ptr %bool_cmp, align 1
-  br i1 %cmp, label %common.ret, label %else_block
-
-common.ret:                                       ; preds = %entry, %else_block
-  %common.ret.op = phi i32 [ %add, %else_block ], [ %0, %entry ]
-  ret i32 %common.ret.op
-
-else_block:                                       ; preds = %entry
-  %num1 = alloca ptr, align 8
-  store i32 1, ptr %num1, align 4
-  %sub = sub i32 %0, 1
-  %param_add = alloca ptr, align 8
-  store i32 %sub, ptr %param_add, align 4
-  %1 = call i32 @fib(i32 %sub)
-  %call_value_int = alloca ptr, align 8
-  store i32 %1, ptr %call_value_int, align 4
-  %num2 = alloca ptr, align 8
-  store i32 2, ptr %num2, align 4
-  %sub3 = sub i32 %0, 2
-  %param_add4 = alloca ptr, align 8
-  store i32 %sub3, ptr %param_add4, align 4
-  %2 = call i32 @fib(i32 %sub3)
-  %call_value_int5 = alloca ptr, align 8
-  store i32 %2, ptr %call_value_int5, align 4
-  %add = add i32 %1, %2
-  %param_add6 = alloca ptr, align 8
-  store i32 %add, ptr %param_add6, align 4
-  br label %common.ret
-}
