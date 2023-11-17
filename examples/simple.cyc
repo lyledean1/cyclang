@@ -1,16 +1,1 @@
-if (true) {
-    if (true) {
-        print(1);
-        if (false) {
-            print("error");
-        } else {
-            print(2);
-            if (true) {
-                print(3);
-            }
-        }
-    }
-    print(4);
-} else {
-    print("don't print this");
-}
+print(1);

@@ -24,7 +24,7 @@ use llvm_sys::execution_engine::{
     LLVMLinkInMCJIT,
 };
 use llvm_sys::prelude::*;
-use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget};
+use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget, LLVMInitializeWebAssemblyAsmPrinter, LLVMInitializeWebAssemblyTarget};
 use std::process::Command;
 use std::ptr;
 
@@ -37,16 +37,96 @@ use crate::cyclo_error::CycloError::CompileError;
 pub mod llvm;
 pub mod types;
 
-fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
+#[derive(Debug, Clone, Copy)]
+pub struct CompileOptions {
+    pub is_execution_engine: bool,
+    pub target: Option<Target>,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[allow(non_camel_case_types)]
+pub enum Target {
+    wasm,
+    arm32, 
+    arm64,
+    x86_32,
+    x86_64,
+}
+
+impl Target {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "wasm" => Some(Target::wasm),
+            "arm32" => Some(Target::arm32),
+            "arm64" => Some(Target::arm64),
+            "x86_32" => Some(Target::x86_32),
+            "x86_64" => Some(Target::x86_64),
+            _ => None,
+        }
+    }
+
+    pub fn get_llvm_target_name(&self) -> String {
+        match self {
+            Target::wasm => "wasm32-unknown-unknown-wasm".to_string(),
+            Target::arm32 => "arm-unknown-linux-gnueabihf".to_string(),
+            Target::arm64 => "aarch64-unknown-linux-gnu".to_string(),
+            Target::x86_32 => "i386-unknown-unknown-elf".to_string(),
+            Target::x86_64 => "x86_64-unknown-unknown-elf".to_string(),
+        }
+    }
+
+    pub fn initialize(&self) {
+        unsafe {
+        match self {
+            Target::wasm => {
+                LLVMInitializeWebAssemblyTarget();
+                LLVMInitializeWebAssemblyAsmPrinter();
+            },
+            Target::arm32 =>{
+                unimplemented!("arm32 not implemented yet ")
+            },
+            Target::arm64 => {
+                unimplemented!("arm64 not implemented yet ")
+            },
+            Target::x86_32 => {
+                unimplemented!("x86_32 not implemented yet ")
+            },
+            Target::x86_64 => {
+                unimplemented!("x86_64 not implemented yet ")
+            },
+        }
+    }
+    }
+}
+
+fn llvm_compile_to_ir(exprs: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String, CycloError> {
     unsafe {
-        LLVMLinkInMCJIT();
-        LLVM_InitializeNativeTarget();
-        LLVM_InitializeNativeAsmPrinter();
+        let mut is_execution_engine = false;
+        let mut is_default_target: bool = true;
+
+        if let Some(compile_options) = compile_options {
+            is_execution_engine = compile_options.is_execution_engine;
+            is_default_target = compile_options.target.is_none();
+        }
+
+        if is_execution_engine {
+            LLVMLinkInMCJIT();
+        }
+
+        if is_default_target {
+            LLVM_InitializeNativeTarget();
+            LLVM_InitializeNativeAsmPrinter();
+        }
+        if !is_default_target {
+            compile_options.unwrap().target.unwrap().initialize();
+        }
 
         let context = LLVMContextCreate();
         let module = LLVMModuleCreateWithName(cstr_from_string("main").as_ptr());
         let builder = LLVMCreateBuilderInContext(context);
-
+        if !is_default_target {
+               LLVMSetTarget(module, cstr_from_string("wasm32-unknown-unknown-wasm").as_ptr());
+        }
         // common void type
         let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
 
@@ -111,20 +191,20 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Resu
         let mut engine = ptr::null_mut();
         let mut error = ptr::null_mut();
 
-        if LLVMCreateExecutionEngineForModule(&mut engine, module, &mut error) != 0 {
-            LLVMDisposeMessage(error);
-            panic!("Failed to create execution engine");
-        }
-
-        let main_func: extern "C" fn() = std::mem::transmute(LLVMGetFunctionAddress(
-            engine,
-            b"main\0".as_ptr() as *const _,
-        ));
 
         // Call the main function. It should execute its code.
         if is_execution_engine {
+            if LLVMCreateExecutionEngineForModule(&mut engine, module, &mut error) != 0 {
+                LLVMDisposeMessage(error);
+                panic!("Failed to create execution engine");
+            }
+            let main_func: extern "C" fn() = std::mem::transmute(LLVMGetFunctionAddress(
+                engine,
+                b"main\0".as_ptr() as *const _,
+            ));
             main_func();
         }
+
         if !is_execution_engine {
             LLVMPrintModuleToFile(
                 module,
@@ -393,20 +473,21 @@ impl ASTContext {
     }
 }
 
-pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
+pub fn compile(input: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String, CycloError> {
     // output LLVM IR
 
-    llvm_compile_to_ir(input, is_execution_engine)?;
+    llvm_compile_to_ir(input, compile_options)?;
     // compile to binary
-    if !is_execution_engine {
-        Command::new("clang")
-            .arg("bin/main.ll")
-            .arg("-o")
-            .arg("bin/main")
-            .output()?;
-        let output = Command::new("bin/main").output()?;
-        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    if let Some(compile_options) = compile_options {
+        if !compile_options.is_execution_engine {
+            Command::new("clang")
+                .arg("bin/main.ll")
+                .arg("-o")
+                .arg("bin/main")
+                .output()?;
+            let output = Command::new("bin/main").output()?;
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        }
     }
-    // todo handle no command
     Ok("".to_string())
 }

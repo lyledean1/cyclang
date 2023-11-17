@@ -42,5 +42,18 @@ s serve:
 build-book:
 	cd book && mdbook build
 
+fib-wasm:
+	cargo run -- --file=./examples/wasm/fib.cyc --target=wasm --emit-llvm-ir
+	@echo "Generating WASM file from LLVM IR"
+	@opt -O3 -S ./bin/main.ll -o ./bin/opt.ll
+	@llc -march=wasm32 -filetype=obj ./bin/main.ll -o ./bin/fib.o
+	@wasm-ld --no-entry --export-all -o ./bin/fib.wasm ./bin/fib.o
+	@llc -march=wasm32 -filetype=obj ./bin/opt.ll -o ./bin/fib-opt.o
+	@wasm-ld --no-entry --export-all -o ./bin/fib-opt.wasm ./bin/fib-opt.o
+	@cp ./bin/fib.wasm ./examples/wasm/fib.wasm
+	@cp ./bin/fib-opt.wasm ./examples/wasm/fib-opt.wasm
+	@echo "---------------------------------"
+	node ./examples/wasm/fib.js
+
 cargo-publish:
 	cargo publish cyclang-macros && cargo publish cyclang

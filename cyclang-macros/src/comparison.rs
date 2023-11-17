@@ -15,8 +15,8 @@ pub fn generate_comparison_derive(input: TokenStream) -> TokenStream {
 
     let import_bool_type = if *struct_name != "BoolType" {
         quote! {
-        use crate::compiler::BoolType;
-    }
+            use crate::compiler::BoolType;
+        }
     } else {
         quote! {}
     };

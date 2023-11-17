@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, Ident, LitStr};
-use syn::{parse::Parse, parse::ParseStream, Path};
 use quote::quote;
+use syn::{parse::Parse, parse::ParseStream, Path};
+use syn::{parse_macro_input, Ident, LitStr};
 
 struct MacroInput {
     struct_name: Ident,
@@ -14,7 +14,9 @@ impl Parse for MacroInput {
         let struct_name = derived_item.ident;
 
         // Look for the `base_type` attribute
-        let base_type = derived_item.attrs.iter()
+        let base_type = derived_item
+            .attrs
+            .iter()
             .find_map(|attr| {
                 if attr.path().is_ident("base_type") {
                     match attr.parse_args() {
@@ -27,12 +29,18 @@ impl Parse for MacroInput {
             })
             .expect("Expected a `base_type` attribute!");
 
-        Ok(MacroInput { struct_name, base_type })
+        Ok(MacroInput {
+            struct_name,
+            base_type,
+        })
     }
 }
 
 pub fn generate_base_derive(input: TokenStream) -> TokenStream {
-    let MacroInput { struct_name, base_type } = parse_macro_input!(input as MacroInput);
+    let MacroInput {
+        struct_name,
+        base_type,
+    } = parse_macro_input!(input as MacroInput);
 
     let base_type_path: Path = syn::parse_str(&base_type.value()).expect("Invalid base type");
 
