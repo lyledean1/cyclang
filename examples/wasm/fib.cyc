@@ -4,6 +4,3 @@ fn fib(i32 n) -> i32 {
     }
     return fib(n - 1) + fib(n - 2);
 }
-
-let output: i32 = fib(20);
-print(output);

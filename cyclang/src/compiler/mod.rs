@@ -24,7 +24,7 @@ use llvm_sys::execution_engine::{
     LLVMLinkInMCJIT,
 };
 use llvm_sys::prelude::*;
-use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget, LLVMInitializeWebAssemblyAsmParser, LLVMInitializeWebAssemblyAsmPrinter, LLVMInitializeWebAssemblyTarget, LLVMInitializeWebAssemblyTargetInfo};
+use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget, LLVMInitializeWebAssemblyAsmPrinter, LLVMInitializeWebAssemblyTarget};
 use std::process::Command;
 use std::ptr;
 

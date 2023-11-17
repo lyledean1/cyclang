@@ -37,3 +37,12 @@ cargo install cyclang
 ```
 
 See the [book](https://lyledean1.github.io/cyclang/setup.html) for a more detailed guide on setup.
+
+## WASM 
+
+To run the WASM example that compares the cyclang output (and an optimised version of the IR) against JS use the following command:
+```
+make fib-wasm
+```
+
+Ensure you have `wasm-ld` installed to convert LLVM object IR to a `.wasm` file. This should come with the LLVM 17 installation.
