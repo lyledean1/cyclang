@@ -4,6 +4,7 @@ extern crate pest_derive;
 extern crate cyclang_macros;
 
 use clap::Parser;
+use compiler::CompileOptions;
 use std::fmt;
 use std::fs;
 use std::process::exit;
@@ -37,9 +38,10 @@ impl fmt::Display for ParserError {
 }
 
 fn compile_output_from_string(contents: String, is_execution_engine: bool) -> String {
+    let compile_options = Some(CompileOptions{is_execution_engine, target: None});
     match parser::parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
-        Ok(exprs) => match compiler::compile(exprs, is_execution_engine) {
+        Ok(exprs) => match compiler::compile(exprs, compile_options) {
             Ok(output) => output,
             Err(e) => {
                 eprintln!("unable to compile contents due to error: {}", e);
