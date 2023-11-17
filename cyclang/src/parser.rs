@@ -174,26 +174,24 @@ fn parse_expression(
         Rule::number => {
             let val_str = pair.as_str();
             // hack, need to do this through the type system i.e let val: i64 = ..;
-            if val_str.len() > 9 {
-                let n64 = val_str.parse::<i64>().map_err(|e: ParseIntError| {
-                    pest::error::Error::new_from_span(
-                        pest::error::ErrorVariant::CustomError {
-                            message: e.to_string(),
-                        },
-                        pair.as_span(),
-                    )
-                })?;
-                return Ok(Expression::new_number64(n64));
+            let parse_i32: Result<i32, _>  = val_str.parse();
+            match parse_i32 {
+                Err(_) => {
+                    // ignore i32 error and try to parse i64
+                    let n: i64 = val_str.parse().map_err(|e: ParseIntError| {
+                        pest::error::Error::new_from_span(
+                            pest::error::ErrorVariant::CustomError {
+                                message: e.to_string(),
+                            },
+                            pair.as_span(),
+                        )
+                    })?;
+                    Ok(Expression::new_number64(n))
+                }
+                Ok(n) => {
+                    Ok(Expression::new_number(n))
+                }
             }
-            let n: i32 = val_str.parse().map_err(|e: ParseIntError| {
-                pest::error::Error::new_from_span(
-                    pest::error::ErrorVariant::CustomError {
-                        message: e.to_string(),
-                    },
-                    pair.as_span(),
-                )
-            })?;
-            Ok(Expression::new_number(n))
         }
         Rule::name => {
             let s = pair.as_str().to_string().replace(' ', "");

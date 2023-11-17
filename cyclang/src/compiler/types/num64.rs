@@ -27,11 +27,11 @@ impl TypeBase for NumberType64 {
             None => panic!("The input value must be an i32"),
         };
         unsafe {
-            let value = LLVMConstInt(int32_type(), value_as_i64.try_into().unwrap(), 0);
+            let value = LLVMConstInt(int64_type(), value_as_i64.try_into().unwrap(), 0);
             let c_string = CString::new(_name.clone()).unwrap();
             let c_pointer: *const i8 = c_string.as_ptr();
             // Check if the global variable already exists
-            let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_pointer);
+            let ptr = LLVMBuildAlloca(_context.builder, int64_ptr_type(), c_pointer);
             LLVMBuildStore(_context.builder, value, ptr);
             let cname = cstr_from_string(_name.as_str()).as_ptr();
             Box::new(NumberType64 {
