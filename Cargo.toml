@@ -5,10 +5,10 @@ resolver = "2"
 
 [workspace.package]
 description = "Cyclang is a toy language built in LLVM."
-version = "0.1.15"
+version = "0.1.17"
 edition = "2021"
 readme = "./README.md"
-keywords = ["cyclang", "llvm", "pest", "language"]
+keywords = ["cyclang", "llvm", "pest", "language", "wasm"]
 license = "Apache-2.0/MIT"
 repository = "https://github.com/lyledean1/cyclang"
 categories = ["compilers"]

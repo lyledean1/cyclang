@@ -1,9 +1,10 @@
-fn fib(int n) -> int {
+fn fib(i64 n) -> i64 {
     if (n < 2) {
         return n;
     }
     return fib(n - 1) + fib(n - 2);
 }
 
-let output: int = fib(20);
+let val = 20;
+let output: i64 = fib(val);
 print(output);

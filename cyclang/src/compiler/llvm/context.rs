@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::compiler::llvm::{cstr_from_string, int32_type, int8_ptr_type};
+use crate::compiler::llvm::{cstr_from_string, int32_type, int64_type, int8_ptr_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
@@ -11,6 +11,7 @@ use crate::parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
+use crate::compiler::types::num64::NumberType64;
 use crate::cyclo_error::CycloError;
 
 use super::int1_type;
@@ -26,6 +27,7 @@ pub struct ASTContext {
     pub depth: i32,
     pub printf_str_value: LLVMValueRef,
     pub printf_str_num_value: LLVMValueRef,
+    pub printf_str_num64_value: LLVMValueRef,
 }
 
 impl ASTContext {
@@ -149,9 +151,13 @@ impl LLVMFunction {
         );
 
         match return_type {
-            Type::Int => {
+            Type::i32 => {
                 function_type =
                     LLVMFunctionType(int32_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
+            }
+            Type::i64 => {
+                function_type =
+                    LLVMFunctionType(int64_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
             }
             Type::Bool => {
                 function_type =
@@ -191,9 +197,19 @@ impl LLVMFunction {
         for (i, val) in args.iter().enumerate() {
             match val {
                 Expression::FuncArg(v, t) => match t {
-                    Type::Int => {
+                    Type::i32 => {
                         let val = LLVMGetParam(function, i as u32);
                         let num = NumberType {
+                            llmv_value: val,
+                            llmv_value_pointer: None,
+                            name: "param".into(),
+                            cname: cstr_from_string("param").as_ptr(),
+                        };
+                        new_function.set_func_var(v, Box::new(num));
+                    }
+                    Type::i64 => {
+                        let val = LLVMGetParam(function, i as u32);
+                        let num = NumberType64 {
                             llmv_value: val,
                             llmv_value_pointer: None,
                             name: "param".into(),
@@ -256,7 +272,8 @@ impl LLVMFunction {
             match arg {
                 Expression::FuncArg(_, t) => match t {
                     Type::Bool => args_vec.push(int1_type()),
-                    Type::Int => args_vec.push(int32_type()),
+                    Type::i32 => args_vec.push(int32_type()),
+                    Type::i64 => args_vec.push(int64_type()),
                     Type::String => args_vec.push(int8_ptr_type()),
                     _ => {
                         unreachable!("unknown type {:?}", t)

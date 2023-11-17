@@ -5,7 +5,7 @@ A programming language I built in Rust - mainly for fun and my own learning! Use
 Try the Fibonacci example in `/examples/fib.cyc`
 
 ```rust
-fn fib(int n) -> int {
+fn fib(i32 n) -> i32 {
     if (n < 2) {
         return n;
     }
@@ -21,6 +21,20 @@ cyclang --file ./examples/fib.cyc
 ```
 
 This should output `6765`! 
+
+## WebAssembly (WASM)  
+
+To run the WASM example that compares Cyclang output (and an optimised version of the IR) against JS use the following command:
+```
+make fib-wasm
+```
+
+Below is a comparison of times in Node, Cyclang (unoptimized) WASM and Cyclang optimized WASM for a simple Fibonacci example. 
+
+<img width="668" alt="Screenshot 2023-11-17 at 18 08 23" src="https://github.com/lyledean1/cyclang/assets/20296911/646f04d6-cc16-4045-b9b7-6e9438e810f6">
+
+
+Ensure you have `wasm-ld` installed to convert LLVM object IR to a `.wasm` file. This should come with the LLVM 17 installation - instructions below.
 
 ##  Installing and Running (MacOS)
 

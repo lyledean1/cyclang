@@ -1,12 +1,10 @@
 extern crate llvm_sys;
 
 use std::any::Any;
-use std::ptr::null;
-use llvm_sys::core::{LLVMArrayType2, LLVMConstArray2};
+use llvm_sys::core::LLVMConstArray2;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::prelude::*;
 use crate::compiler::llvm::context::ASTContext;
-use crate::compiler::types::BaseTypes::List;
 
 #[derive(Debug, Clone)]
 pub struct ListType {

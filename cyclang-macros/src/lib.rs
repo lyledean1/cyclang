@@ -1,13 +1,13 @@
 extern crate proc_macro;
 mod arithmetic;
+mod base;
 mod comparison;
 mod debug;
-mod base;
 
 use crate::arithmetic::generate_arithmetic_derive;
+use crate::base::generate_base_derive;
 use crate::comparison::generate_comparison_derive;
 use crate::debug::generate_debug_derive;
-use crate::base::generate_base_derive;
 use proc_macro::TokenStream;
 
 #[proc_macro_derive(ArithmeticMacro)]

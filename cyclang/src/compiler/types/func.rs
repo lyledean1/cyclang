@@ -1,6 +1,6 @@
 use crate::parser::{Expression, Type};
 extern crate llvm_sys;
-use crate::compiler::llvm::{cstr_from_string, int1_ptr_type, int32_ptr_type};
+use crate::compiler::llvm::{cstr_from_string, int1_ptr_type, int32_ptr_type, int64_ptr_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
@@ -55,10 +55,25 @@ impl Func for FuncType {
                 cstr_from_string("").as_ptr(),
             );
             match self.return_type {
-                Type::Int => {
+                Type::i32 => {
                     let ptr = LLVMBuildAlloca(
                         _context.builder,
                         int32_ptr_type(),
+                        cstr_from_string("call_value_int").as_ptr(),
+                    );
+                    LLVMBuildStore(_context.builder, call_value, ptr);
+
+                    Ok(Box::new(NumberType {
+                        llmv_value: call_value,
+                        llmv_value_pointer: None,
+                        name: "call_value".into(),
+                        cname: cstr_from_string("call_value").as_ptr(),
+                    }))
+                }
+                Type::i64 => {
+                    let ptr = LLVMBuildAlloca(
+                        _context.builder,
+                        int64_ptr_type(),
                         cstr_from_string("call_value_int").as_ptr(),
                     );
                     LLVMBuildStore(_context.builder, call_value, ptr);

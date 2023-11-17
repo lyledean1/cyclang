@@ -5,6 +5,7 @@
 pub mod bool;
 pub mod func;
 pub mod num;
+pub mod num64;
 pub mod return_type;
 pub mod string;
 pub mod void;
@@ -20,9 +21,7 @@ extern crate libc;
 use libc::c_char;
 
 extern crate llvm_sys;
-use crate::compiler::llvm::{
-    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int8_ptr_type, int8_type,
-};
+use crate::compiler::llvm::{int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type, int8_type};
 
 use llvm_sys::prelude::*;
 use crate::cyclo_error::CycloError;
@@ -31,6 +30,7 @@ use crate::cyclo_error::CycloError;
 pub enum BaseTypes {
     String,
     Number,
+    Number64,
     Bool,
     List(Box<BaseTypes>),
     Func,
@@ -44,6 +44,7 @@ pub trait Base: DynClone {
             BaseTypes::String => int8_type(),
             BaseTypes::Bool => int1_type(),
             BaseTypes::Number => int32_type(),
+            BaseTypes::Number64 => int64_type(),
             _ => {
                 unreachable!("LLVMType for Type {:?} not found", self.get_type())
             }
@@ -54,6 +55,7 @@ pub trait Base: DynClone {
             BaseTypes::String => int8_ptr_type(),
             BaseTypes::Bool => int1_ptr_type(),
             BaseTypes::Number => int32_ptr_type(),
+            BaseTypes::Number64 => int64_type(),
             _ => {
                 unreachable!("LLVMType for Type {:?} not found", self.get_type())
             }

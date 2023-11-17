@@ -26,9 +26,10 @@ type_name = { base_type | list_type}
 call_stmt = { name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
 print_stmt = { "print(" ~ (call_stmt | expression | name) ~ ")" }
 string_type = {"string"}
-int_type = {"int"}
+i32_type = {"i32"}
+i64_type = {"i64"}
 bool_type = { "bool"}
-base_type = _{bool_type | int_type | string_type}
+base_type = _{bool_type | i32_type | i64_type | string_type}
 list_type = {"List<" ~  (base_type | list_type )~ ">"}
 // binary statemeents
 binary = {  operand ~ WHITESPACE? ~ operator_sequence }

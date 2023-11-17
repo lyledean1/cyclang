@@ -4,6 +4,8 @@ extern crate pest_derive;
 extern crate cyclang_macros;
 
 use clap::Parser;
+use compiler::CompileOptions;
+use compiler::Target;
 use std::fmt;
 use std::fs;
 use std::process::exit;
@@ -22,6 +24,8 @@ struct Args {
     #[arg(short, long)]
     file: Option<String>,
     #[arg(short, long)]
+    target: Option<String>,
+    #[arg(short, long)]
     emit_llvm_ir: bool,
 }
 
@@ -36,10 +40,18 @@ impl fmt::Display for ParserError {
     }
 }
 
-fn compile_output_from_string(contents: String, is_execution_engine: bool) -> String {
+fn get_target(target: Option<String>) -> Option<Target> {
+    if let Some(target) = target {
+        return Target::from_str(&target)
+    }
+    None
+}
+
+fn compile_output_from_string(contents: String, is_execution_engine: bool, target: Option<String>) -> String {
+    let compile_options = Some(CompileOptions{is_execution_engine, target: get_target(target)});
     match parser::parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
-        Ok(exprs) => match compiler::compile(exprs, is_execution_engine) {
+        Ok(exprs) => match compiler::compile(exprs, compile_options) {
             Ok(output) => output,
             Err(e) => {
                 eprintln!("unable to compile contents due to error: {}", e);
@@ -62,7 +74,7 @@ fn main() {
     }
     if let Some(filename) = args.file {
         let contents = fs::read_to_string(filename).expect("Failed to read file");
-        compile_output_from_string(contents, !args.emit_llvm_ir);
+        compile_output_from_string(contents, !args.emit_llvm_ir, args.target);
         return
     }
     repl::run();
@@ -73,7 +85,7 @@ mod test {
     use super::*;
     //Note: Integration tests for parsing and compiling output
     fn compile_output_from_string_test(contents: String) -> String {
-        compile_output_from_string(contents, false)
+        compile_output_from_string(contents, false, None)
     }
 
     #[test]
@@ -279,7 +291,7 @@ mod test {
     #[test]
     fn test_compile_list() {
         let input = r#"
-        let listExample: List<int> = [1, 2, 3, 4];
+        let listExample: List<i32> = [1, 2, 3, 4];
         "#;
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "true\n");
@@ -630,7 +642,7 @@ mod test {
     #[test]
     fn test_compile_function_return_int() {
         let input = r#"
-        fn get_int() -> int {
+        fn get_int() -> i32 {
             return 5;
         }
         let val = get_int();
@@ -644,7 +656,7 @@ mod test {
     fn test_compile_function_with_two_args_and_ignore_top_level_var() {
         let input = r#"
         let var = 0;
-        fn add(int x, int y) {
+        fn add(i32 x, i32 y) {
             print(x + y);
         }
         add(10, 10);
@@ -656,7 +668,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_int_value() {
         let input = r#"
-        fn add(int x, int y) -> int {
+        fn add(i32 x, i32 y) -> i32 {
             return x + y;
         }
         print(add(5,5));
@@ -668,7 +680,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_int_value_mul() {
         let input = r#"
-        fn mul(int x, int y) -> int {
+        fn mul(i32 x, i32 y) -> i32 {
             return x * y;
         }
         print(mul(5,5));
@@ -680,10 +692,10 @@ mod test {
     #[test]
     fn test_compile_fn_return_int_value_with_call_stmts() {
         let input = r#"
-        fn add(int x, int y) -> int {
+        fn add(i32 x, i32 y) -> i32 {
             return x + y;
         }
-        fn add_together() -> int {
+        fn add_together() -> i32 {
             return add(5,10) + add(10,4);
         }
         print(add_together());
@@ -707,7 +719,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_bool_value_cmp_ints() {
         let input = r#"
-        fn compare_ints(int x, int y) -> bool {
+        fn compare_ints(i32 x, i32 y) -> bool {
             return (x == y);
         }
         print(compare_ints(1000,1000));
@@ -719,7 +731,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_bool_true_value_cmp_ints_in_another_fn() {
         let input = r#"
-        fn compare(int x, int y) -> bool {
+        fn compare(i32 x, i32 y) -> bool {
             return (x == y);
         }
         fn expect_true() -> bool {
@@ -734,7 +746,7 @@ mod test {
     #[test]
     fn test_compile_fn_return_bool_false_value_cmp_ints_in_another_fn() {
         let input = r#"
-        fn compare(int x, int y) -> bool {
+        fn compare(i32 x, i32 y) -> bool {
             return (x == y);
         }
         fn expect_false() -> bool {
@@ -749,7 +761,7 @@ mod test {
     #[test]
     fn test_recursive_factorial_fn() {
         let input = r#"
-        fn factorial(int n) -> int {
+        fn factorial(i32 n) -> i32 {
             if (n == 0) {
                 return 1;
             }
@@ -764,7 +776,7 @@ mod test {
     #[test]
     fn test_recursive_fib_fn() {
         let input = r#"
-        fn fib(int n) -> int {
+        fn fib(i32 n) -> i32 {
             if (n < 2) {
                 return n;
             }
