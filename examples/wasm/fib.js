@@ -21,7 +21,7 @@ async function runWasm() {
     const wasmFilePath = path.join(__dirname, './fib.wasm');
     const wasmInstance = await loadWasmFile(wasmFilePath);
 
-    const wasmOptFilePath = path.join(__dirname, './fib_opt.wasm');
+    const wasmOptFilePath = path.join(__dirname, './fib-opt.wasm');
     const wasmOptInstance = await loadWasmFile(wasmOptFilePath);
 
 
