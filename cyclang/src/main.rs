@@ -5,6 +5,7 @@ extern crate cyclang_macros;
 
 use clap::Parser;
 use compiler::CompileOptions;
+use compiler::Target;
 use std::fmt;
 use std::fs;
 use std::process::exit;
@@ -23,6 +24,8 @@ struct Args {
     #[arg(short, long)]
     file: Option<String>,
     #[arg(short, long)]
+    target: Option<String>,
+    #[arg(short, long)]
     emit_llvm_ir: bool,
 }
 
@@ -37,8 +40,15 @@ impl fmt::Display for ParserError {
     }
 }
 
-fn compile_output_from_string(contents: String, is_execution_engine: bool) -> String {
-    let compile_options = Some(CompileOptions{is_execution_engine, target: None});
+fn get_target(target: Option<String>) -> Option<Target> {
+    if let Some(target) = target {
+        return Target::from_str(&target)
+    }
+    None
+}
+
+fn compile_output_from_string(contents: String, is_execution_engine: bool, target: Option<String>) -> String {
+    let compile_options = Some(CompileOptions{is_execution_engine, target: get_target(target)});
     match parser::parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
         Ok(exprs) => match compiler::compile(exprs, compile_options) {
@@ -64,7 +74,7 @@ fn main() {
     }
     if let Some(filename) = args.file {
         let contents = fs::read_to_string(filename).expect("Failed to read file");
-        compile_output_from_string(contents, !args.emit_llvm_ir);
+        compile_output_from_string(contents, !args.emit_llvm_ir, args.target);
         return
     }
     repl::run();
@@ -75,7 +85,7 @@ mod test {
     use super::*;
     //Note: Integration tests for parsing and compiling output
     fn compile_output_from_string_test(contents: String) -> String {
-        compile_output_from_string(contents, false)
+        compile_output_from_string(contents, false, None)
     }
 
     #[test]

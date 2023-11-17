@@ -6,4 +6,3 @@ fn fib(i32 n) -> i32 {
 }
 
 let output: i32 = fib(20);
-print(output);
