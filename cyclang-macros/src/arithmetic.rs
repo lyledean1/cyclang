@@ -44,21 +44,34 @@ fn generate_arithmetic_operation(
             _rhs: Box<dyn TypeBase>,
         ) -> Box<dyn TypeBase> {
             match _rhs.get_type() {
-                BaseTypes::Number => unsafe {
+                BaseTypes::Number | BaseTypes::Number64 => unsafe {
                     match self.get_ptr() {
                         Some(_p) => {
-                            let lhs_value = LLVMBuildLoad2(
+                            let mut lhs_value = LLVMBuildLoad2(
                                 context.builder,
                                 self.get_llvm_type(),
                                 self.get_ptr().unwrap(),
                                 self.get_name(),
                             );
-                            let rhs_value = LLVMBuildLoad2(
+                            let mut rhs_value = LLVMBuildLoad2(
                                 context.builder,
                                 _rhs.get_llvm_type(),
                                 _rhs.get_ptr().unwrap(),
                                 _rhs.get_name(),
                             );
+
+                            // // convert to i64 if mismatched types
+                            match (self.get_type(), _rhs.get_type()) {
+                                (BaseTypes::Number, BaseTypes::Number64) => {
+                                    lhs_value = LLVMBuildSExt(context.builder, lhs_value, _rhs.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
+                                }
+                                (BaseTypes::Number64, BaseTypes::Number) => {
+                                    rhs_value = LLVMBuildSExt(context.builder, rhs_value, self.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
+                                }
+                                _ => {
+                                    // do nothing
+                                }
+                            }
                             let result =
                                 #llvm_fn_name(context.builder, lhs_value, rhs_value, cstr_from_string(#add_name).as_ptr());
                             LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
@@ -73,10 +86,24 @@ fn generate_arithmetic_operation(
                             })
                         }
                         None => {
+                            let mut lhs_value = self.get_value();
+                            let mut rhs_value = _rhs.get_value();
+                                                        // // convert to i64 if mismatched types
+                            match (self.get_type(), _rhs.get_type()) {
+                                (BaseTypes::Number, BaseTypes::Number64) => {
+                                    lhs_value = LLVMBuildSExt(context.builder, lhs_value, _rhs.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
+                                }
+                                (BaseTypes::Number64, BaseTypes::Number) => {
+                                    rhs_value = LLVMBuildSExt(context.builder, rhs_value, self.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
+                                }
+                                _ => {
+                                    // do nothing
+                                }
+                            }
                             let result = #llvm_fn_name(
                                 context.builder,
-                                self.get_value(),
-                                _rhs.get_value(),
+                                lhs_value,
+                                rhs_value,
                                 cstr_from_string(#name).as_ptr(),
                             );
                             let alloca = LLVMBuildAlloca(

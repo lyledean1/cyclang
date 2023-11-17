@@ -31,6 +31,7 @@ use std::ptr;
 use self::llvm::control_flow::{new_for_loop, new_while_stmt};
 use self::types::return_type::ReturnType;
 use crate::compiler::llvm::cstr_from_string;
+use crate::compiler::types::num64::NumberType64;
 use crate::cyclo_error::CycloError::CompileError;
 
 pub mod llvm;
@@ -149,6 +150,11 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, compile_options: Option<CompileOpt
             format_str.as_ptr() as *const i8,
             cstr_from_string("number_printf_val").as_ptr(),
         );
+        let printf_str_num64_value = LLVMBuildGlobalStringPtr(
+            builder,
+            cstr_from_string("%llu\n").as_ptr(),
+            cstr_from_string("number64_printf_val").as_ptr(),
+        );
         let printf_str_value = LLVMBuildGlobalStringPtr(
             builder,
             cstr_from_string("%s\n").as_ptr(),
@@ -174,6 +180,7 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, compile_options: Option<CompileOpt
             depth: 0,
             printf_str_value,
             printf_str_num_value,
+            printf_str_num64_value,
         };
         for expr in exprs {
             ast_ctx.match_ast(expr)?;
@@ -270,6 +277,7 @@ impl ASTContext {
     fn get_printf_str(&mut self, val: BaseTypes) -> LLVMValueRef {
         match val {
             BaseTypes::Number => self.printf_str_num_value,
+            BaseTypes::Number64 => self.printf_str_num64_value,
             BaseTypes::Bool => self.printf_str_value,
             BaseTypes::String => self.printf_str_value,
             _ => {
@@ -281,6 +289,7 @@ impl ASTContext {
     pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>, CycloError> {
         match input {
             Expression::Number(input) => Ok(NumberType::new(Box::new(input), "num".to_string(), self)),
+            Expression::Number64(input) => Ok(NumberType64::new(Box::new(input), "num64".to_string(), self)),
             Expression::String(input) => Ok(StringType::new(Box::new(input), "str".to_string(), self)),
             Expression::Bool(input) => Ok(BoolType::new(Box::new(input), "bool".to_string(), self)),
             Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {

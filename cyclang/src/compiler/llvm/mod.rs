@@ -29,6 +29,13 @@ pub fn int8_type() -> LLVMTypeRef {
 pub fn int32_type() -> LLVMTypeRef {
     unsafe { LLVMInt32Type() }
 }
+pub fn int64_type() -> LLVMTypeRef {
+    unsafe { LLVMInt64Type() }
+}
+
+pub fn int64_ptr_type() -> LLVMTypeRef {
+    unsafe { LLVMPointerType(LLVMInt64Type(), 0) }
+}
 
 pub fn int32_ptr_type() -> LLVMTypeRef {
     unsafe { LLVMPointerType(LLVMInt32Type(), 0) }
