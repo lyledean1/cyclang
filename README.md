@@ -24,7 +24,7 @@ This should output `6765`!
 
 ## WebAssembly (WASM)  
 
-To run the WASM example that compares the cyclang output (and an optimised version of the IR) against JS use the following command:
+To run the WASM example that compares Cyclang output (and an optimised version of the IR) against JS use the following command:
 ```
 make fib-wasm
 ```
