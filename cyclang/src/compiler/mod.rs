@@ -36,8 +36,55 @@ use crate::cyclo_error::CycloError::CompileError;
 pub mod llvm;
 pub mod types;
 
-fn llvm_compile_to_ir(exprs: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
+#[derive(Debug, Clone, Copy)]
+pub struct CompileOptions {
+    pub is_execution_engine: bool,
+    pub target: Option<Target>,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[allow(non_camel_case_types)]
+pub enum Target {
+    wasm,
+    arm32, 
+    arm64,
+    x86_32,
+    x86_64,
+}
+
+impl Target {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "wasm" => Some(Target::wasm),
+            "arm32" => Some(Target::arm32),
+            "arm64" => Some(Target::arm64),
+            "x86_32" => Some(Target::x86_32),
+            "x86_64" => Some(Target::x86_64),
+            _ => None,
+        }
+    }
+
+    pub fn get_llvm_target_name(&self) -> String {
+        match self {
+            Target::wasm => "wasm32-unknown-unknown-wasm".to_string(),
+            Target::arm32 => "arm-unknown-linux-gnueabihf".to_string(),
+            Target::arm64 => "aarch64-unknown-linux-gnu".to_string(),
+            Target::x86_32 => "i386-unknown-unknown-elf".to_string(),
+            Target::x86_64 => "x86_64-unknown-unknown-elf".to_string(),
+        }
+    }
+}
+
+fn llvm_compile_to_ir(exprs: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String, CycloError> {
     unsafe {
+        let mut is_execution_engine = false;
+        // let mut is_default_target: bool = true;
+
+        if let Some(compile_options) = compile_options {
+            is_execution_engine = compile_options.is_execution_engine;
+            // is_default_target = compile_options.target.is_none();
+        }
+
         LLVMLinkInMCJIT();
         LLVM_InitializeNativeTarget();
         LLVM_InitializeNativeAsmPrinter();
@@ -384,20 +431,21 @@ impl ASTContext {
     }
 }
 
-pub fn compile(input: Vec<Expression>, is_execution_engine: bool) -> Result<String, CycloError> {
+pub fn compile(input: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String, CycloError> {
     // output LLVM IR
 
-    llvm_compile_to_ir(input, is_execution_engine)?;
+    llvm_compile_to_ir(input, compile_options)?;
     // compile to binary
-    if !is_execution_engine {
-        Command::new("clang")
-            .arg("bin/main.ll")
-            .arg("-o")
-            .arg("bin/main")
-            .output()?;
-        let output = Command::new("bin/main").output()?;
-        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    if let Some(compile_options) = compile_options {
+        if !compile_options.is_execution_engine {
+            Command::new("clang")
+                .arg("bin/main.ll")
+                .arg("-o")
+                .arg("bin/main")
+                .output()?;
+            let output = Command::new("bin/main").output()?;
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        }
     }
-    // todo handle no command
     Ok("".to_string())
 }
