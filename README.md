@@ -22,6 +22,20 @@ cyclang --file ./examples/fib.cyc
 
 This should output `6765`! 
 
+## WASM 
+
+To run the WASM example that compares the cyclang output (and an optimised version of the IR) against JS use the following command:
+```
+make fib-wasm
+```
+
+Below is a comparison of times in Node, Cyclang (unoptimized) WASM and Cyclang optimized WASM for a simple Fibonacci example. 
+
+<img width="668" alt="Screenshot 2023-11-17 at 18 08 23" src="https://github.com/lyledean1/cyclang/assets/20296911/646f04d6-cc16-4045-b9b7-6e9438e810f6">
+
+
+Ensure you have `wasm-ld` installed to convert LLVM object IR to a `.wasm` file. This should come with the LLVM 17 installation - instructions below.
+
 ##  Installing and Running (MacOS)
 
 *Note*: I've only tested this on MacOS.
@@ -37,12 +51,3 @@ cargo install cyclang
 ```
 
 See the [book](https://lyledean1.github.io/cyclang/setup.html) for a more detailed guide on setup.
-
-## WASM 
-
-To run the WASM example that compares the cyclang output (and an optimised version of the IR) against JS use the following command:
-```
-make fib-wasm
-```
-
-Ensure you have `wasm-ld` installed to convert LLVM object IR to a `.wasm` file. This should come with the LLVM 17 installation.
