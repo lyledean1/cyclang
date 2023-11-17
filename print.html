@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">3.</strong> Features</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">3.</strong> Features</a></li><li class="chapter-item expanded "><a href="targets.html"><strong aria-hidden="true">4.</strong> Targets</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -265,6 +265,15 @@ print(val);
 <p>Also set proc_macro2 -&gt; 1.66 if using Rust nightly compiler in the Cargo.toml</p>
 <pre><code>proc-macro2 = { version = &quot;1.0.66&quot;, features=[&quot;default&quot;, &quot;proc-macro&quot;] }
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="webassembly"><a class="header" href="#webassembly">WebAssembly</a></h1>
+<p>Output the WASM File for use. </p>
+<pre><code>llc -march=wasm32 -filetype=obj ./bin/main.ll -o ./bin/output.o
+wasm-ld --no-entry --export-all -o ./bin/output.wasm ./bin/output.o
+</code></pre>
+<p>To convert this to a human readable format use</p>
+<pre><code>wasm2wat ./bin/output.wasm -o ./bin/output.wat  
+</code></pre>
+<p>There is an example of a Fibonacci sequence in <code>./examples/wasm/fib.js</code> which loads and executes the Fibonacci sequence. Just run <code>node ./examples/wasm/fib.js</code>.</p>
 
                     </main>
 
