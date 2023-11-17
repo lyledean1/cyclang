@@ -22,7 +22,7 @@ cyclang --file ./examples/fib.cyc
 
 This should output `6765`! 
 
-## WASM 
+## WebAssembly (WASM)  
 
 To run the WASM example that compares the cyclang output (and an optimised version of the IR) against JS use the following command:
 ```
