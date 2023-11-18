@@ -293,16 +293,19 @@ impl ASTContext {
             Expression::Number64(input) => Ok(NumberType64::new(Box::new(input), "num64".to_string(), self)),
             Expression::String(input) => Ok(StringType::new(Box::new(input), "str".to_string(), self)),
             Expression::Bool(input) => Ok(BoolType::new(Box::new(input), "bool".to_string(), self)),
-            Expression::Variable(input) => match self.current_function.symbol_table.get(&input) {
-                Some(val) => Ok(val.clone()),
-                None => {
-                    // check if variable is in function
-                    // TODO: should this be reversed i.e check func var first then global
-                    match self.var_cache.get(&input) {
-                        Some(val) => Ok(val),
-                        None => {
-                            let error_message = format!("Unknown variable {}", input);
-                            Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
+            Expression::Variable(input) =>
+                {
+                    match self.current_function.symbol_table.get(&input) {
+                    Some(val) => Ok(val.clone()),
+                    None => {
+                        // check if variable is in function
+                        // TODO: should this be reversed i.e check func var first then global
+                        match self.var_cache.get(&input) {
+                            Some(val) => Ok(val),
+                            None => {
+                                let error_message = format!("Unknown variable {}", input);
+                                Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
+                            }
                         }
                     }
                 }
@@ -331,14 +334,45 @@ impl ASTContext {
                     LLVMBuildStore(self.builder, llvm_array_value, array_ptr);
                     Ok(Box::new(ListType {
                         llvm_value: llvm_array_value,
+                        llvm_value_ptr: array_ptr,
+                        llvm_type: llvm_array_type,
                     }))
                 }
             }
-            Expression::ListIndex(_, _) => {
-                unimplemented!()
+            Expression::ListIndex(v, i) => {
+                let val = self.match_ast(*v)?;
+                let index = self.match_ast(*i)?;
+                unsafe {
+                    let zero_index = LLVMConstInt(index.get_llvm_type(), 0, 0);
+                    let mut indices = [zero_index, index.get_value()];
+                    let val = LLVMBuildGEP2(self.builder, val.get_llvm_type(), val.get_ptr().unwrap(), indices.as_mut_ptr(), 2 as u32, b"access_array\0".as_ptr() as *const _);
+                    return Ok(Box::new(NumberType {
+                        llmv_value: val,
+                        llmv_value_pointer: Some(val),
+                        name: "".to_string(),
+                        cname: b"access_array\0".as_ptr() as *const _,
+                    }))
+                }
+
             }
-            Expression::ListAssign(_, _, _) => {
-                unimplemented!()
+            Expression::ListAssign(var, i, rhs) => {
+                match self.var_cache.get(&var) {
+                    Some(mut val) => {
+                        let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
+                        let ptr = val.get_ptr().unwrap();
+                        let index = self.match_ast(*i)?;
+                        unsafe {
+                            let zero_index = LLVMConstInt(index.get_llvm_type(), 0, 0);
+                            let mut indices = [zero_index, index.get_value()];
+                            let element_ptr = LLVMBuildGEP2(self.builder, val.get_llvm_type(), val.get_ptr().unwrap(), indices.as_mut_ptr(), 2 as u32, b"access_array\0".as_ptr() as *const _);
+                            LLVMBuildStore(self.builder, lhs.get_value(), element_ptr);
+                        }
+                        Ok(val)
+                    }
+                    _ => {
+                        unreachable!("can't assign as var doesn't exist")
+                    }
+                }
             }
             Expression::Nil => {
                 unimplemented!()

@@ -9,11 +9,16 @@ use crate::compiler::llvm::context::ASTContext;
 #[derive(Debug, Clone)]
 pub struct ListType {
     pub llvm_value: LLVMValueRef,
+    pub llvm_value_ptr: LLVMValueRef,
+    pub llvm_type: LLVMTypeRef,
 }
 
 impl Base for ListType {
     fn get_type(&self) -> BaseTypes {
-        BaseTypes::Number
+        BaseTypes::List(Box::new(BaseTypes::Number))
+    }
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        self.llvm_type
     }
 }
 
@@ -31,13 +36,15 @@ impl TypeBase for ListType {
 
         unsafe {
             let llvm_array_value = LLVMConstArray2(first_element.get_llvm_type(), elements.as_mut_ptr(), value_as_expr_list.len() as u64);
-            Box::new(ListType {
-                llvm_value: llvm_array_value,
-            })
+            unimplemented!()
         }
     }
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_value
+    }
+
+    fn get_ptr(&self) -> Option<LLVMValueRef> {
+        Some(self.llvm_value_ptr)
     }
 }
 impl Arithmetic for ListType {}
