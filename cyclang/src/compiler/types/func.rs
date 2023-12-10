@@ -36,7 +36,7 @@ impl Debug for FuncType {}
 impl Func for FuncType {
     fn call(
         &self,
-        _context: &mut crate::compiler::llvm::context::ASTContext,
+        context: &mut crate::compiler::llvm::context::ASTContext,
         args: Vec<Expression>,
     ) -> Result<Box<dyn TypeBase>, CycloError> {
         unsafe {
@@ -44,10 +44,17 @@ impl Func for FuncType {
 
             let call_args = &mut vec![];
             for arg in args.iter() {
-                call_args.push(_context.match_ast(arg.clone())?.get_value());
+                // build load args i.e if variable 
+                let ast_value = context.match_ast(arg.clone())?;
+                if let Some(ptr) = ast_value.get_ptr() {
+                    let loaded_value = context.build_load(ptr, ast_value.get_llvm_type(), cstr_from_string("call_arg").as_ptr());
+                    call_args.push(loaded_value);
+                } else {
+                    call_args.push(ast_value.get_value());
+                }
             }
             let call_value = LLVMBuildCall2(
-                _context.builder,
+                context.builder,
                 self.get_llvm_type(),
                 self.get_value(),
                 call_args.as_mut_ptr(),
@@ -56,7 +63,7 @@ impl Func for FuncType {
             );
             match self.return_type {
                 Type::i32 => {
-                    let _ptr = _context.build_alloca_store(
+                    let _ptr = context.build_alloca_store(
                         call_value,
                         int32_ptr_type(),
                         cstr_from_string("call_value_int32").as_ptr(),
@@ -69,7 +76,7 @@ impl Func for FuncType {
                     }))
                 }
                 Type::i64 => {
-                    let _ptr = _context.build_alloca_store(
+                    let _ptr = context.build_alloca_store(
                         call_value,
                         int64_ptr_type(),
                         cstr_from_string("call_value_int64").as_ptr(),
@@ -82,13 +89,13 @@ impl Func for FuncType {
                     }))
                 }
                 Type::Bool => {
-                    let ptr = _context.build_alloca_store(
+                    let ptr = context.build_alloca_store(
                         call_value,
                         int1_ptr_type(),
                         cstr_from_string("bool_value").as_ptr(),
                     );
                     Ok(Box::new(BoolType {
-                        builder: _context.builder,
+                        builder: context.builder,
                         llmv_value: call_value,
                         llmv_value_pointer: ptr,
                         name: "call_value".into(),
