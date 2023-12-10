@@ -45,15 +45,15 @@ fn generate_arithmetic_operation(
         ) -> Box<dyn TypeBase> {
             match _rhs.get_type() {
                 BaseTypes::Number | BaseTypes::Number64 => unsafe {
-                    match self.get_ptr() {
-                        Some(ptr) => {
+                    match (self.get_ptr(), _rhs.get_ptr()) {
+                        (Some(ptr), Some(rhs_ptr)) => {
                             let mut lhs_val = context.build_load(
                                 ptr,
                                 self.get_llvm_type(),
                                 self.get_name(),
                             );
                             let mut rhs_val = context.build_load(
-                                _rhs.get_ptr().unwrap(),
+                                rhs_ptr,
                                 _rhs.get_llvm_type(),
                                 _rhs.get_name(),
                             );
@@ -64,18 +64,19 @@ fn generate_arithmetic_operation(
 
                             let result =
                                 #llvm_fn_name(context.builder, lhs_val, rhs_val, cstr_from_string(#add_name).as_ptr());
-                            context.build_store(result, ptr);
+                            let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), cstr_from_string("param_add").as_ptr());
+
                             let c_str_ref = CStr::from_ptr(self.get_name());
                             // Convert the CStr to a String (handles invalid UTF-8)
                             let name = c_str_ref.to_string_lossy().to_string();
                             Box::new(#struct_name {
                                 name,
                                 llmv_value: result,
-                                llmv_value_pointer: Some(ptr),
+                                llmv_value_pointer: Some(alloca),
                                 cname: self.get_name(),
                             })
                         }
-                        None => {
+                        _ => {
                             let mut lhs_val = self.get_value();
                             let mut rhs_val = _rhs.get_value();
                             // convert to i64 if mismatched types
