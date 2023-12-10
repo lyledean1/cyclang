@@ -364,8 +364,9 @@ impl ASTContext {
                 let name = cstr_from_string("access_array").as_ptr();
                 let val = self.match_ast(*v)?;
                 let index = self.match_ast(*i)?;
-                let zero_index = self.const_int(index.get_llvm_type(), 0, 0);
-                let mut indices = [zero_index, index.get_value()];
+                let zero_index = self.const_int(int64_type(), 0, 0);
+                let build_load_index = self.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), cstr_from_string("example").as_ptr());
+                let mut indices = [zero_index, build_load_index];
                 let val = self.build_gep(
                     val.get_llvm_type(),
                     val.get_ptr().unwrap(),
@@ -386,8 +387,9 @@ impl ASTContext {
                     let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
                     let ptr = val.get_ptr().unwrap();
                     let index = self.match_ast(*i)?;
-                    let zero_index = self.const_int(index.get_llvm_type(), 0, 0);
-                    let mut indices = [zero_index, index.get_value()];
+                    let zero_index = self.const_int(int64_type(), 0, 0);
+                    let build_load_index = self.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), cstr_from_string("example").as_ptr());
+                    let mut indices = [zero_index, build_load_index];
                     let element_ptr = self.build_gep(
                         val.get_llvm_type(),
                         val.get_ptr().unwrap(),
