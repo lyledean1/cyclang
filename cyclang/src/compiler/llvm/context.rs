@@ -133,6 +133,29 @@ impl ASTContext {
         let rhs_val = self.build_load(load_ptr, ptr_type, name);
         self.build_store(rhs_val, store_ptr);
     }
+
+    pub fn cast_i32_to_i64(
+        &self,
+        mut lhs_value: LLVMValueRef,
+        rhs_value: LLVMValueRef,
+    ) -> LLVMValueRef {
+        unsafe {
+            let lhs_value_type = LLVMTypeOf(lhs_value);
+            let lhs_value_width = LLVMGetIntTypeWidth(lhs_value_type);
+            let rhs_value_type = LLVMTypeOf(rhs_value);
+            let rhs_value_width = LLVMGetIntTypeWidth(rhs_value_type);
+
+            if let (32, 64) = (lhs_value_width, rhs_value_width) {
+                lhs_value = LLVMBuildSExt(
+                    self.builder,
+                    lhs_value,
+                    int64_type(),
+                    cstr_from_string("cast_to_i64").as_ptr(),
+                );
+            }
+            lhs_value
+        }
+    }
 }
 
 #[derive(Clone)]
