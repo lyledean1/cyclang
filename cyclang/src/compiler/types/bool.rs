@@ -24,12 +24,12 @@ pub struct BoolType {
 impl Arithmetic for BoolType {}
 
 unsafe fn get_value_for_print_argument(
-    builder: LLVMBuilderRef,
+    context: &mut ASTContext,
     name: *const i8,
     value: BoolType,
 ) -> LLVMValueRef {
     match value.get_ptr() {
-        Some(v) => LLVMBuildLoad2(builder, int1_type(), v, name),
+        Some(v) => context.build_load(v, int1_type(), name),
         None => value.get_value(),
     }
 }
@@ -37,8 +37,7 @@ unsafe fn get_value_for_print_argument(
 impl Debug for BoolType {
     fn print(&self, ast_context: &mut ASTContext) {
         unsafe {
-            let value =
-                get_value_for_print_argument(ast_context.builder, self.get_name(), self.clone());
+            let value = get_value_for_print_argument(ast_context, self.get_name(), self.clone());
 
             let mut bool_func_args: Vec<LLVMValueRef> = vec![value];
 

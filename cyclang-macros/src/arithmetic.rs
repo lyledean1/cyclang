@@ -46,62 +46,46 @@ fn generate_arithmetic_operation(
             match _rhs.get_type() {
                 BaseTypes::Number | BaseTypes::Number64 => unsafe {
                     match self.get_ptr() {
-                        Some(_p) => {
-                            let mut lhs_value = context.build_load(
-                                self.get_ptr().unwrap(),
+                        Some(ptr) => {
+                            let mut lhs_val = context.build_load(
+                                ptr,
                                 self.get_llvm_type(),
                                 self.get_name(),
                             );
-                            let mut rhs_value = context.build_load(
+                            let mut rhs_val = context.build_load(
                                 _rhs.get_ptr().unwrap(),
                                 _rhs.get_llvm_type(),
                                 _rhs.get_name(),
                             );
 
-                            // // convert to i64 if mismatched types
-                            match (self.get_type(), _rhs.get_type()) {
-                                (BaseTypes::Number, BaseTypes::Number64) => {
-                                    lhs_value = LLVMBuildSExt(context.builder, lhs_value, _rhs.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
-                                }
-                                (BaseTypes::Number64, BaseTypes::Number) => {
-                                    rhs_value = LLVMBuildSExt(context.builder, rhs_value, self.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
-                                }
-                                _ => {
-                                    // do nothing
-                                }
-                            }
+                            // convert to i64 if mismatched types
+                            lhs_val = context.cast_i32_to_i64(lhs_val, rhs_val);
+                            rhs_val = context.cast_i32_to_i64(rhs_val, lhs_val);
+
                             let result =
-                                #llvm_fn_name(context.builder, lhs_value, rhs_value, cstr_from_string(#add_name).as_ptr());
-                            LLVMBuildStore(context.builder, result, self.get_ptr().unwrap());
+                                #llvm_fn_name(context.builder, lhs_val, rhs_val, cstr_from_string(#add_name).as_ptr());
+                            context.build_store(result, ptr);
                             let c_str_ref = CStr::from_ptr(self.get_name());
                             // Convert the CStr to a String (handles invalid UTF-8)
                             let name = c_str_ref.to_string_lossy().to_string();
                             Box::new(#struct_name {
                                 name,
                                 llmv_value: result,
-                                llmv_value_pointer: self.get_ptr(),
+                                llmv_value_pointer: Some(ptr),
                                 cname: self.get_name(),
                             })
                         }
                         None => {
-                            let mut lhs_value = self.get_value();
-                            let mut rhs_value = _rhs.get_value();
-                                                        // // convert to i64 if mismatched types
-                            match (self.get_type(), _rhs.get_type()) {
-                                (BaseTypes::Number, BaseTypes::Number64) => {
-                                    lhs_value = LLVMBuildSExt(context.builder, lhs_value, _rhs.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
-                                }
-                                (BaseTypes::Number64, BaseTypes::Number) => {
-                                    rhs_value = LLVMBuildSExt(context.builder, rhs_value, self.get_llvm_type(), cstr_from_string("cast_to_i64").as_ptr());
-                                }
-                                _ => {
-                                    // do nothing
-                                }
-                            }
+                            let mut lhs_val = self.get_value();
+                            let mut rhs_val = _rhs.get_value();
+                            // convert to i64 if mismatched types
+                            lhs_val = context.cast_i32_to_i64(lhs_val, rhs_val);
+                            rhs_val = context.cast_i32_to_i64(rhs_val, lhs_val);
+
                             let result = #llvm_fn_name(
                                 context.builder,
-                                lhs_value,
-                                rhs_value,
+                                lhs_val,
+                                rhs_val,
                                 cstr_from_string(#name).as_ptr(),
                             );
                             let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), cstr_from_string("param_add").as_ptr());
