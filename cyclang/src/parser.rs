@@ -63,7 +63,9 @@ impl Expression {
         Self::Bool(b)
     }
 
-    fn new_list(list: Vec<Expression>) -> Self { Self::List(list) }
+    fn new_list(list: Vec<Expression>) -> Self {
+        Self::List(list)
+    }
 
     fn new_list_index(list: Expression, index: Expression) -> Self {
         Self::ListIndex(Box::new(list), Box::new(index))
@@ -141,29 +143,19 @@ impl Expression {
     }
 }
 
-fn get_type(next:  pest::iterators::Pair<Rule>) -> Type {
+fn get_type(next: pest::iterators::Pair<Rule>) -> Type {
     let mut inner_pairs = next.into_inner();
     let next = inner_pairs.next().unwrap();
     match next.as_rule() {
-        Rule::string_type => {
-            Type::String
-        }
-        Rule::bool_type => {
-            Type::Bool
-        }
-        Rule::i32_type => {
-            Type::i32
-        }
-        Rule::i64_type => {
-            Type::i64
-        }
+        Rule::string_type => Type::String,
+        Rule::bool_type => Type::Bool,
+        Rule::i32_type => Type::i32,
+        Rule::i64_type => Type::i64,
         Rule::list_type => {
             let list_inner_type = get_type(next);
             Type::List(Box::new(list_inner_type))
         }
-        _ => {
-            Type::None
-        }
+        _ => Type::None,
     }
 }
 
@@ -174,7 +166,7 @@ fn parse_expression(
         Rule::number => {
             let val_str = pair.as_str();
             // hack, need to do this through the type system i.e let val: i64 = ..;
-            let parse_i32: Result<i32, _>  = val_str.parse();
+            let parse_i32: Result<i32, _> = val_str.parse();
             match parse_i32 {
                 Err(_) => {
                     // ignore i32 error and try to parse i64
@@ -188,9 +180,7 @@ fn parse_expression(
                     })?;
                     Ok(Expression::new_number64(n))
                 }
-                Ok(n) => {
-                    Ok(Expression::new_number(n))
-                }
+                Ok(n) => Ok(Expression::new_number(n)),
             }
         }
         Rule::name => {
@@ -226,7 +216,12 @@ fn parse_expression(
         }
         Rule::let_stmt => {
             let mut inner_pairs = pair.into_inner();
-            let name = inner_pairs.next().unwrap().as_str().to_string().replace(' ', "");
+            let name = inner_pairs
+                .next()
+                .unwrap()
+                .as_str()
+                .to_string()
+                .replace(' ', "");
             let mut let_type = Type::None;
 
             let next = inner_pairs.next().unwrap();
@@ -400,9 +395,10 @@ fn parse_expression(
         Rule::list => {
             let mut inner_pairs = pair.into_inner();
             let mut list = vec![];
-            while inner_pairs.peek().map_or(false, |p| {
-                p.as_rule() != Rule::rbracket
-            }) {
+            while inner_pairs
+                .peek()
+                .map_or(false, |p| p.as_rule() != Rule::rbracket)
+            {
                 let next = inner_pairs.next().unwrap();
                 let next_rule = next.as_rule();
                 if next_rule != Rule::comma && next_rule != Rule::lbracket {
@@ -428,7 +424,11 @@ fn parse_expression(
             let array_index = parse_expression(array_expr_inner.next().unwrap())?;
             inner_pairs.next(); // skip = sign
             let array_assign = parse_expression(inner_pairs.next().unwrap())?;
-            Ok(Expression::new_list_assign(array_var.to_string(), array_index, array_assign))
+            Ok(Expression::new_list_assign(
+                array_var.to_string(),
+                array_index,
+                array_assign,
+            ))
         }
         _ => Err(Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError {
@@ -736,9 +736,15 @@ mod test {
         let input = r#"let value: List<string> = ["1", "2", "3", "4"];"#;
         let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
             parse_cyclo_program(input);
-        let list_expr = Expression::List(vec![Expression::String("\"1\"".to_string()), Expression::String("\"2\"".to_string()), Expression::String("\"3\"".to_string()), Expression::String("\"4\"".to_string())]);
+        let list_expr = Expression::List(vec![
+            Expression::String("\"1\"".to_string()),
+            Expression::String("\"2\"".to_string()),
+            Expression::String("\"3\"".to_string()),
+            Expression::String("\"4\"".to_string()),
+        ]);
         let list_type = Type::List(Box::new(Type::String));
-        let let_stmt_expr = Expression::LetStmt("value".to_string(), list_type, Box::new(list_expr));
+        let let_stmt_expr =
+            Expression::LetStmt("value".to_string(), list_type, Box::new(list_expr));
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&let_stmt_expr))
     }
@@ -752,7 +758,11 @@ mod test {
         let list_of_list_expr = Expression::List(vec![list_expr.clone(), list_expr]);
         let list_type = Type::List(Box::new(Type::Bool));
         let list_of_list_type = Type::List(Box::new(list_type));
-        let let_stmt_expr = Expression::LetStmt("value".to_string(), list_of_list_type, Box::new(list_of_list_expr));
+        let let_stmt_expr = Expression::LetStmt(
+            "value".to_string(),
+            list_of_list_type,
+            Box::new(list_of_list_expr),
+        );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&let_stmt_expr))
     }
@@ -766,7 +776,11 @@ mod test {
         let list_of_list_expr = Expression::List(vec![list_expr.clone(), list_expr]);
         let list_type = Type::List(Box::new(Type::i32));
         let list_of_list_type = Type::List(Box::new(list_type));
-        let let_stmt_expr = Expression::LetStmt("value".to_string(), list_of_list_type, Box::new(list_of_list_expr));
+        let let_stmt_expr = Expression::LetStmt(
+            "value".to_string(),
+            list_of_list_type,
+            Box::new(list_of_list_expr),
+        );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&let_stmt_expr))
     }

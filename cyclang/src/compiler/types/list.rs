@@ -1,10 +1,10 @@
 extern crate llvm_sys;
 
-use std::any::Any;
-use llvm_sys::core::LLVMConstArray2;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
-use llvm_sys::prelude::*;
 use crate::compiler::llvm::context::ASTContext;
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use llvm_sys::core::LLVMConstArray2;
+use llvm_sys::prelude::*;
+use std::any::Any;
 
 #[derive(Debug, Clone)]
 pub struct ListType {
@@ -35,7 +35,11 @@ impl TypeBase for ListType {
         }
 
         unsafe {
-            let llvm_array_value = LLVMConstArray2(first_element.get_llvm_type(), elements.as_mut_ptr(), value_as_expr_list.len() as u64);
+            let _llvm_array_value = LLVMConstArray2(
+                first_element.get_llvm_type(),
+                elements.as_mut_ptr(),
+                value_as_expr_list.len() as u64,
+            );
             unimplemented!()
         }
     }
@@ -51,6 +55,7 @@ impl Arithmetic for ListType {}
 
 impl Comparison for ListType {}
 
+// TODO: add print statement for lists
 impl Debug for ListType {}
 
 impl Func for ListType {}

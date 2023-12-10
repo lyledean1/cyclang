@@ -1,11 +1,11 @@
 use crate::compiler::{self, CompileOptions};
 use crate::cyclo_error::CycloError;
 use crate::parser;
+use crate::parser::Expression;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
-use text_colorizer::*;
-use crate::parser::Expression;
 use rustyline::{Cmd, EventHandler, KeyCode, KeyEvent, Modifiers};
+use text_colorizer::*;
 pub fn run() {
     let version: &str = env!("CARGO_PKG_VERSION");
 
@@ -21,18 +21,16 @@ pub fn run() {
         match line {
             Ok(input) => match input.trim() {
                 "exit()" => break,
-                _ => {
-                    match parse_and_compile(input.to_string(), &mut rl) {
-                        Ok(output) => {
-                            if !output.is_empty() {
-                                println!("{:?}", output)
-                            }
-                        }
-                        Err(e) => {
-                            println!("{}", e.to_string().red());
+                _ => match parse_and_compile(input.to_string(), &mut rl) {
+                    Ok(output) => {
+                        if !output.is_empty() {
+                            println!("{:?}", output)
                         }
                     }
-                }
+                    Err(e) => {
+                        println!("{}", e.to_string().red());
+                    }
+                },
             },
             Err(ReadlineError::Interrupted) => {
                 println!("Did you want to exit? Type exit()");
@@ -50,19 +48,23 @@ pub fn run() {
 }
 
 fn parse_and_compile(input: String, rl: &mut DefaultEditor) -> Result<String, CycloError> {
-    let joined_history = rl.history()
+    let joined_history = rl
+        .history()
         .iter()
-        .map(|s| &**s)  // Convert &String to &str
+        .map(|s| &**s) // Convert &String to &str
         .collect::<Vec<&str>>()
         .join("\n");
 
     let final_string = format!("{}{}", joined_history, input);
     let exprs = parser::parse_cyclo_program(&final_string)?;
-    let compile_options = Some(CompileOptions{is_execution_engine:true, target: None});
+    let compile_options = Some(CompileOptions {
+        is_execution_engine: true,
+        target: None,
+    });
     let output = compiler::compile(exprs.clone(), compile_options)?;
 
     for expr in parser::parse_cyclo_program(&input)? {
-        if let Expression::LetStmt(_,_, _) | Expression::FuncStmt(_, _, _, _) = expr {
+        if let Expression::LetStmt(_, _, _) | Expression::FuncStmt(_, _, _, _) = expr {
             let _ = rl.add_history_entry(input.as_str());
         }
     }

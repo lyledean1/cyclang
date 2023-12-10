@@ -24,7 +24,10 @@ use llvm_sys::execution_engine::{
     LLVMLinkInMCJIT,
 };
 use llvm_sys::prelude::*;
-use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget, LLVMInitializeWebAssemblyAsmPrinter, LLVMInitializeWebAssemblyTarget};
+use llvm_sys::target::{
+    LLVMInitializeWebAssemblyAsmPrinter, LLVMInitializeWebAssemblyTarget,
+    LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget,
+};
 use std::process::Command;
 use std::ptr;
 
@@ -48,7 +51,7 @@ pub struct CompileOptions {
 #[allow(non_camel_case_types)]
 pub enum Target {
     wasm,
-    arm32, 
+    arm32,
     arm64,
     x86_32,
     x86_64,
@@ -78,29 +81,32 @@ impl Target {
 
     pub fn initialize(&self) {
         unsafe {
-        match self {
-            Target::wasm => {
-                LLVMInitializeWebAssemblyTarget();
-                LLVMInitializeWebAssemblyAsmPrinter();
-            },
-            Target::arm32 =>{
-                unimplemented!("arm32 not implemented yet ")
-            },
-            Target::arm64 => {
-                unimplemented!("arm64 not implemented yet ")
-            },
-            Target::x86_32 => {
-                unimplemented!("x86_32 not implemented yet ")
-            },
-            Target::x86_64 => {
-                unimplemented!("x86_64 not implemented yet ")
-            },
+            match self {
+                Target::wasm => {
+                    LLVMInitializeWebAssemblyTarget();
+                    LLVMInitializeWebAssemblyAsmPrinter();
+                }
+                Target::arm32 => {
+                    unimplemented!("arm32 not implemented yet ")
+                }
+                Target::arm64 => {
+                    unimplemented!("arm64 not implemented yet ")
+                }
+                Target::x86_32 => {
+                    unimplemented!("x86_32 not implemented yet ")
+                }
+                Target::x86_64 => {
+                    unimplemented!("x86_64 not implemented yet ")
+                }
+            }
         }
-    }
     }
 }
 
-fn llvm_compile_to_ir(exprs: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String, CycloError> {
+fn llvm_compile_to_ir(
+    exprs: Vec<Expression>,
+    compile_options: Option<CompileOptions>,
+) -> Result<String, CycloError> {
     unsafe {
         let mut is_execution_engine = false;
         let mut is_default_target: bool = true;
@@ -126,7 +132,10 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, compile_options: Option<CompileOpt
         let module = LLVMModuleCreateWithName(cstr_from_string("main").as_ptr());
         let builder = LLVMCreateBuilderInContext(context);
         if !is_default_target {
-               LLVMSetTarget(module, cstr_from_string("wasm32-unknown-unknown-wasm").as_ptr());
+            LLVMSetTarget(
+                module,
+                cstr_from_string("wasm32-unknown-unknown-wasm").as_ptr(),
+            );
         }
         // common void type
         let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
@@ -192,7 +201,6 @@ fn llvm_compile_to_ir(exprs: Vec<Expression>, compile_options: Option<CompileOpt
         let mut engine = ptr::null_mut();
         let mut error = ptr::null_mut();
 
-
         // Call the main function. It should execute its code.
         if is_execution_engine {
             if LLVMCreateExecutionEngineForModule(&mut engine, module, &mut error) != 0 {
@@ -249,15 +257,13 @@ impl ASTContext {
     }
 
     //TODO: figure a better way to create a named variable in the LLVM IR
-    fn try_match_with_var(&mut self, name: String, input: Expression) -> Result<Box<dyn TypeBase>, CycloError> {
+    fn try_match_with_var(
+        &mut self,
+        name: String,
+        input: Expression,
+    ) -> Result<Box<dyn TypeBase>, CycloError> {
         match input {
-            Expression::Number(input) => {
-                Ok(NumberType::new(
-                    Box::new(input),
-                    name,
-                    self,
-                ))
-            },
+            Expression::Number(input) => Ok(NumberType::new(Box::new(input), name, self)),
             Expression::String(input) => Ok(StringType::new(
                 Box::new(input),
                 var_type_str(name, "str_var".to_string()),
@@ -289,13 +295,20 @@ impl ASTContext {
 
     pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>, CycloError> {
         match input {
-            Expression::Number(input) => Ok(NumberType::new(Box::new(input), "num".to_string(), self)),
-            Expression::Number64(input) => Ok(NumberType64::new(Box::new(input), "num64".to_string(), self)),
-            Expression::String(input) => Ok(StringType::new(Box::new(input), "str".to_string(), self)),
+            Expression::Number(input) => {
+                Ok(NumberType::new(Box::new(input), "num".to_string(), self))
+            }
+            Expression::Number64(input) => Ok(NumberType64::new(
+                Box::new(input),
+                "num64".to_string(),
+                self,
+            )),
+            Expression::String(input) => {
+                Ok(StringType::new(Box::new(input), "str".to_string(), self))
+            }
             Expression::Bool(input) => Ok(BoolType::new(Box::new(input), "bool".to_string(), self)),
-            Expression::Variable(input) =>
-                {
-                    match self.current_function.symbol_table.get(&input) {
+            Expression::Variable(input) => {
+                match self.current_function.symbol_table.get(&input) {
                     Some(val) => Ok(val.clone()),
                     None => {
                         // check if variable is in function
@@ -304,12 +317,15 @@ impl ASTContext {
                             Some(val) => Ok(val),
                             None => {
                                 let error_message = format!("Unknown variable {}", input);
-                                Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
+                                Err(CompileError(Error::new(
+                                    ErrorKind::Unsupported,
+                                    error_message,
+                                )))
                             }
                         }
                     }
                 }
-            },
+            }
             Expression::List(v) => {
                 let mut vec_expr = vec![];
                 let previous_type: BaseTypes = BaseTypes::Void;
@@ -328,9 +344,18 @@ impl ASTContext {
                 }
 
                 unsafe {
-                    let llvm_array_value = LLVMConstArray2(first_element.get_llvm_type(), elements.as_mut_ptr(), vec_expr.len() as u64);
-                    let llvm_array_type = LLVMArrayType2(first_element.get_llvm_type(), elements.len() as u64);
-                    let array_ptr = LLVMBuildAlloca(self.builder, llvm_array_type, b"my_array\0".as_ptr() as *const _);
+                    let llvm_array_value = LLVMConstArray2(
+                        first_element.get_llvm_type(),
+                        elements.as_mut_ptr(),
+                        vec_expr.len() as u64,
+                    );
+                    let llvm_array_type =
+                        LLVMArrayType2(first_element.get_llvm_type(), elements.len() as u64);
+                    let array_ptr = LLVMBuildAlloca(
+                        self.builder,
+                        llvm_array_type,
+                        b"my_array\0".as_ptr() as *const _,
+                    );
                     LLVMBuildStore(self.builder, llvm_array_value, array_ptr);
                     Ok(Box::new(ListType {
                         llvm_value: llvm_array_value,
@@ -345,35 +370,46 @@ impl ASTContext {
                 unsafe {
                     let zero_index = LLVMConstInt(index.get_llvm_type(), 0, 0);
                     let mut indices = [zero_index, index.get_value()];
-                    let val = LLVMBuildGEP2(self.builder, val.get_llvm_type(), val.get_ptr().unwrap(), indices.as_mut_ptr(), 2 as u32, b"access_array\0".as_ptr() as *const _);
+                    let val = LLVMBuildGEP2(
+                        self.builder,
+                        val.get_llvm_type(),
+                        val.get_ptr().unwrap(),
+                        indices.as_mut_ptr(),
+                        2 as u32,
+                        b"access_array\0".as_ptr() as *const _,
+                    );
                     return Ok(Box::new(NumberType {
                         llmv_value: val,
                         llmv_value_pointer: Some(val),
                         name: "".to_string(),
                         cname: b"access_array\0".as_ptr() as *const _,
-                    }))
-                }
-
-            }
-            Expression::ListAssign(var, i, rhs) => {
-                match self.var_cache.get(&var) {
-                    Some(mut val) => {
-                        let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
-                        let ptr = val.get_ptr().unwrap();
-                        let index = self.match_ast(*i)?;
-                        unsafe {
-                            let zero_index = LLVMConstInt(index.get_llvm_type(), 0, 0);
-                            let mut indices = [zero_index, index.get_value()];
-                            let element_ptr = LLVMBuildGEP2(self.builder, val.get_llvm_type(), val.get_ptr().unwrap(), indices.as_mut_ptr(), 2 as u32, b"access_array\0".as_ptr() as *const _);
-                            LLVMBuildStore(self.builder, lhs.get_value(), element_ptr);
-                        }
-                        Ok(val)
-                    }
-                    _ => {
-                        unreachable!("can't assign as var doesn't exist")
-                    }
+                    }));
                 }
             }
+            Expression::ListAssign(var, i, rhs) => match self.var_cache.get(&var) {
+                Some(val) => {
+                    let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
+                    let ptr = val.get_ptr().unwrap();
+                    let index = self.match_ast(*i)?;
+                    unsafe {
+                        let zero_index = LLVMConstInt(index.get_llvm_type(), 0, 0);
+                        let mut indices = [zero_index, index.get_value()];
+                        let element_ptr = LLVMBuildGEP2(
+                            self.builder,
+                            val.get_llvm_type(),
+                            val.get_ptr().unwrap(),
+                            indices.as_mut_ptr(),
+                            2 as u32,
+                            b"access_array\0".as_ptr() as *const _,
+                        );
+                        LLVMBuildStore(self.builder, lhs.get_value(), element_ptr);
+                    }
+                    Ok(val)
+                }
+                _ => {
+                    unreachable!("can't assign as var doesn't exist")
+                }
+            },
             Expression::Nil => {
                 unimplemented!()
             }
@@ -398,9 +434,10 @@ impl ASTContext {
                     let rhs = self.match_ast(*rhs)?;
                     Ok(lhs.mul(self, rhs))
                 }
-                "^" => {
-                    Err(CompileError(Error::new(ErrorKind::Unsupported, "^ is not implemented yet".to_string())))
-                }
+                "^" => Err(CompileError(Error::new(
+                    ErrorKind::Unsupported,
+                    "^ is not implemented yet".to_string(),
+                ))),
                 "==" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
@@ -432,8 +469,12 @@ impl ASTContext {
                     Ok(lhs.gte(self, rhs))
                 }
                 _ => {
-                    let error_message = format!("Invalid operator found for {:?} {} {:?}", lhs, op, rhs);
-                    Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
+                    let error_message =
+                        format!("Invalid operator found for {:?} {} {:?}", lhs, op, rhs);
+                    Err(CompileError(Error::new(
+                        ErrorKind::Unsupported,
+                        error_message,
+                    )))
                 }
             },
             Expression::Grouping(_input) => self.match_ast(*_input),
@@ -480,7 +521,10 @@ impl ASTContext {
                 }
                 _ => {
                     let error_message = format!("call does not exist for function {:?}", name);
-                    Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
+                    Err(CompileError(Error::new(
+                        ErrorKind::Unsupported,
+                        error_message,
+                    )))
                 }
             },
             Expression::FuncStmt(name, args, _return_type, body) => unsafe {
@@ -505,7 +549,10 @@ impl ASTContext {
             },
             Expression::FuncArg(arg_name, arg_type) => {
                 let error_message = format!("this should be unreachable code, for Expression::FuncArg arg_name:{} arg_type:{:?}", arg_name, arg_type);
-                Err(CompileError(Error::new(ErrorKind::Unsupported, error_message)))
+                Err(CompileError(Error::new(
+                    ErrorKind::Unsupported,
+                    error_message,
+                )))
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
                 new_if_stmt(self, *condition, *if_stmt, *else_stmt)
@@ -532,7 +579,10 @@ impl ASTContext {
     }
 }
 
-pub fn compile(input: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String, CycloError> {
+pub fn compile(
+    input: Vec<Expression>,
+    compile_options: Option<CompileOptions>,
+) -> Result<String, CycloError> {
     // output LLVM IR
 
     llvm_compile_to_ir(input, compile_options)?;

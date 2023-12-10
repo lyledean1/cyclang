@@ -31,8 +31,7 @@ impl TypeBase for NumberType {
             let c_string = CString::new(_name.clone()).unwrap();
             let c_pointer: *const i8 = c_string.as_ptr();
             // Check if the global variable already exists
-            let ptr = LLVMBuildAlloca(_context.builder, int32_ptr_type(), c_pointer);
-            LLVMBuildStore(_context.builder, value, ptr);
+            let ptr = _context.build_alloca_store(value, int32_ptr_type(), c_pointer);
             let cname = cstr_from_string(_name.as_str()).as_ptr();
             Box::new(NumberType {
                 name: _name,
@@ -50,9 +49,8 @@ impl TypeBase for NumberType {
             BaseTypes::Number => unsafe {
                 let alloca = self.get_ptr().unwrap();
                 let name = LLVMGetValueName(self.get_value());
-                let new_value =
-                    LLVMBuildLoad2(_ast_context.builder, self.get_llvm_type(), alloca, name);
-                LLVMBuildStore(_ast_context.builder, new_value, alloca);
+                // Tests pass for this but might need to double check, operation before didn't look like it was doing anything
+                _ast_context.build_load_store(alloca, _rhs.get_ptr().unwrap(), self.get_llvm_type(), name)
             },
             _ => {
                 unreachable!(

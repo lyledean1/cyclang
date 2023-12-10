@@ -5,14 +5,15 @@ use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
+use std::ffi::c_char;
 extern crate llvm_sys;
 use crate::compiler::types::func::FuncType;
+use crate::compiler::types::num64::NumberType64;
+use crate::cyclo_error::CycloError;
 use crate::parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
-use crate::compiler::types::num64::NumberType64;
-use crate::cyclo_error::CycloError;
 
 use super::int1_type;
 
@@ -39,6 +40,24 @@ impl ASTContext {
     }
     pub fn decr(&mut self) {
         self.depth -= 1;
+    }
+    pub fn build_load_store(&self, load_ptr: LLVMValueRef, store_ptr: LLVMValueRef, ptr_type: LLVMTypeRef, name: *const c_char) {
+        unsafe {
+            let rhs_val = LLVMBuildLoad2(
+                self.builder,
+                ptr_type,
+                load_ptr,
+                name,
+            );
+            LLVMBuildStore(self.builder, rhs_val, store_ptr);
+        }
+    }
+    pub fn build_alloca_store(&self, val: LLVMValueRef, ptr_type: LLVMTypeRef, name: *const c_char) -> LLVMValueRef {
+        unsafe {
+            let ptr = LLVMBuildAlloca(self.builder, ptr_type, name);
+            LLVMBuildStore(self.builder, val, ptr);
+            return ptr;
+        }
     }
 }
 
@@ -171,7 +190,11 @@ impl LLVMFunction {
             }
         }
         // get correct function return type
-        let function = LLVMAddFunction(context.module, cstr_from_string(&name).as_ptr(), function_type);
+        let function = LLVMAddFunction(
+            context.module,
+            cstr_from_string(&name).as_ptr(),
+            function_type,
+        );
 
         let func = FuncType {
             llvm_type: function_type,

@@ -42,13 +42,20 @@ impl fmt::Display for ParserError {
 
 fn get_target(target: Option<String>) -> Option<Target> {
     if let Some(target) = target {
-        return Target::from_str(&target)
+        return Target::from_str(&target);
     }
     None
 }
 
-fn compile_output_from_string(contents: String, is_execution_engine: bool, target: Option<String>) -> String {
-    let compile_options = Some(CompileOptions{is_execution_engine, target: get_target(target)});
+fn compile_output_from_string(
+    contents: String,
+    is_execution_engine: bool,
+    target: Option<String>,
+) -> String {
+    let compile_options = Some(CompileOptions {
+        is_execution_engine,
+        target: get_target(target),
+    });
     match parser::parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
         Ok(exprs) => match compiler::compile(exprs, compile_options) {
@@ -70,12 +77,12 @@ fn main() {
     if args.version {
         let version: &str = env!("CARGO_PKG_VERSION");
         println!("{} {}", "cyclang".italic(), version.italic());
-        return
+        return;
     }
     if let Some(filename) = args.file {
         let contents = fs::read_to_string(filename).expect("Failed to read file");
         compile_output_from_string(contents, !args.emit_llvm_ir, args.target);
-        return
+        return;
     }
     repl::run();
 }
