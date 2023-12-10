@@ -27,8 +27,8 @@ pub fn new_if_stmt(
 
         let cond: Box<dyn TypeBase> = context.match_ast(condition)?;
         // Build If Block
-        let then_block = LLVMAppendBasicBlock(function, cstr_from_string("then_block").as_ptr());
-        let merge_block = LLVMAppendBasicBlock(function, cstr_from_string("merge_block").as_ptr());
+        let then_block = context.append_basic_block(function, "then_block");
+        let merge_block = context.append_basic_block(function, "merge_block");
 
         context.set_current_block(then_block);
 
@@ -46,7 +46,7 @@ pub fn new_if_stmt(
         // Each
 
         // Build Else Block
-        let else_block = LLVMAppendBasicBlock(function, cstr_from_string("else_block").as_ptr());
+        let else_block = context.append_basic_block(function, "else_block");
         context.set_current_block(else_block);
 
         match else_stmt {
@@ -94,12 +94,9 @@ pub fn new_while_stmt(
     unsafe {
         let function = context.current_function.function;
 
-        let loop_cond_block =
-            LLVMAppendBasicBlock(function, cstr_from_string("loop_cond").as_ptr());
-        let loop_body_block =
-            LLVMAppendBasicBlock(function, cstr_from_string("loop_body").as_ptr());
-        let loop_exit_block =
-            LLVMAppendBasicBlock(function, cstr_from_string("loop_exit").as_ptr());
+        let loop_cond_block = context.append_basic_block(function, "loop_cond");
+        let loop_body_block = context.append_basic_block(function, "loop_body");
+        let loop_exit_block = context.append_basic_block(function, "loop_exit");
 
         let bool_type_ptr = context.build_alloca(
             int1_type(),
@@ -155,20 +152,12 @@ pub fn new_for_loop(
 ) -> Result<Box<dyn TypeBase>, CycloError> {
     unsafe {
         let for_block = context.current_function.block;
-
+        let function = context.current_function.function;
         context.set_current_block(for_block);
-        let loop_cond_block = LLVMAppendBasicBlock(
-            context.current_function.function,
-            cstr_from_string("loop_cond").as_ptr(),
-        );
-        let loop_body_block = LLVMAppendBasicBlock(
-            context.current_function.function,
-            cstr_from_string("loop_body").as_ptr(),
-        );
-        let loop_exit_block = LLVMAppendBasicBlock(
-            context.current_function.function,
-            cstr_from_string("loop_exit").as_ptr(),
-        );
+
+        let loop_cond_block = context.append_basic_block(function, "loop_cond");
+        let loop_body_block = context.append_basic_block(function, "loop_body");
+        let loop_exit_block = context.append_basic_block(function, "loop_exit");
 
         let i: Box<dyn TypeBase> = NumberType::new(Box::new(init), "i".to_string(), context);
 

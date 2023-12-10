@@ -11,6 +11,7 @@ use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
 use crate::cyclo_error::CycloError;
 use crate::parser::{Expression, Type};
+use libc::c_uint;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
@@ -132,6 +133,29 @@ impl ASTContext {
     ) {
         let rhs_val = self.build_load(load_ptr, ptr_type, name);
         self.build_store(rhs_val, store_ptr);
+    }
+
+    pub fn append_basic_block(&self, function: LLVMValueRef, name: &str) -> LLVMBasicBlockRef {
+        unsafe { LLVMAppendBasicBlock(function, cstr_from_string(name).as_ptr()) }
+    }
+
+    pub fn build_call(
+        &self,
+        func: LLVMFunction,
+        args: Vec<LLVMValueRef>,
+        num_args: c_uint,
+        name: &str,
+    ) -> LLVMValueRef {
+        unsafe {
+            LLVMBuildCall2(
+                self.builder,
+                func.func_type,
+                func.function,
+                args.clone().as_mut_ptr(),
+                num_args,
+                cstr_from_string(name).as_ptr(),
+            )
+        }
     }
 
     pub fn cast_i32_to_i64(
@@ -300,8 +324,7 @@ impl LLVMFunction {
         };
         context.func_cache.set(&name, Box::new(func), context.depth);
 
-        let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
-            LLVMAppendBasicBlock(function, cstr_from_string("entry").as_ptr());
+        let function_entry_block = context.append_basic_block(function, "entry");
 
         let previous_func = context.current_function.clone();
         let mut new_function = LLVMFunction {

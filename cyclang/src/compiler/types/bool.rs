@@ -23,55 +23,39 @@ pub struct BoolType {
 
 impl Arithmetic for BoolType {}
 
-unsafe fn get_value_for_print_argument(
+fn get_value_for_print_argument(
     context: &mut ASTContext,
-    name: *const i8,
+    name: &str,
     value: BoolType,
 ) -> LLVMValueRef {
     match value.get_ptr() {
-        Some(v) => context.build_load(v, int1_type(), name),
+        Some(v) => context.build_load(v, int1_type(), cstr_from_string(name).as_ptr()),
         None => value.get_value(),
     }
 }
 
 impl Debug for BoolType {
     fn print(&self, ast_context: &mut ASTContext) {
-        unsafe {
-            let value = get_value_for_print_argument(ast_context, self.get_name(), self.clone());
+        let value = get_value_for_print_argument(ast_context, "", self.clone());
 
-            let mut bool_func_args: Vec<LLVMValueRef> = vec![value];
+        let bool_func_args: Vec<LLVMValueRef> = vec![value];
 
-            match ast_context.llvm_func_cache.get("bool_to_str") {
-                Some(bool_to_string) => {
-                    let str_value = LLVMBuildCall2(
-                        ast_context.builder,
-                        bool_to_string.func_type,
-                        bool_to_string.function,
-                        bool_func_args.as_mut_ptr(),
-                        1,
-                        cstr_from_string("").as_ptr(),
-                    );
+        match ast_context.llvm_func_cache.get("bool_to_str") {
+            Some(bool_to_string) => {
+                let str_value = ast_context.build_call(bool_to_string, bool_func_args, 1, "");
 
-                    let mut print_args: Vec<LLVMValueRef> = vec![str_value];
-                    match ast_context.llvm_func_cache.get("printf") {
-                        Some(print_func) => {
-                            LLVMBuildCall2(
-                                ast_context.builder,
-                                print_func.func_type,
-                                print_func.function,
-                                print_args.as_mut_ptr(),
-                                1,
-                                cstr_from_string("").as_ptr(),
-                            );
-                        }
-                        _ => {
-                            unreachable!()
-                        }
+                let print_args: Vec<LLVMValueRef> = vec![str_value];
+                match ast_context.llvm_func_cache.get("printf") {
+                    Some(print_func) => {
+                        ast_context.build_call(print_func, print_args, 1, "");
+                    }
+                    _ => {
+                        unreachable!()
                     }
                 }
-                _ => {
-                    unreachable!()
-                }
+            }
+            _ => {
+                unreachable!()
             }
         }
     }
