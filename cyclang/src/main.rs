@@ -292,9 +292,13 @@ mod test {
     fn test_compile_list() {
         let input = r#"
         let listExample: List<i32> = [1, 2, 3, 4];
+        print(listExample[0]);
+        print(listExample[1]);
+        print(listExample[2]);
+        print(listExample[3]);
         "#;
         let output = compile_output_from_string_test(input.to_string());
-        assert_eq!(output, "true\n");
+        assert_eq!(output, "1\n2\n3\n4\n");
     }
 
     #[test]
