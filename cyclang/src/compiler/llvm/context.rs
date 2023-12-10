@@ -41,6 +41,38 @@ impl ASTContext {
     pub fn decr(&mut self) {
         self.depth -= 1;
     }
+
+    /// build_alloca_store
+    /// 
+    /// This calls LLVM to allocate memory on the stack via the LLVMBuildAlloca function and then
+    /// stores the provided value into that new allocated stack memory. It then returns a pointer to that value.
+    /// 
+    /// # Arguments
+    ///
+    /// * `val` - The LLVM Value you will be storing in memory
+    /// * `ptr_type` - The LLVM Type you will be storing in memory
+    /// * `name` - The LLVM name of the alloca 
+    /// 
+    pub fn build_alloca_store(&self, val: LLVMValueRef, ptr_type: LLVMTypeRef, name: *const c_char) -> LLVMValueRef {
+        unsafe {
+            let ptr = LLVMBuildAlloca(self.builder, ptr_type, name);
+            LLVMBuildStore(self.builder, val, ptr);
+            ptr
+        }
+    }
+
+    /// build_load_store
+    /// 
+    /// This reads a value from one memory location via the LLVMBuildLoad instruction
+    /// and writes it to another via the LLVMBuildStore location.
+    /// 
+    /// # Arguments
+    ///
+    /// * `load_ptr` - The LLVM Value you are loading from memory
+    /// * `store_ptr` - The LLVM Type you will be storing in memory
+    /// * `ptr_type` - The LLVM Type you will be storing in memory
+    /// * `name` - The LLVM name of the alloca 
+    /// 
     pub fn build_load_store(&self, load_ptr: LLVMValueRef, store_ptr: LLVMValueRef, ptr_type: LLVMTypeRef, name: *const c_char) {
         unsafe {
             let rhs_val = LLVMBuildLoad2(
@@ -50,13 +82,6 @@ impl ASTContext {
                 name,
             );
             LLVMBuildStore(self.builder, rhs_val, store_ptr);
-        }
-    }
-    pub fn build_alloca_store(&self, val: LLVMValueRef, ptr_type: LLVMTypeRef, name: *const c_char) -> LLVMValueRef {
-        unsafe {
-            let ptr = LLVMBuildAlloca(self.builder, ptr_type, name);
-            LLVMBuildStore(self.builder, val, ptr);
-            ptr
         }
     }
 }
