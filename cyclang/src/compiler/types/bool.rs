@@ -95,8 +95,7 @@ impl TypeBase for BoolType {
             let bool_value = LLVMConstInt(int1_type(), num, 0);
             let c_string = CString::new(_name.clone()).unwrap();
             let c_pointer: *const i8 = c_string.as_ptr();
-            let alloca = LLVMBuildAlloca(_context.builder, int1_type(), c_pointer);
-            LLVMBuildStore(_context.builder, bool_value, alloca);
+            let alloca = _context.build_alloca_store(bool_value, int1_type(), c_pointer);
             Box::new(BoolType {
                 name: _name,
                 builder: _context.builder,
@@ -107,14 +106,8 @@ impl TypeBase for BoolType {
     }
     fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
-            BaseTypes::Bool => unsafe {
-                let rhs_val = LLVMBuildLoad2(
-                    _ast_context.builder,
-                    int1_type(),
-                    _rhs.get_ptr().unwrap(),
-                    cstr_from_string("load_bool").as_ptr(),
-                );
-                LLVMBuildStore(self.builder, rhs_val, self.get_ptr().unwrap());
+            BaseTypes::Bool => {
+                _ast_context.build_load_store(_rhs.get_ptr().unwrap(), self.get_ptr().unwrap(), int1_type(), cstr_from_string("load_bool").as_ptr());
             },
             _ => {
                 unreachable!(

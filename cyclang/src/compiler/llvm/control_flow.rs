@@ -8,9 +8,9 @@ use super::context::ASTContext;
 use crate::compiler::int1_type;
 use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::NumberType;
+use crate::cyclo_error::CycloError;
 use llvm_sys::core::*;
 use llvm_sys::LLVMIntPredicate;
-use crate::cyclo_error::CycloError;
 
 pub fn new_if_stmt(
     context: &mut ASTContext,
@@ -175,8 +175,7 @@ pub fn new_for_loop(
             cstr_from_string("loop_exit").as_ptr(),
         );
 
-        let i: Box<dyn TypeBase> =
-            NumberType::new(Box::new(init), "i".to_string(), context);
+        let i: Box<dyn TypeBase> = NumberType::new(Box::new(init), "i".to_string(), context);
 
         let value = i.get_value();
         let ptr = i.get_ptr();

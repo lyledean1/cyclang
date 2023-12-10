@@ -5,9 +5,9 @@ use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::cyclo_error::CycloError;
 use llvm_sys::core::{LLVMBuildAlloca, LLVMBuildCall2, LLVMBuildStore, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
-use crate::cyclo_error::CycloError;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution

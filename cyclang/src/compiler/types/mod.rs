@@ -4,6 +4,7 @@
 
 pub mod bool;
 pub mod func;
+pub mod list;
 pub mod num;
 pub mod num64;
 pub mod return_type;
@@ -20,10 +21,12 @@ extern crate libc;
 use libc::c_char;
 
 extern crate llvm_sys;
-use crate::compiler::llvm::{int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type, int8_type};
+use crate::compiler::llvm::{
+    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type, int8_type,
+};
 
-use llvm_sys::prelude::*;
 use crate::cyclo_error::CycloError;
+use llvm_sys::prelude::*;
 
 #[derive(Debug)]
 pub enum BaseTypes {
@@ -31,6 +34,7 @@ pub enum BaseTypes {
     Number,
     Number64,
     Bool,
+    List(Box<BaseTypes>),
     Func,
     Void,
     Return,
