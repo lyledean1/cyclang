@@ -47,16 +47,14 @@ fn generate_arithmetic_operation(
                 BaseTypes::Number | BaseTypes::Number64 => unsafe {
                     match self.get_ptr() {
                         Some(_p) => {
-                            let mut lhs_value = LLVMBuildLoad2(
-                                context.builder,
-                                self.get_llvm_type(),
+                            let mut lhs_value = context.build_load(
                                 self.get_ptr().unwrap(),
+                                self.get_llvm_type(),
                                 self.get_name(),
                             );
-                            let mut rhs_value = LLVMBuildLoad2(
-                                context.builder,
-                                _rhs.get_llvm_type(),
+                            let mut rhs_value = context.build_load(
                                 _rhs.get_ptr().unwrap(),
+                                _rhs.get_llvm_type(),
                                 _rhs.get_name(),
                             );
 
@@ -106,12 +104,7 @@ fn generate_arithmetic_operation(
                                 rhs_value,
                                 cstr_from_string(#name).as_ptr(),
                             );
-                            let alloca = LLVMBuildAlloca(
-                                context.builder,
-                                self.get_llvm_ptr_type(),
-                                cstr_from_string("param_add").as_ptr(),
-                            );
-                            LLVMBuildStore(context.builder, result, alloca);
+                            let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), cstr_from_string("param_add").as_ptr());
                             let c_str_ref = CStr::from_ptr(self.get_name());
 
                             // Convert the CStr to a String (handles invalid UTF-8)

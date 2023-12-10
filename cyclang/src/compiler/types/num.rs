@@ -50,7 +50,12 @@ impl TypeBase for NumberType {
                 let alloca = self.get_ptr().unwrap();
                 let name = LLVMGetValueName(self.get_value());
                 // Tests pass for this but might need to double check, operation before didn't look like it was doing anything
-                _ast_context.build_load_store(alloca, _rhs.get_ptr().unwrap(), self.get_llvm_type(), name)
+                _ast_context.build_load_store(
+                    alloca,
+                    _rhs.get_ptr().unwrap(),
+                    self.get_llvm_type(),
+                    name,
+                )
             },
             _ => {
                 unreachable!(

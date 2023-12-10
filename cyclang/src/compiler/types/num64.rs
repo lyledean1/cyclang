@@ -49,7 +49,12 @@ impl TypeBase for NumberType64 {
             BaseTypes::Number64 => unsafe {
                 let alloca = self.get_ptr().unwrap();
                 let name = LLVMGetValueName(self.get_value());
-                _ast_context.build_load_store(alloca, _rhs.get_ptr().unwrap(), self.get_llvm_type(), name)
+                _ast_context.build_load_store(
+                    alloca,
+                    _rhs.get_ptr().unwrap(),
+                    self.get_llvm_type(),
+                    name,
+                )
             },
             _ => {
                 unreachable!(

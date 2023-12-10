@@ -42,47 +42,96 @@ impl ASTContext {
         self.depth -= 1;
     }
 
+    /// build_load
+    ///
+    /// This reads a value from one memory location via the LLVMBuildLoad instruction
+    ///
+    /// # Arguments
+    ///
+    /// * `ptr` - The LLVM Value you are loading from memory
+    /// * `ptr_type` - The LLVM Type you will be storing in memory
+    /// * `name` - The LLVM name of the alloca
+    ///
+    pub fn build_load(
+        &self,
+        ptr: LLVMValueRef,
+        ptr_type: LLVMTypeRef,
+        name: *const c_char,
+    ) -> LLVMValueRef {
+        unsafe { LLVMBuildLoad2(self.builder, ptr_type, ptr, name) }
+    }
+
+    /// build_store
+    ///
+    /// This stores a value into memory on the stack via the LLVMBuildStore instruction
+    ///
+    /// # Arguments
+    ///
+    /// * `val` - The LLVM Value you are storing into memory
+    /// * `ptr` - The LLVM pointer you will be storing the value in memory
+    ///
+    pub fn build_store(&self, val: LLVMValueRef, ptr: LLVMValueRef) {
+        unsafe {
+            LLVMBuildStore(self.builder, val, ptr);
+        }
+    }
+
+    /// build_alloca
+    ///
+    /// This builds memory on the stack via the LLVMBuildAlloca instruction
+    ///
+    /// # Arguments
+    ///
+    /// * `ptr_type` - The LLVM Type you will be storing in memory
+    /// * `name` - The LLVM name of the alloca
+    ///
+    pub fn build_alloca(&self, ptr_type: LLVMTypeRef, name: *const c_char) -> LLVMValueRef {
+        unsafe { LLVMBuildAlloca(self.builder, ptr_type, name) }
+    }
+
     /// build_alloca_store
-    /// 
+    ///
     /// This calls LLVM to allocate memory on the stack via the LLVMBuildAlloca function and then
     /// stores the provided value into that new allocated stack memory. It then returns a pointer to that value.
-    /// 
+    ///
     /// # Arguments
     ///
     /// * `val` - The LLVM Value you will be storing in memory
     /// * `ptr_type` - The LLVM Type you will be storing in memory
-    /// * `name` - The LLVM name of the alloca 
-    /// 
-    pub fn build_alloca_store(&self, val: LLVMValueRef, ptr_type: LLVMTypeRef, name: *const c_char) -> LLVMValueRef {
-        unsafe {
-            let ptr = LLVMBuildAlloca(self.builder, ptr_type, name);
-            LLVMBuildStore(self.builder, val, ptr);
-            ptr
-        }
+    /// * `name` - The LLVM name of the alloca
+    ///
+    pub fn build_alloca_store(
+        &self,
+        val: LLVMValueRef,
+        ptr_type: LLVMTypeRef,
+        name: *const c_char,
+    ) -> LLVMValueRef {
+        let ptr = self.build_alloca(ptr_type, name);
+        self.build_store(val, ptr);
+        ptr
     }
 
     /// build_load_store
-    /// 
+    ///
     /// This reads a value from one memory location via the LLVMBuildLoad instruction
     /// and writes it to another via the LLVMBuildStore location.
-    /// 
+    ///
     /// # Arguments
     ///
     /// * `load_ptr` - The LLVM Value you are loading from memory
     /// * `store_ptr` - The LLVM Type you will be storing in memory
     /// * `ptr_type` - The LLVM Type you will be storing in memory
-    /// * `name` - The LLVM name of the alloca 
-    /// 
-    pub fn build_load_store(&self, load_ptr: LLVMValueRef, store_ptr: LLVMValueRef, ptr_type: LLVMTypeRef, name: *const c_char) {
-        unsafe {
-            let rhs_val = LLVMBuildLoad2(
-                self.builder,
-                ptr_type,
-                load_ptr,
-                name,
-            );
-            LLVMBuildStore(self.builder, rhs_val, store_ptr);
-        }
+    /// * `name` - The LLVM name of the alloca
+    ///
+    pub fn build_load_store(
+        &self,
+        load_ptr: LLVMValueRef,
+        store_ptr: LLVMValueRef,
+        ptr_type: LLVMTypeRef,
+        name: *const c_char,
+    ) {
+        let rhs_val = self.build_load(load_ptr, ptr_type, name);
+        self.build_store(rhs_val, store_ptr);
     }
 }
 

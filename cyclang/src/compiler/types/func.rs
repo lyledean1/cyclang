@@ -56,13 +56,7 @@ impl Func for FuncType {
             );
             match self.return_type {
                 Type::i32 => {
-                    let ptr = LLVMBuildAlloca(
-                        _context.builder,
-                        int32_ptr_type(),
-                        cstr_from_string("call_value_int").as_ptr(),
-                    );
-                    LLVMBuildStore(_context.builder, call_value, ptr);
-
+                    let _ptr = _context.build_alloca_store(call_value, int32_ptr_type(), cstr_from_string("call_value_int32").as_ptr());
                     Ok(Box::new(NumberType {
                         llmv_value: call_value,
                         llmv_value_pointer: None,
@@ -71,13 +65,7 @@ impl Func for FuncType {
                     }))
                 }
                 Type::i64 => {
-                    let ptr = LLVMBuildAlloca(
-                        _context.builder,
-                        int64_ptr_type(),
-                        cstr_from_string("call_value_int").as_ptr(),
-                    );
-                    LLVMBuildStore(_context.builder, call_value, ptr);
-
+                    let _ptr = _context.build_alloca_store(call_value, int64_ptr_type(), cstr_from_string("call_value_int64").as_ptr());
                     Ok(Box::new(NumberType {
                         llmv_value: call_value,
                         llmv_value_pointer: None,
@@ -86,12 +74,7 @@ impl Func for FuncType {
                     }))
                 }
                 Type::Bool => {
-                    let ptr = LLVMBuildAlloca(
-                        _context.builder,
-                        int1_ptr_type(),
-                        cstr_from_string("call_value_int").as_ptr(),
-                    );
-                    LLVMBuildStore(_context.builder, call_value, ptr);
+                    let ptr = _context.build_alloca_store(call_value, int1_ptr_type(), cstr_from_string("bool_value").as_ptr());
                     Ok(Box::new(BoolType {
                         builder: _context.builder,
                         llmv_value: call_value,
