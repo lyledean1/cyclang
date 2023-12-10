@@ -18,72 +18,69 @@ pub fn new_if_stmt(
     if_stmt: Expression,
     else_stmt: Option<Expression>,
 ) -> Result<Box<dyn TypeBase>, CycloError> {
-    unsafe {
-        let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
-        let function = context.current_function.function;
-        let if_entry_block: *mut llvm_sys::LLVMBasicBlock = context.current_function.block;
+    let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
+    let function = context.current_function.function;
+    let if_entry_block: *mut llvm_sys::LLVMBasicBlock = context.current_function.block;
 
-        LLVMPositionBuilderAtEnd(context.builder, if_entry_block);
+    context.position_builder_at_end(if_entry_block);
 
-        let cond: Box<dyn TypeBase> = context.match_ast(condition)?;
-        // Build If Block
-        let then_block = context.append_basic_block(function, "then_block");
-        let merge_block = context.append_basic_block(function, "merge_block");
+    let cond: Box<dyn TypeBase> = context.match_ast(condition)?;
+    // Build If Block
+    let then_block = context.append_basic_block(function, "then_block");
+    let merge_block = context.append_basic_block(function, "merge_block");
 
-        context.set_current_block(then_block);
+    context.set_current_block(then_block);
 
-        let stmt = context.match_ast(if_stmt)?;
+    let stmt = context.match_ast(if_stmt)?;
 
-        match stmt.get_type() {
-            BaseTypes::Return => {
-                // if its a return type we will skip branching in the LLVM IR
-                return_type = Box::new(ReturnType {});
-            }
-            _ => {
-                LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
-            }
+    match stmt.get_type() {
+        BaseTypes::Return => {
+            // if its a return type we will skip branching in the LLVM IR
+            return_type = Box::new(ReturnType {});
         }
-        // Each
+        _ => {
+            context.build_br(merge_block); // Branch to merge_block
+        }
+    }
+    // Each
 
-        // Build Else Block
-        let else_block = context.append_basic_block(function, "else_block");
-        context.set_current_block(else_block);
+    // Build Else Block
+    let else_block = context.append_basic_block(function, "else_block");
+    context.set_current_block(else_block);
 
-        match else_stmt {
-            Some(v_stmt) => {
-                let stmt = context.match_ast(v_stmt)?;
-                match stmt.get_type() {
-                    BaseTypes::Return => {
-                        // if its a return type we will skip branching in the LLVM IR
-                        return_type = Box::new(ReturnType {});
-                    }
-                    _ => {
-                        LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
-                    }
+    match else_stmt {
+        Some(v_stmt) => {
+            let stmt = context.match_ast(v_stmt)?;
+            match stmt.get_type() {
+                BaseTypes::Return => {
+                    // if its a return type we will skip branching in the LLVM IR
+                    return_type = Box::new(ReturnType {});
+                }
+                _ => {
+                    context.build_br(merge_block);
                 }
             }
-            _ => {
-                LLVMPositionBuilderAtEnd(context.builder, else_block);
-                LLVMBuildBr(context.builder, merge_block); // Branch to merge_block
-            }
         }
-
-        // E
-        LLVMPositionBuilderAtEnd(context.builder, merge_block);
-        context.set_current_block(merge_block);
-
-        context.set_current_block(if_entry_block);
-
-        let cmp = context.build_load(
-            cond.get_ptr().unwrap(),
-            int1_type(),
-            cstr_from_string("cmp").as_ptr(),
-        );
-        LLVMBuildCondBr(context.builder, cmp, then_block, else_block);
-
-        context.set_current_block(merge_block);
-        Ok(return_type)
+        _ => {
+            context.position_builder_at_end(else_block);
+            context.build_br(merge_block);
+        }
     }
+
+    context.position_builder_at_end(merge_block);
+    context.set_current_block(merge_block);
+
+    context.set_current_block(if_entry_block);
+
+    let cmp = context.build_load(
+        cond.get_ptr().unwrap(),
+        int1_type(),
+        cstr_from_string("cmp").as_ptr(),
+    );
+    context.build_cond_br(cmp, then_block, else_block);
+
+    context.set_current_block(merge_block);
+    Ok(return_type)
 }
 
 pub fn new_while_stmt(
@@ -91,55 +88,48 @@ pub fn new_while_stmt(
     condition: Expression,
     while_block_stmt: Expression,
 ) -> Result<Box<dyn TypeBase>, CycloError> {
-    unsafe {
-        let function = context.current_function.function;
+    let function = context.current_function.function;
 
-        let loop_cond_block = context.append_basic_block(function, "loop_cond");
-        let loop_body_block = context.append_basic_block(function, "loop_body");
-        let loop_exit_block = context.append_basic_block(function, "loop_exit");
+    let loop_cond_block = context.append_basic_block(function, "loop_cond");
+    let loop_body_block = context.append_basic_block(function, "loop_body");
+    let loop_exit_block = context.append_basic_block(function, "loop_exit");
 
-        let bool_type_ptr = context.build_alloca(
-            int1_type(),
-            cstr_from_string("while_value_bool_var").as_ptr(),
-        );
-        let value_condition = context.match_ast(condition)?;
+    let bool_type_ptr = context.build_alloca(
+        int1_type(),
+        cstr_from_string("while_value_bool_var").as_ptr(),
+    );
+    let value_condition = context.match_ast(condition)?;
 
-        let cmp = context.build_load(
-            value_condition.get_ptr().unwrap(),
-            int1_type(),
-            cstr_from_string("cmp").as_ptr(),
-        );
+    let cmp = context.build_load(
+        value_condition.get_ptr().unwrap(),
+        int1_type(),
+        cstr_from_string("cmp").as_ptr(),
+    );
 
-        context.build_store(cmp, bool_type_ptr);
+    context.build_store(cmp, bool_type_ptr);
 
-        LLVMBuildBr(context.builder, loop_cond_block);
+    context.build_br(loop_cond_block);
 
-        context.set_current_block(loop_body_block);
-        // Check if the global variable already exists
+    context.set_current_block(loop_body_block);
+    // Check if the global variable already exists
 
-        context.match_ast(while_block_stmt)?;
+    context.match_ast(while_block_stmt)?;
 
-        LLVMBuildBr(context.builder, loop_cond_block); // Jump back to loop condition
+    context.build_br(loop_cond_block); // Jump back to loop condition
 
-        context.set_current_block(loop_cond_block);
-        // Build loop condition block
-        let value_cond_load = context.build_load(
-            value_condition.get_ptr().unwrap(),
-            int1_type(),
-            cstr_from_string("while_value_bool_var").as_ptr(),
-        );
+    context.set_current_block(loop_cond_block);
+    // Build loop condition block
+    let value_cond_load = context.build_load(
+        value_condition.get_ptr().unwrap(),
+        int1_type(),
+        cstr_from_string("while_value_bool_var").as_ptr(),
+    );
 
-        LLVMBuildCondBr(
-            context.builder,
-            value_cond_load,
-            loop_body_block,
-            loop_exit_block,
-        );
+    context.build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
 
-        // Position builder at loop exit block
-        context.set_current_block(loop_exit_block);
-        Ok(value_condition)
-    }
+    // Position builder at loop exit block
+    context.set_current_block(loop_exit_block);
+    Ok(value_condition)
 }
 
 pub fn new_for_loop(
@@ -167,7 +157,7 @@ pub fn new_for_loop(
 
         context.build_store(value, ptr.unwrap());
         // Branch to loop condition block
-        LLVMBuildBr(context.builder, loop_cond_block);
+        context.build_br(loop_cond_block);
 
         // Build loop condition block
         context.set_current_block(loop_cond_block);
@@ -187,23 +177,21 @@ pub fn new_for_loop(
             LLVMInt32TypeInContext(context.context),
             cstr_from_string("i").as_ptr(),
         );
+
+        let icmp_val = context.const_int(
+            LLVMInt32TypeInContext(context.context),
+            op_rhs.try_into().unwrap(),
+            0,
+        );
         let loop_condition = LLVMBuildICmp(
             context.builder,
             op,
             lhs_val,
-            LLVMConstInt(
-                LLVMInt32TypeInContext(context.context),
-                op_rhs.try_into().unwrap(),
-                0,
-            ),
+            icmp_val,
             cstr_from_string("").as_ptr(),
         );
-        LLVMBuildCondBr(
-            context.builder,
-            loop_condition,
-            loop_body_block,
-            loop_exit_block,
-        );
+
+        context.build_cond_br(loop_condition, loop_body_block, loop_exit_block);
 
         // Build loop body block
         context.set_current_block(loop_body_block);
@@ -214,14 +202,16 @@ pub fn new_for_loop(
             cstr_from_string("i").as_ptr(),
         );
 
+        let incr_val =
+            context.const_int(LLVMInt32TypeInContext(context.context), increment as u64, 0);
         let new_value = LLVMBuildAdd(
             context.builder,
             lhs_val,
-            LLVMConstInt(LLVMInt32TypeInContext(context.context), increment as u64, 0),
+            incr_val,
             cstr_from_string("i").as_ptr(),
         );
         context.build_store(new_value, ptr.unwrap());
-        LLVMBuildBr(context.builder, loop_cond_block); // Jump back to loop condition
+        context.build_br(loop_cond_block); // Jump back to loop condition
 
         // Position builder at loop exit block
         context.set_current_block(loop_exit_block);

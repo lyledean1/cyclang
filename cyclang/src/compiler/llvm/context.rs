@@ -180,6 +180,72 @@ impl ASTContext {
             lhs_value
         }
     }
+
+    pub fn get_value_name(&self, value: LLVMValueRef) -> *const i8 {
+        unsafe { LLVMGetValueName(value) }
+    }
+
+    pub fn build_br(&self, block: LLVMBasicBlockRef) -> LLVMValueRef {
+        unsafe { LLVMBuildBr(self.builder, block) }
+    }
+
+    pub fn build_cond_br(
+        &self,
+        cond: LLVMValueRef,
+        then_block: LLVMBasicBlockRef,
+        else_block: LLVMBasicBlockRef,
+    ) -> LLVMValueRef {
+        unsafe { LLVMBuildCondBr(self.builder, cond, then_block, else_block) }
+    }
+
+    pub fn position_builder_at_end(&self, block: LLVMBasicBlockRef) {
+        unsafe {
+            LLVMPositionBuilderAtEnd(self.builder, block);
+        }
+    }
+
+    pub fn build_ret_void(&self) {
+        unsafe {
+            LLVMBuildRetVoid(self.builder);
+        }
+    }
+
+    pub fn build_ret(&self, value: LLVMValueRef) -> LLVMValueRef {
+        unsafe { LLVMBuildRet(self.builder, value) }
+    }
+
+    pub fn const_int(
+        &self,
+        int_type: LLVMTypeRef,
+        val: ::libc::c_ulonglong,
+        sign_extend: LLVMBool,
+    ) -> LLVMValueRef {
+        unsafe { LLVMConstInt(int_type, val, sign_extend) }
+    }
+
+    pub fn const_array(
+        &self,
+        element_type: LLVMTypeRef,
+        const_values: *mut LLVMValueRef,
+        length: u64,
+    ) -> LLVMValueRef {
+        unsafe { LLVMConstArray2(element_type, const_values, length) }
+    }
+
+    pub fn array_type(&self, element_type: LLVMTypeRef, element_count: u64) -> LLVMTypeRef {
+        unsafe { LLVMArrayType2(element_type, element_count) }
+    }
+
+    pub fn build_gep(
+        &self,
+        llvm_type: LLVMTypeRef,
+        ptr: LLVMValueRef,
+        indices: *mut LLVMValueRef,
+        num_indices: ::libc::c_uint,
+        name: *const ::libc::c_char,
+    ) -> LLVMValueRef {
+        unsafe { LLVMBuildGEP2(self.builder, llvm_type, ptr, indices, num_indices, name) }
+    }
 }
 
 #[derive(Clone)]
@@ -383,7 +449,7 @@ impl LLVMFunction {
 
         context.current_function = new_function.clone();
 
-        LLVMPositionBuilderAtEnd(context.builder, function_entry_block);
+        context.position_builder_at_end(function_entry_block);
 
         // Set func args here
         context.match_ast(body.clone())?;
@@ -391,7 +457,7 @@ impl LLVMFunction {
         // Delete func args here
         // // Check to see if there is a Return type
         if return_type == Type::None {
-            LLVMBuildRetVoid(context.builder);
+            context.build_ret_void();
         }
 
         context.set_current_block(block);
