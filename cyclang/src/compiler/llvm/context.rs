@@ -244,6 +244,7 @@ impl ASTContext {
     ) -> LLVMValueRef {
         unsafe { LLVMBuildGEP2(self.builder, llvm_type, ptr, indices, num_indices, name) }
     }
+    
 }
 
 #[derive(Clone)]
