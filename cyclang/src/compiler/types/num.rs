@@ -45,12 +45,12 @@ impl TypeBase for NumberType {
     fn assign(&mut self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match self.get_type() {
             BaseTypes::Number => {
-                let alloca = self.get_ptr().unwrap();
+                let alloca = _rhs.get_ptr().unwrap();
                 let name = context.get_value_name(self.get_value());
                 // Tests pass for this but might need to double check, operation before didn't look like it was doing anything
                 context.build_load_store(
                     alloca,
-                    _rhs.get_ptr().unwrap(),
+                    self.get_ptr().unwrap(),
                     self.get_llvm_type(),
                     name,
                 )

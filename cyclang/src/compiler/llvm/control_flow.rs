@@ -204,6 +204,7 @@ pub fn new_for_loop(
 
         let incr_val =
             context.const_int(LLVMInt32TypeInContext(context.context), increment as u64, 0);
+
         let new_value = LLVMBuildAdd(
             context.builder,
             lhs_val,

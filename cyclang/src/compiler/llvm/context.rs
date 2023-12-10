@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::compiler::llvm::{cstr_from_string, int32_type, int64_type, int8_ptr_type};
+use crate::compiler::llvm::{cstr_from_string, int1_type, int32_type, int64_type, int8_ptr_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
@@ -15,8 +15,6 @@ use libc::c_uint;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
-
-use super::int1_type;
 
 pub struct ASTContext {
     pub builder: LLVMBuilderRef,

@@ -343,59 +343,67 @@ impl ASTContext {
                     elements.push(x.get_value());
                 }
 
-                let array_type = first_element.get_llvm_type();
-                let array_len = vec_expr.len() as u64;
-                let llvm_array_value =
-                    self.const_array(array_type, elements.as_mut_ptr(), array_len);
-
-                let llvm_array_type = self.array_type(array_type, array_len);
-                let array_ptr = self.build_alloca_store(
-                    llvm_array_value,
-                    llvm_array_type,
-                    cstr_from_string("array").as_ptr(),
-                );
-                Ok(Box::new(ListType {
-                    llvm_value: llvm_array_value,
-                    llvm_value_ptr: array_ptr,
-                    llvm_type: llvm_array_type,
-                }))
+                unsafe {
+                    let llvm_array_value = LLVMConstArray2(
+                        first_element.get_llvm_type(),
+                        elements.as_mut_ptr(),
+                        vec_expr.len() as u64,
+                    );
+                    let llvm_array_type =
+                        LLVMArrayType2(first_element.get_llvm_type(), elements.len() as u64);
+                    let array_ptr = LLVMBuildAlloca(
+                        self.builder,
+                        llvm_array_type,
+                        b"my_array\0".as_ptr() as *const _,
+                    );
+                    LLVMBuildStore(self.builder, llvm_array_value, array_ptr);
+                    Ok(Box::new(ListType {
+                        llvm_value: llvm_array_value,
+                        llvm_value_ptr: array_ptr,
+                        llvm_type: llvm_array_type,
+                    }))
+                }
             }
             Expression::ListIndex(v, i) => {
-                let name = cstr_from_string("access_array").as_ptr();
                 let val = self.match_ast(*v)?;
                 let index = self.match_ast(*i)?;
-                let zero_index = self.const_int(index.get_llvm_type(), 0, 0);
-                let mut indices = [zero_index, index.get_value()];
-                let val = self.build_gep(
-                    val.get_llvm_type(),
-                    val.get_ptr().unwrap(),
-                    indices.as_mut_ptr(),
-                    2_u32,
-                    name,
-                );
-                Ok(Box::new(NumberType {
-                    llmv_value: val,
-                    llmv_value_pointer: Some(val),
-                    name: "".to_string(),
-                    cname: name,
-                }))
-            }
-            Expression::ListAssign(var, i, rhs) => match self.var_cache.get(&var) {
-                Some(val) => {
-                    let name = cstr_from_string("access_array").as_ptr();
-                    let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
-                    let ptr = val.get_ptr().unwrap();
-                    let index = self.match_ast(*i)?;
-                    let zero_index = self.const_int(index.get_llvm_type(), 0, 0);
+                unsafe {
+                    let zero_index = LLVMConstInt(index.get_llvm_type(), 0, 0);
                     let mut indices = [zero_index, index.get_value()];
-                    let element_ptr = self.build_gep(
+                    let val = LLVMBuildGEP2(
+                        self.builder,
                         val.get_llvm_type(),
                         val.get_ptr().unwrap(),
                         indices.as_mut_ptr(),
                         2_u32,
-                        name,
+                        b"access_array\0".as_ptr() as *const _,
                     );
-                    self.build_store(lhs.get_value(), element_ptr);
+                    Ok(Box::new(NumberType {
+                        llmv_value: val,
+                        llmv_value_pointer: Some(val),
+                        name: "".to_string(),
+                        cname: b"access_array\0".as_ptr() as *const _,
+                    }))
+                }
+            }
+            Expression::ListAssign(var, i, rhs) => match self.var_cache.get(&var) {
+                Some(val) => {
+                    let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
+                    let ptr = val.get_ptr().unwrap();
+                    let index = self.match_ast(*i)?;
+                    unsafe {
+                        let zero_index = LLVMConstInt(index.get_llvm_type(), 0, 0);
+                        let mut indices = [zero_index, index.get_value()];
+                        let element_ptr = LLVMBuildGEP2(
+                            self.builder,
+                            val.get_llvm_type(),
+                            val.get_ptr().unwrap(),
+                            indices.as_mut_ptr(),
+                            2_u32,
+                            b"access_array\0".as_ptr() as *const _,
+                        );
+                        LLVMBuildStore(self.builder, lhs.get_value(), element_ptr);
+                    }
                     Ok(val)
                 }
                 _ => {
@@ -562,7 +570,9 @@ impl ASTContext {
             }
             Expression::ReturnStmt(input) => {
                 let expression_value = self.match_ast(*input)?;
-                self.build_ret(expression_value.get_value());
+                unsafe {
+                    LLVMBuildRet(self.builder, expression_value.get_value());
+                }
                 Ok(Box::new(ReturnType {}))
             }
         }
