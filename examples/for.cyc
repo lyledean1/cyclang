@@ -1,9 +1,6 @@
 let value = 0;
 for (let i = 0; i < 10; i++)
 {
-    print("i");
-    print(i);
-    print(2*i);
-    print(i*4);
+    let value = i * 100;
+    print(value);
 }
-print(value);
