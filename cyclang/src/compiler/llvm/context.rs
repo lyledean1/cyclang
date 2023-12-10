@@ -11,6 +11,7 @@ use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
 use crate::cyclo_error::CycloError;
 use crate::parser::{Expression, Type};
+use libc::c_uint;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
@@ -134,6 +135,29 @@ impl ASTContext {
         self.build_store(rhs_val, store_ptr);
     }
 
+    pub fn append_basic_block(&self, function: LLVMValueRef, name: &str) -> LLVMBasicBlockRef {
+        unsafe { LLVMAppendBasicBlock(function, cstr_from_string(name).as_ptr()) }
+    }
+
+    pub fn build_call(
+        &self,
+        func: LLVMFunction,
+        args: Vec<LLVMValueRef>,
+        num_args: c_uint,
+        name: &str,
+    ) -> LLVMValueRef {
+        unsafe {
+            LLVMBuildCall2(
+                self.builder,
+                func.func_type,
+                func.function,
+                args.clone().as_mut_ptr(),
+                num_args,
+                cstr_from_string(name).as_ptr(),
+            )
+        }
+    }
+
     pub fn cast_i32_to_i64(
         &self,
         mut lhs_value: LLVMValueRef,
@@ -155,6 +179,72 @@ impl ASTContext {
             }
             lhs_value
         }
+    }
+
+    pub fn get_value_name(&self, value: LLVMValueRef) -> *const i8 {
+        unsafe { LLVMGetValueName(value) }
+    }
+
+    pub fn build_br(&self, block: LLVMBasicBlockRef) -> LLVMValueRef {
+        unsafe { LLVMBuildBr(self.builder, block) }
+    }
+
+    pub fn build_cond_br(
+        &self,
+        cond: LLVMValueRef,
+        then_block: LLVMBasicBlockRef,
+        else_block: LLVMBasicBlockRef,
+    ) -> LLVMValueRef {
+        unsafe { LLVMBuildCondBr(self.builder, cond, then_block, else_block) }
+    }
+
+    pub fn position_builder_at_end(&self, block: LLVMBasicBlockRef) {
+        unsafe {
+            LLVMPositionBuilderAtEnd(self.builder, block);
+        }
+    }
+
+    pub fn build_ret_void(&self) {
+        unsafe {
+            LLVMBuildRetVoid(self.builder);
+        }
+    }
+
+    pub fn build_ret(&self, value: LLVMValueRef) -> LLVMValueRef {
+        unsafe { LLVMBuildRet(self.builder, value) }
+    }
+
+    pub fn const_int(
+        &self,
+        int_type: LLVMTypeRef,
+        val: ::libc::c_ulonglong,
+        sign_extend: LLVMBool,
+    ) -> LLVMValueRef {
+        unsafe { LLVMConstInt(int_type, val, sign_extend) }
+    }
+
+    pub fn const_array(
+        &self,
+        element_type: LLVMTypeRef,
+        const_values: *mut LLVMValueRef,
+        length: u64,
+    ) -> LLVMValueRef {
+        unsafe { LLVMConstArray2(element_type, const_values, length) }
+    }
+
+    pub fn array_type(&self, element_type: LLVMTypeRef, element_count: u64) -> LLVMTypeRef {
+        unsafe { LLVMArrayType2(element_type, element_count) }
+    }
+
+    pub fn build_gep(
+        &self,
+        llvm_type: LLVMTypeRef,
+        ptr: LLVMValueRef,
+        indices: *mut LLVMValueRef,
+        num_indices: ::libc::c_uint,
+        name: *const ::libc::c_char,
+    ) -> LLVMValueRef {
+        unsafe { LLVMBuildGEP2(self.builder, llvm_type, ptr, indices, num_indices, name) }
     }
 }
 
@@ -300,8 +390,7 @@ impl LLVMFunction {
         };
         context.func_cache.set(&name, Box::new(func), context.depth);
 
-        let function_entry_block: *mut llvm_sys::LLVMBasicBlock =
-            LLVMAppendBasicBlock(function, cstr_from_string("entry").as_ptr());
+        let function_entry_block = context.append_basic_block(function, "entry");
 
         let previous_func = context.current_function.clone();
         let mut new_function = LLVMFunction {
@@ -360,7 +449,7 @@ impl LLVMFunction {
 
         context.current_function = new_function.clone();
 
-        LLVMPositionBuilderAtEnd(context.builder, function_entry_block);
+        context.position_builder_at_end(function_entry_block);
 
         // Set func args here
         context.match_ast(body.clone())?;
@@ -368,7 +457,7 @@ impl LLVMFunction {
         // Delete func args here
         // // Check to see if there is a Return type
         if return_type == Type::None {
-            LLVMBuildRetVoid(context.builder);
+            context.build_ret_void();
         }
 
         context.set_current_block(block);

@@ -83,6 +83,7 @@ pub unsafe fn build_bool_to_str_func(
     let builder = unsafe { LLVMCreateBuilderInContext(context) };
     LLVMPositionBuilderAtEnd(builder, entry_block);
     let condition = LLVMGetParam(function, 0);
+
     LLVMBuildCondBr(builder, condition, then_block, else_block);
 
     // Build the 'then' block (return "true")
