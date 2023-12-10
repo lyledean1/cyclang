@@ -107,8 +107,13 @@ impl TypeBase for BoolType {
     fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match _rhs.get_type() {
             BaseTypes::Bool => {
-                _ast_context.build_load_store(_rhs.get_ptr().unwrap(), self.get_ptr().unwrap(), int1_type(), cstr_from_string("load_bool").as_ptr());
-            },
+                _ast_context.build_load_store(
+                    _rhs.get_ptr().unwrap(),
+                    self.get_ptr().unwrap(),
+                    int1_type(),
+                    cstr_from_string("load_bool").as_ptr(),
+                );
+            }
             _ => {
                 unreachable!(
                     "Can't reassign variable {:?} that has type {:?} to type {:?}",
