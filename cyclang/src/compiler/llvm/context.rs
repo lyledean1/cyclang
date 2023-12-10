@@ -56,7 +56,7 @@ impl ASTContext {
         unsafe {
             let ptr = LLVMBuildAlloca(self.builder, ptr_type, name);
             LLVMBuildStore(self.builder, val, ptr);
-            return ptr;
+            ptr
         }
     }
 }

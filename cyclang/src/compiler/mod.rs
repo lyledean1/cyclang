@@ -375,15 +375,15 @@ impl ASTContext {
                         val.get_llvm_type(),
                         val.get_ptr().unwrap(),
                         indices.as_mut_ptr(),
-                        2 as u32,
+                        2_u32,
                         b"access_array\0".as_ptr() as *const _,
                     );
-                    return Ok(Box::new(NumberType {
+                    Ok(Box::new(NumberType {
                         llmv_value: val,
                         llmv_value_pointer: Some(val),
                         name: "".to_string(),
                         cname: b"access_array\0".as_ptr() as *const _,
-                    }));
+                    }))
                 }
             }
             Expression::ListAssign(var, i, rhs) => match self.var_cache.get(&var) {
@@ -399,7 +399,7 @@ impl ASTContext {
                             val.get_llvm_type(),
                             val.get_ptr().unwrap(),
                             indices.as_mut_ptr(),
-                            2 as u32,
+                            2_u32,
                             b"access_array\0".as_ptr() as *const _,
                         );
                         LLVMBuildStore(self.builder, lhs.get_value(), element_ptr);
