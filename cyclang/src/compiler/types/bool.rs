@@ -27,37 +27,22 @@ fn get_value_for_print_argument(
     context: &mut ASTContext,
     name: &str,
     value: BoolType,
-) -> LLVMValueRef {
+) -> Vec<LLVMValueRef> {
     match value.get_ptr() {
-        Some(v) => context.build_load(v, int1_type(), cstr_from_string(name).as_ptr()),
-        None => value.get_value(),
+        Some(v) => vec![context.build_load(v, int1_type(), cstr_from_string(name).as_ptr())],
+        None => vec![value.get_value()],
     }
 }
 
 impl Debug for BoolType {
     fn print(&self, astcontext: &mut ASTContext) {
-        let value = get_value_for_print_argument(astcontext, "", self.clone());
-
-        let bool_func_args: Vec<LLVMValueRef> = vec![value];
-
-        match astcontext.llvm_func_cache.get("bool_to_str") {
-            Some(bool_to_string) => {
-                let str_value = astcontext.build_call(bool_to_string, bool_func_args, 1, "");
-
-                let print_args: Vec<LLVMValueRef> = vec![str_value];
-                match astcontext.llvm_func_cache.get("printf") {
-                    Some(print_func) => {
-                        astcontext.build_call(print_func, print_args, 1, "");
-                    }
-                    _ => {
-                        unreachable!()
-                    }
-                }
-            }
-            _ => {
-                unreachable!()
-            }
-        }
+        let bool_func_args = get_value_for_print_argument(astcontext, "", self.clone());
+        
+        let bool_to_string_func = astcontext.llvm_func_cache.get("bool_to_str").unwrap();
+        let str_value = astcontext.build_call(bool_to_string_func, bool_func_args, 1, "");
+        let print_args: Vec<LLVMValueRef> = vec![str_value];
+        let print_func = astcontext.llvm_func_cache.get("printf").unwrap();
+        astcontext.build_call(print_func, print_args, 1, "");
     }
 }
 
@@ -70,14 +55,8 @@ impl TypeBase for BoolType {
             Some(val) => *val,
             None => panic!("The input value must be a bool"),
         };
-        let mut num = 0;
-        if let true = value_as_bool {
-            num = 1
-        }
-        let bool_value = context.const_int(int1_type(), num, 0);
-        let c_string = CString::new(_name.clone()).unwrap();
-        let c_pointer: *const i8 = c_string.as_ptr();
-        let alloca = context.build_alloca_store(bool_value, int1_type(), c_pointer);
+        let bool_value = context.const_int(int1_type(), value_as_bool.into(), 0);
+        let alloca = context.build_alloca_store(bool_value, int1_type(), cstr_from_string(&_name).as_ptr());
         Box::new(BoolType {
             name: _name,
             builder: context.builder,
