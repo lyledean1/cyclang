@@ -75,12 +75,12 @@ fn generate_comparison_operation(
                                 let mut lhs_val = context.build_load(
                                     lhs_ptr,
                                     self.get_llvm_type(),
-                                    cstr_from_string("lhs_bool").as_ptr(),
+                                    self.get_name_as_str(),
                                 );
                                 let mut rhs_val = context.build_load(
                                     rhs.get_ptr().unwrap(),
                                     rhs.get_llvm_type(),
-                                    cstr_from_string("rhs_bool").as_ptr(),
+                                    rhs.get_name_as_str(),
                                 );
 
                                 lhs_val = context.cast_i32_to_i64(lhs_val, rhs_val);
@@ -94,12 +94,12 @@ fn generate_comparison_operation(
                                     cstr_from_string("result").as_ptr(),
                                 );
 
-                                let alloca = context.build_alloca_store(cmp, int1_type(), cstr_from_string("bool_cmp").as_ptr());
+                                let alloca = context.build_alloca_store(cmp, int1_type(), "bool_cmp");
                                 Box::new(BoolType {
-                                    name: self.name.clone(),
+                                    name: self.get_name_as_str().to_string(),
                                     builder: context.builder,
-                                    llmv_value: cmp,
-                                    llmv_value_pointer: alloca,
+                                    llvm_value: cmp,
+                                    llvm_value_pointer: alloca,
                                 })
                             }
                             _ => {
@@ -116,12 +116,12 @@ fn generate_comparison_operation(
                                     rhs_val,
                                     cstr_from_string("result").as_ptr(),
                                 );
-                                let alloca = context.build_alloca_store(cmp, int1_type(), cstr_from_string("bool_cmp").as_ptr());
+                                let alloca = context.build_alloca_store(cmp, int1_type(), "bool_cmp");
                                 Box::new(BoolType {
-                                    name: self.name.clone(),
+                                    name: self.get_name_as_str().to_string(),
                                     builder: context.builder,
-                                    llmv_value: cmp,
-                                    llmv_value_pointer: alloca,
+                                    llvm_value: cmp,
+                                    llvm_value_pointer: alloca,
                                 })
                             }
                         }

@@ -50,12 +50,12 @@ fn generate_arithmetic_operation(
                             let mut lhs_val = context.build_load(
                                 ptr,
                                 self.get_llvm_type(),
-                                self.get_name(),
+                                "rhs", //todo: fix with function to get name
                             );
                             let mut rhs_val = context.build_load(
                                 rhs_ptr,
                                 _rhs.get_llvm_type(),
-                                _rhs.get_name(),
+                                "lhs", //todo: fix with function to get name
                             );
 
                             // convert to i64 if mismatched types
@@ -64,16 +64,12 @@ fn generate_arithmetic_operation(
 
                             let result =
                                 #llvm_fn_name(context.builder, lhs_val, rhs_val, cstr_from_string(#add_name).as_ptr());
-                            let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), cstr_from_string("param_add").as_ptr());
-
-                            let c_str_ref = CStr::from_ptr(self.get_name());
-                            // Convert the CStr to a String (handles invalid UTF-8)
-                            let name = c_str_ref.to_string_lossy().to_string();
+                            let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), "param_add");
+                            let name = self.get_name_as_str().to_string();
                             Box::new(#struct_name {
                                 name,
-                                llmv_value: result,
-                                llmv_value_pointer: Some(alloca),
-                                cname: self.get_name(),
+                                llvm_value: result,
+                                llvm_value_pointer: Some(alloca),
                             })
                         }
                         _ => {
@@ -89,17 +85,14 @@ fn generate_arithmetic_operation(
                                 rhs_val,
                                 cstr_from_string(#name).as_ptr(),
                             );
-                            let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), cstr_from_string("param_add").as_ptr());
-                            let c_str_ref = CStr::from_ptr(self.get_name());
+                            let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), "param_add");
+                            let name = self.get_name_as_str().to_string();
 
-                            // Convert the CStr to a String (handles invalid UTF-8)
-                            let name = c_str_ref.to_string_lossy().to_string();
                             //TODO: fix the new instruction
                             Box::new(#struct_name {
                                 name,
-                                llmv_value: result,
-                                llmv_value_pointer: Some(alloca),
-                                cname: self.get_name(),
+                                llvm_value: result,
+                                llvm_value_pointer: Some(alloca),
                             })
                         }
                     }

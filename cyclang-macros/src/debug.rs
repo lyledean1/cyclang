@@ -12,7 +12,7 @@ pub fn generate_debug_derive(input: TokenStream) -> TokenStream {
                     // Load Value from Value Index Ptr
                     match self.get_ptr() {
                         Some(v) => unsafe {
-                            let value = context.build_load(v, self.get_llvm_type(), self.get_name());
+                            let value = context.build_load(v, self.get_llvm_type(), "debug"); //todo fix
 
                             let mut print_args: Vec<LLVMValueRef> =
                                 vec![context.get_printf_str(self.get_type()), value];

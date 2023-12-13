@@ -14,6 +14,7 @@ pub mod void;
 //TODO: Upgrade to LLVMGetValueName2
 use llvm_sys::core::LLVMGetValueName;
 use std::any::Any;
+use std::ffi::CStr;
 
 use crate::{compiler::llvm::context::ASTContext, parser::Expression};
 use dyn_clone::DynClone;
@@ -86,6 +87,13 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
     }
     unsafe fn get_name(&self) -> *const c_char {
         LLVMGetValueName(self.get_value())
+    }
+
+    fn get_name_as_str(&self) -> &str {
+        unsafe {
+            let c_str_ref = CStr::from_ptr(self.get_name());
+            c_str_ref.to_str().unwrap()
+        }
     }
     fn get_value(&self) -> LLVMValueRef;
     fn get_ptr(&self) -> Option<LLVMValueRef> {

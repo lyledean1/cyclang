@@ -44,10 +44,11 @@ impl Func for FuncType {
 
             let call_args = &mut vec![];
             for arg in args.iter() {
-                // build load args i.e if variable 
+                // build load args i.e if variable
                 let ast_value = context.match_ast(arg.clone())?;
                 if let Some(ptr) = ast_value.get_ptr() {
-                    let loaded_value = context.build_load(ptr, ast_value.get_llvm_type(), cstr_from_string("call_arg").as_ptr());
+                    let loaded_value =
+                        context.build_load(ptr, ast_value.get_llvm_type(), "call_arg");
                     call_args.push(loaded_value);
                 } else {
                     call_args.push(ast_value.get_value());
@@ -66,38 +67,32 @@ impl Func for FuncType {
                     let _ptr = context.build_alloca_store(
                         call_value,
                         int32_ptr_type(),
-                        cstr_from_string("call_value_int32").as_ptr(),
+                        "call_value_int32",
                     );
                     Ok(Box::new(NumberType {
-                        llmv_value: call_value,
-                        llmv_value_pointer: None,
+                        llvm_value: call_value,
+                        llvm_value_pointer: None,
                         name: "call_value".into(),
-                        cname: cstr_from_string("call_value").as_ptr(),
                     }))
                 }
                 Type::i64 => {
                     let _ptr = context.build_alloca_store(
                         call_value,
                         int64_ptr_type(),
-                        cstr_from_string("call_value_int64").as_ptr(),
+                        "call_value_int64",
                     );
                     Ok(Box::new(NumberType {
-                        llmv_value: call_value,
-                        llmv_value_pointer: None,
+                        llvm_value: call_value,
+                        llvm_value_pointer: None,
                         name: "call_value".into(),
-                        cname: cstr_from_string("call_value").as_ptr(),
                     }))
                 }
                 Type::Bool => {
-                    let ptr = context.build_alloca_store(
-                        call_value,
-                        int1_ptr_type(),
-                        cstr_from_string("bool_value").as_ptr(),
-                    );
+                    let ptr = context.build_alloca_store(call_value, int1_ptr_type(), "bool_value");
                     Ok(Box::new(BoolType {
                         builder: context.builder,
-                        llmv_value: call_value,
-                        llmv_value_pointer: ptr,
+                        llvm_value: call_value,
+                        llvm_value_pointer: ptr,
                         name: "call_value".into(),
                     }))
                 }
