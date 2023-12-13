@@ -69,10 +69,9 @@ impl Func for FuncType {
                         cstr_from_string("call_value_int32").as_ptr(),
                     );
                     Ok(Box::new(NumberType {
-                        llmv_value: call_value,
-                        llmv_value_pointer: None,
+                        llvm_value: call_value,
+                        llvm_value_pointer: None,
                         name: "call_value".into(),
-                        cname: cstr_from_string("call_value").as_ptr(),
                     }))
                 }
                 Type::i64 => {
@@ -82,10 +81,9 @@ impl Func for FuncType {
                         cstr_from_string("call_value_int64").as_ptr(),
                     );
                     Ok(Box::new(NumberType {
-                        llmv_value: call_value,
-                        llmv_value_pointer: None,
+                        llvm_value: call_value,
+                        llvm_value_pointer: None,
                         name: "call_value".into(),
-                        cname: cstr_from_string("call_value").as_ptr(),
                     }))
                 }
                 Type::Bool => {
@@ -96,8 +94,8 @@ impl Func for FuncType {
                     );
                     Ok(Box::new(BoolType {
                         builder: context.builder,
-                        llmv_value: call_value,
-                        llmv_value_pointer: ptr,
+                        llvm_value: call_value,
+                        llvm_value_pointer: ptr,
                         name: "call_value".into(),
                     }))
                 }

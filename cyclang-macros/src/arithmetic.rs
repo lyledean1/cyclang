@@ -71,9 +71,8 @@ fn generate_arithmetic_operation(
                             let name = c_str_ref.to_string_lossy().to_string();
                             Box::new(#struct_name {
                                 name,
-                                llmv_value: result,
-                                llmv_value_pointer: Some(alloca),
-                                cname: self.get_name(),
+                                llvm_value: result,
+                                llvm_value_pointer: Some(alloca),
                             })
                         }
                         _ => {
@@ -97,9 +96,8 @@ fn generate_arithmetic_operation(
                             //TODO: fix the new instruction
                             Box::new(#struct_name {
                                 name,
-                                llmv_value: result,
-                                llmv_value_pointer: Some(alloca),
-                                cname: self.get_name(),
+                                llvm_value: result,
+                                llvm_value_pointer: Some(alloca),
                             })
                         }
                     }

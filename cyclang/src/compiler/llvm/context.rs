@@ -408,20 +408,18 @@ impl LLVMFunction {
                     Type::i32 => {
                         let val = LLVMGetParam(function, i as u32);
                         let num = NumberType {
-                            llmv_value: val,
-                            llmv_value_pointer: None,
+                            llvm_value: val,
+                            llvm_value_pointer: None,
                             name: "param".into(),
-                            cname: cstr_from_string("param").as_ptr(),
                         };
                         new_function.set_func_var(v, Box::new(num));
                     }
                     Type::i64 => {
                         let val = LLVMGetParam(function, i as u32);
                         let num = NumberType64 {
-                            llmv_value: val,
-                            llmv_value_pointer: None,
+                            llvm_value: val,
+                            llvm_value_pointer: None,
                             name: "param".into(),
-                            cname: cstr_from_string("param").as_ptr(),
                         };
                         new_function.set_func_var(v, Box::new(num));
                     }
@@ -430,8 +428,8 @@ impl LLVMFunction {
                         let val = LLVMGetParam(function, i as u32);
                         let bool_type = BoolType {
                             builder: context.builder,
-                            llmv_value: val,
-                            llmv_value_pointer: val,
+                            llvm_value: val,
+                            llvm_value_pointer: val,
                             name: "bool_param".into(),
                         };
                         new_function.set_func_var(v, Box::new(bool_type));

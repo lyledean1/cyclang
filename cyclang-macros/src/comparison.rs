@@ -98,8 +98,8 @@ fn generate_comparison_operation(
                                 Box::new(BoolType {
                                     name: self.name.clone(),
                                     builder: context.builder,
-                                    llmv_value: cmp,
-                                    llmv_value_pointer: alloca,
+                                    llvm_value: cmp,
+                                    llvm_value_pointer: alloca,
                                 })
                             }
                             _ => {
@@ -120,8 +120,8 @@ fn generate_comparison_operation(
                                 Box::new(BoolType {
                                     name: self.name.clone(),
                                     builder: context.builder,
-                                    llmv_value: cmp,
-                                    llmv_value_pointer: alloca,
+                                    llvm_value: cmp,
+                                    llvm_value_pointer: alloca,
                                 })
                             }
                         }

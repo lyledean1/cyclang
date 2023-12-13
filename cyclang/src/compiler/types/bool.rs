@@ -3,7 +3,6 @@ use crate::compiler::llvm::*;
 
 use cyclang_macros::{BaseMacro, ComparisonMacro};
 use std::any::Any;
-use std::ffi::CString;
 
 extern crate llvm_sys;
 use super::Arithmetic;
@@ -16,8 +15,8 @@ use llvm_sys::prelude::*;
 #[base_type("BaseTypes::Bool")]
 pub struct BoolType {
     pub builder: LLVMBuilderRef,
-    pub llmv_value: LLVMValueRef,
-    pub llmv_value_pointer: LLVMValueRef,
+    pub llvm_value: LLVMValueRef,
+    pub llvm_value_pointer: LLVMValueRef,
     pub name: String,
 }
 
@@ -60,8 +59,8 @@ impl TypeBase for BoolType {
         Box::new(BoolType {
             name: _name,
             builder: context.builder,
-            llmv_value: bool_value,
-            llmv_value_pointer: alloca,
+            llvm_value: bool_value,
+            llvm_value_pointer: alloca,
         })
     }
     fn assign(&mut self, _astcontext: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
@@ -85,10 +84,10 @@ impl TypeBase for BoolType {
         }
     }
     fn get_value(&self) -> LLVMValueRef {
-        self.llmv_value
+        self.llvm_value
     }
     fn get_ptr(&self) -> Option<LLVMValueRef> {
-        Some(self.llmv_value_pointer)
+        Some(self.llvm_value_pointer)
     }
 }
 

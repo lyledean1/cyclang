@@ -15,9 +15,9 @@ use llvm_sys::prelude::*;
 #[base_type("BaseTypes::String")]
 pub struct StringType {
     name: String,
-    llmv_value: LLVMValueRef,
+    llvm_value: LLVMValueRef,
     length: *mut usize,
-    llmv_value_pointer: Option<LLVMValueRef>,
+    llvm_value_pointer: Option<LLVMValueRef>,
     str_value: String,
 }
 
@@ -83,8 +83,8 @@ impl Arithmetic for StringType {
                     Box::new(StringType {
                         name: self.name.clone(),
                         length: ptr,
-                        llmv_value: value,
-                        llmv_value_pointer: Some(buffer_ptr),
+                        llvm_value: value,
+                        llvm_value_pointer: Some(buffer_ptr),
                         str_value: new_string,
                     })
                 },
@@ -109,7 +109,7 @@ impl Debug for StringType {
             // Set Value
             // create string vairables and then function
             // This is the Main Print Func
-            let llvm_value_to_cstr = LLVMGetAsString(self.llmv_value, self.length);
+            let llvm_value_to_cstr = LLVMGetAsString(self.llvm_value, self.length);
             // Load Value from Value Index Ptr
             let val = LLVMBuildGlobalStringPtr(
                 ast_context.builder,
@@ -166,8 +166,8 @@ impl TypeBase for StringType {
             Box::new(StringType {
                 name: _name,
                 length: ptr,
-                llmv_value: value,
-                llmv_value_pointer: Some(buffer_ptr),
+                llvm_value: value,
+                llvm_value_pointer: Some(buffer_ptr),
                 str_value: value_as_string, // fix
             })
         }
@@ -189,10 +189,10 @@ impl TypeBase for StringType {
         }
     }
     fn get_value(&self) -> LLVMValueRef {
-        self.llmv_value
+        self.llvm_value
     }
     fn get_ptr(&self) -> Option<LLVMValueRef> {
-        match self.llmv_value_pointer {
+        match self.llvm_value_pointer {
             Some(v) => Some(v),
             None => {
                 unreachable!("No pointer for this value")

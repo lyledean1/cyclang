@@ -375,10 +375,9 @@ impl ASTContext {
                     name,
                 );
                 Ok(Box::new(NumberType {
-                    llmv_value: val,
-                    llmv_value_pointer: Some(val),
+                    llvm_value: val,
+                    llvm_value_pointer: Some(val),
                     name: "".to_string(),
-                    cname: name,
                 }))
             }
             Expression::ListAssign(var, i, rhs) => match self.var_cache.get(&var) {
