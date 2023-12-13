@@ -69,7 +69,7 @@ impl TypeBase for BoolType {
                     _rhs.get_ptr().unwrap(),
                     self.get_ptr().unwrap(),
                     int1_type(),
-                    "load_bool",
+                    self.get_name_as_str(),
                 );
             }
             _ => {

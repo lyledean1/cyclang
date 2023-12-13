@@ -34,21 +34,12 @@ impl TypeBase for NumberType {
     }
     fn assign(&mut self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match self.get_type() {
-            BaseTypes::Number => {
-                unsafe {
-                    let alloca = _rhs.get_ptr().unwrap();
-                    let c_str_ref = CStr::from_ptr(self.get_name());
-                    // Convert the CStr to a String (handles invalid UTF-8)
-                    let name = c_str_ref.to_string_lossy().to_string();
-                    // Tests pass for this but might need to double check, operation before didn't look like it was doing anything
-                    context.build_load_store(
-                        alloca,
-                        self.get_ptr().unwrap(),
-                        self.get_llvm_type(),
-                        &name,
-                    )
-                }
-            }
+            BaseTypes::Number => context.build_load_store(
+                _rhs.get_ptr().unwrap(),
+                self.get_ptr().unwrap(),
+                self.get_llvm_type(),
+                self.get_name_as_str(),
+            ),
             _ => {
                 unreachable!(
                     "Can't reassign variable {:?} that has type {:?} to type {:?}",

@@ -25,11 +25,8 @@ impl TypeBase for NumberType64 {
             None => panic!("The input value must be an i32"),
         };
         let llvm_value = context.const_int(int64_type(), value_as_i64.try_into().unwrap(), 0);
-        let llvm_value_pointer = Some(context.build_alloca_store(
-            llvm_value,
-            int64_ptr_type(),
-            &name,
-        ));
+        let llvm_value_pointer =
+            Some(context.build_alloca_store(llvm_value, int64_ptr_type(), &name));
         Box::new(NumberType64 {
             name,
             llvm_value,
@@ -38,20 +35,12 @@ impl TypeBase for NumberType64 {
     }
     fn assign(&mut self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match self.get_type() {
-            BaseTypes::Number64 => {
-                unsafe {
-                    let alloca = self.get_ptr().unwrap();
-                    let c_str_ref = CStr::from_ptr(self.get_name());
-                    // Convert the CStr to a String (handles invalid UTF-8)
-                    let name = c_str_ref.to_string_lossy().to_string();
-                    context.build_load_store(
-                        alloca,
-                        _rhs.get_ptr().unwrap(),
-                        self.get_llvm_type(),
-                        &name,
-                    )
-                }
-            }
+            BaseTypes::Number64 => context.build_load_store(
+                self.get_ptr().unwrap(),
+                _rhs.get_ptr().unwrap(),
+                self.get_llvm_type(),
+                self.get_name_as_str(),
+            ),
             _ => {
                 unreachable!(
                     "Can't reassign variable {:?} that has type {:?} to type {:?}",

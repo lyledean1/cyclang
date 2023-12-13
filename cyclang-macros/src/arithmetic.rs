@@ -65,10 +65,7 @@ fn generate_arithmetic_operation(
                             let result =
                                 #llvm_fn_name(context.builder, lhs_val, rhs_val, cstr_from_string(#add_name).as_ptr());
                             let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), "param_add");
-
-                            let c_str_ref = CStr::from_ptr(self.get_name());
-                            // Convert the CStr to a String (handles invalid UTF-8)
-                            let name = c_str_ref.to_string_lossy().to_string();
+                            let name = self.get_name_as_str().to_string();
                             Box::new(#struct_name {
                                 name,
                                 llvm_value: result,
@@ -89,10 +86,8 @@ fn generate_arithmetic_operation(
                                 cstr_from_string(#name).as_ptr(),
                             );
                             let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), "param_add");
-                            let c_str_ref = CStr::from_ptr(self.get_name());
+                            let name = self.get_name_as_str().to_string();
 
-                            // Convert the CStr to a String (handles invalid UTF-8)
-                            let name = c_str_ref.to_string_lossy().to_string();
                             //TODO: fix the new instruction
                             Box::new(#struct_name {
                                 name,
