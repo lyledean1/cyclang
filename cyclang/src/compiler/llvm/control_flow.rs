@@ -72,11 +72,7 @@ pub fn new_if_stmt(
 
     context.set_current_block(if_entry_block);
 
-    let cmp = context.build_load(
-        cond.get_ptr().unwrap(),
-        int1_type(),
-        cstr_from_string("cmp").as_ptr(),
-    );
+    let cmp = context.build_load(cond.get_ptr().unwrap(), int1_type(), "cmp");
     context.build_cond_br(cmp, then_block, else_block);
 
     context.set_current_block(merge_block);
@@ -94,17 +90,10 @@ pub fn new_while_stmt(
     let loop_body_block = context.append_basic_block(function, "loop_body");
     let loop_exit_block = context.append_basic_block(function, "loop_exit");
 
-    let bool_type_ptr = context.build_alloca(
-        int1_type(),
-        cstr_from_string("while_value_bool_var").as_ptr(),
-    );
+    let bool_type_ptr = context.build_alloca(int1_type(), "while_value_bool_var");
     let value_condition = context.match_ast(condition)?;
 
-    let cmp = context.build_load(
-        value_condition.get_ptr().unwrap(),
-        int1_type(),
-        cstr_from_string("cmp").as_ptr(),
-    );
+    let cmp = context.build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
 
     context.build_store(cmp, bool_type_ptr);
 
@@ -122,7 +111,7 @@ pub fn new_while_stmt(
     let value_cond_load = context.build_load(
         value_condition.get_ptr().unwrap(),
         int1_type(),
-        cstr_from_string("while_value_bool_var").as_ptr(),
+        "while_value_bool_var",
     );
 
     context.build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
@@ -175,7 +164,7 @@ pub fn new_for_loop(
         let lhs_val = context.build_load(
             op_lhs.unwrap(),
             LLVMInt32TypeInContext(context.context),
-            cstr_from_string("i").as_ptr(),
+            "i",
         );
 
         let icmp_val = context.const_int(
@@ -196,11 +185,8 @@ pub fn new_for_loop(
         // Build loop body block
         context.set_current_block(loop_body_block);
         let for_block_cond = context.match_ast(for_block_expr)?;
-        let lhs_val = context.build_load(
-            ptr.unwrap(),
-            LLVMInt32TypeInContext(context.context),
-            cstr_from_string("i").as_ptr(),
-        );
+        let lhs_val =
+            context.build_load(ptr.unwrap(), LLVMInt32TypeInContext(context.context), "i");
 
         let incr_val =
             context.const_int(LLVMInt32TypeInContext(context.context), increment as u64, 0);

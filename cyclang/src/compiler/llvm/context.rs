@@ -51,13 +51,8 @@ impl ASTContext {
     /// * `ptr_type` - The LLVM Type you will be storing in memory
     /// * `name` - The LLVM name of the alloca
     ///
-    pub fn build_load(
-        &self,
-        ptr: LLVMValueRef,
-        ptr_type: LLVMTypeRef,
-        name: *const c_char,
-    ) -> LLVMValueRef {
-        unsafe { LLVMBuildLoad2(self.builder, ptr_type, ptr, name) }
+    pub fn build_load(&self, ptr: LLVMValueRef, ptr_type: LLVMTypeRef, name: &str) -> LLVMValueRef {
+        unsafe { LLVMBuildLoad2(self.builder, ptr_type, ptr, cstr_from_string(name).as_ptr()) }
     }
 
     /// build_store
@@ -84,8 +79,8 @@ impl ASTContext {
     /// * `ptr_type` - The LLVM Type you will be storing in memory
     /// * `name` - The LLVM name of the alloca
     ///
-    pub fn build_alloca(&self, ptr_type: LLVMTypeRef, name: *const c_char) -> LLVMValueRef {
-        unsafe { LLVMBuildAlloca(self.builder, ptr_type, name) }
+    pub fn build_alloca(&self, ptr_type: LLVMTypeRef, name: &str) -> LLVMValueRef {
+        unsafe { LLVMBuildAlloca(self.builder, ptr_type, cstr_from_string(name).as_ptr()) }
     }
 
     /// build_alloca_store
@@ -103,7 +98,7 @@ impl ASTContext {
         &self,
         val: LLVMValueRef,
         ptr_type: LLVMTypeRef,
-        name: *const c_char,
+        name: &str,
     ) -> LLVMValueRef {
         let ptr = self.build_alloca(ptr_type, name);
         self.build_store(val, ptr);
@@ -127,7 +122,7 @@ impl ASTContext {
         load_ptr: LLVMValueRef,
         store_ptr: LLVMValueRef,
         ptr_type: LLVMTypeRef,
-        name: *const c_char,
+        name: &str,
     ) {
         let rhs_val = self.build_load(load_ptr, ptr_type, name);
         self.build_store(rhs_val, store_ptr);
@@ -244,7 +239,6 @@ impl ASTContext {
     ) -> LLVMValueRef {
         unsafe { LLVMBuildGEP2(self.builder, llvm_type, ptr, indices, num_indices, name) }
     }
-    
 }
 
 #[derive(Clone)]

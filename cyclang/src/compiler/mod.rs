@@ -349,11 +349,7 @@ impl ASTContext {
                     self.const_array(array_type, elements.as_mut_ptr(), array_len);
 
                 let llvm_array_type = self.array_type(array_type, array_len);
-                let array_ptr = self.build_alloca_store(
-                    llvm_array_value,
-                    llvm_array_type,
-                    cstr_from_string("array").as_ptr(),
-                );
+                let array_ptr = self.build_alloca_store(llvm_array_value, llvm_array_type, "array");
                 Ok(Box::new(ListType {
                     llvm_value: llvm_array_value,
                     llvm_value_ptr: array_ptr,
@@ -365,7 +361,8 @@ impl ASTContext {
                 let val = self.match_ast(*v)?;
                 let index = self.match_ast(*i)?;
                 let zero_index = self.const_int(int64_type(), 0, 0);
-                let build_load_index = self.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), cstr_from_string("example").as_ptr());
+                let build_load_index =
+                    self.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
                 let mut indices = [zero_index, build_load_index];
                 let val = self.build_gep(
                     val.get_llvm_type(),
@@ -387,7 +384,8 @@ impl ASTContext {
                     let ptr = val.get_ptr().unwrap();
                     let index = self.match_ast(*i)?;
                     let zero_index = self.const_int(int64_type(), 0, 0);
-                    let build_load_index = self.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), cstr_from_string("example").as_ptr());
+                    let build_load_index =
+                        self.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
                     let mut indices = [zero_index, build_load_index];
                     let element_ptr = self.build_gep(
                         val.get_llvm_type(),

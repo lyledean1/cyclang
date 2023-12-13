@@ -6,7 +6,6 @@ use std::any::Any;
 
 extern crate llvm_sys;
 use super::Arithmetic;
-use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::types::{Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -28,7 +27,7 @@ fn get_value_for_print_argument(
     value: BoolType,
 ) -> Vec<LLVMValueRef> {
     match value.get_ptr() {
-        Some(v) => vec![context.build_load(v, int1_type(), cstr_from_string(name).as_ptr())],
+        Some(v) => vec![context.build_load(v, int1_type(), name)],
         None => vec![value.get_value()],
     }
 }
@@ -36,7 +35,7 @@ fn get_value_for_print_argument(
 impl Debug for BoolType {
     fn print(&self, astcontext: &mut ASTContext) {
         let bool_func_args = get_value_for_print_argument(astcontext, "", self.clone());
-        
+
         let bool_to_string_func = astcontext.llvm_func_cache.get("bool_to_str").unwrap();
         let str_value = astcontext.build_call(bool_to_string_func, bool_func_args, 1, "");
         let print_args: Vec<LLVMValueRef> = vec![str_value];
@@ -55,7 +54,7 @@ impl TypeBase for BoolType {
             None => panic!("The input value must be a bool"),
         };
         let bool_value = context.const_int(int1_type(), value_as_bool.into(), 0);
-        let alloca = context.build_alloca_store(bool_value, int1_type(), cstr_from_string(&_name).as_ptr());
+        let alloca = context.build_alloca_store(bool_value, int1_type(), &_name);
         Box::new(BoolType {
             name: _name,
             builder: context.builder,
@@ -70,7 +69,7 @@ impl TypeBase for BoolType {
                     _rhs.get_ptr().unwrap(),
                     self.get_ptr().unwrap(),
                     int1_type(),
-                    cstr_from_string("load_bool").as_ptr(),
+                    "load_bool",
                 );
             }
             _ => {

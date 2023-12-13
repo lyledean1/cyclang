@@ -4,7 +4,6 @@ use crate::compiler::llvm::*;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
 use cyclang_macros::{ArithmeticMacro, BaseMacro, ComparisonMacro, DebugMacro};
 use std::any::Any;
-use std::ffi::CString;
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
@@ -26,7 +25,7 @@ impl TypeBase for NumberType {
             None => panic!("The input value must be an i32"),
         };
         let value = context.const_int(int32_type(), value_as_i32.try_into().unwrap(), 0);
-        let ptr = context.build_alloca_store(value, int32_ptr_type(), cstr_from_string(&name).as_ptr());
+        let ptr = context.build_alloca_store(value, int32_ptr_type(), &name);
         Box::new(NumberType {
             name: name,
             llvm_value: value,
@@ -36,15 +35,19 @@ impl TypeBase for NumberType {
     fn assign(&mut self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
         match self.get_type() {
             BaseTypes::Number => {
-                let alloca = _rhs.get_ptr().unwrap();
-                let name = context.get_value_name(self.get_value());
-                // Tests pass for this but might need to double check, operation before didn't look like it was doing anything
-                context.build_load_store(
-                    alloca,
-                    self.get_ptr().unwrap(),
-                    self.get_llvm_type(),
-                    name,
-                )
+                unsafe {
+                    let alloca = _rhs.get_ptr().unwrap();
+                    let c_str_ref = CStr::from_ptr(self.get_name());
+                    // Convert the CStr to a String (handles invalid UTF-8)
+                    let name = c_str_ref.to_string_lossy().to_string();
+                    // Tests pass for this but might need to double check, operation before didn't look like it was doing anything
+                    context.build_load_store(
+                        alloca,
+                        self.get_ptr().unwrap(),
+                        self.get_llvm_type(),
+                        &name,
+                    )
+                }
             }
             _ => {
                 unreachable!(
