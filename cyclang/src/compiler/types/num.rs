@@ -27,7 +27,7 @@ impl TypeBase for NumberType {
         let value = context.const_int(int32_type(), value_as_i32.try_into().unwrap(), 0);
         let ptr = context.build_alloca_store(value, int32_ptr_type(), &name);
         Box::new(NumberType {
-            name: name,
+            name,
             llvm_value: value,
             llvm_value_pointer: Some(ptr),
         })

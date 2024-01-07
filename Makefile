@@ -44,6 +44,9 @@ build-book:
 build-ubuntu-docker:
 	cd docker/x86_64 && docker build -t cyclang-base .
 
+set-llvm-sys-ffi-workaround:
+	echo 'export LLVM_SYS_17_FFI_WORKAROUND=true' >> ~/.bashrc
+
 set-x86-64-env:
 	echo 'source $$HOME/.cargo/env' >> $$HOME/.bashrc
 

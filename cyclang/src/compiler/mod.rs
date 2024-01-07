@@ -337,7 +337,7 @@ impl ASTContext {
                     // }
                     vec_expr.push(expr)
                 }
-                let first_element = vec_expr.get(0).unwrap();
+                let first_element = vec_expr.first().unwrap();
                 let mut elements = vec![];
                 for x in vec_expr.iter() {
                     elements.push(x.get_value());

@@ -5,7 +5,7 @@ use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
-use std::ffi::c_char;
+
 extern crate llvm_sys;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
