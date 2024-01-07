@@ -174,10 +174,6 @@ impl ASTContext {
         }
     }
 
-    pub fn get_value_name(&self, value: LLVMValueRef) -> *const i8 {
-        unsafe { LLVMGetValueName(value) }
-    }
-
     pub fn build_br(&self, block: LLVMBasicBlockRef) -> LLVMValueRef {
         unsafe { LLVMBuildBr(self.builder, block) }
     }

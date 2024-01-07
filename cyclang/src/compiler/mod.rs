@@ -154,10 +154,10 @@ fn llvm_compile_to_ir(
         let var_cache = VariableCache::new();
         let func_cache = VariableCache::new();
 
-        let format_str = "%d\n\0";
+        let format_str = "%d\n";
         let printf_str_num_value = LLVMBuildGlobalStringPtr(
             builder,
-            format_str.as_ptr() as *const i8,
+            cstr_from_string(format_str).as_ptr(),
             cstr_from_string("number_printf_val").as_ptr(),
         );
         let printf_str_num64_value = LLVMBuildGlobalStringPtr(
