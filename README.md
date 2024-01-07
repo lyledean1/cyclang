@@ -51,3 +51,4 @@ cargo install cyclang
 ```
 
 See the [book](https://lyledean1.github.io/cyclang/setup.html) for a more detailed guide on setup.
+
