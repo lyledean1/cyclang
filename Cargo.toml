@@ -5,7 +5,7 @@ resolver = "2"
 
 [workspace.package]
 description = "Cyclang is a toy language built in LLVM."
-version = "0.1.17"
+version = "0.1.18"
 edition = "2021"
 readme = "./README.md"
 keywords = ["cyclang", "llvm", "pest", "language", "wasm"]
