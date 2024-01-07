@@ -42,7 +42,7 @@ build-book:
 	cd book && mdbook build
 
 build-ubuntu-docker:
-	cd docker/ubuntu-x86_64 && docker build -t cyclang-base .
+	cd .devcontainer/ubuntu-x86_64 && docker build -t cyclang-base .
 
 set-llvm-sys-ffi-workaround:
 	echo 'export LLVM_SYS_17_FFI_WORKAROUND=true' >> ~/.bashrc
