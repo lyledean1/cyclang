@@ -42,7 +42,7 @@ pub unsafe fn build_helper_funcs(
     let ret_type = LLVMPointerType(LLVMInt8TypeInContext(context), 0);
     let sprintf_type =
         LLVMFunctionType(ret_type, arg_types.as_mut_ptr(), arg_types.len() as u32, 1);
-    let sprintf = LLVMAddFunction(module, "sprintf\0".as_ptr() as *const i8, sprintf_type);
+    let sprintf = LLVMAddFunction(module, cstr_from_string("sprintf").as_ptr(), sprintf_type);
     llvm_func_cache.set(
         "sprintf",
         LLVMFunction {

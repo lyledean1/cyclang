@@ -28,7 +28,7 @@ impl TypeBase for ListType {
             Some(val) => val,
             None => panic!("The input value is incorrect"),
         };
-        let first_element = value_as_expr_list.get(0).unwrap();
+        let first_element = value_as_expr_list.first().unwrap();
         let mut elements = vec![];
         for x in value_as_expr_list.iter() {
             elements.push(x.get_value());

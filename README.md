@@ -36,14 +36,27 @@ Below is a comparison of times in Node, Cyclang (unoptimized) WASM and Cyclang o
 
 Ensure you have `wasm-ld` installed to convert LLVM object IR to a `.wasm` file. This should come with the LLVM 17 installation - instructions below.
 
-##  Installing and Running (MacOS)
+##  Installing and Running 
 
-*Note*: I've only tested this on MacOS.
+You will need LLVM 17 installed before you install cyclang, 
 
-You will need LLVM 17 installed before you install cyclang, runn the following command
+For MacOS run the following command
+
 ```
 brew install llvm@17
 ```
+
+For Ubuntu install the following packages
+
+```
+  llvm-17 
+  llvm-17-tools 
+  llvm-17-dev 
+  clang-17 
+  libpolly-17-dev
+```
+
+And run `make set-llvm-sys-ffi-workaround`
 
 Then the easiest way to install the binary currently is through the Rust package manager Cargo - see [Install Rust](https://www.rust-lang.org/tools/install). Once the step above is done, then run 
 ```
@@ -51,3 +64,4 @@ cargo install cyclang
 ```
 
 See the [book](https://lyledean1.github.io/cyclang/setup.html) for a more detailed guide on setup.
+

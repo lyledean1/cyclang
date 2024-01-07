@@ -9,16 +9,16 @@ run:
 build-ir:
 	clang ./bin/main.ll -o ./bin/main
 
-install-locally:
+install-local:
 	cargo install --path=./cyclang
 
-test: 
+test-local: 
 	cargo test -- --test-threads=1
 
-test-release:
+test-local-release:
 	cargo test --release -- --test-threads=1
 
-test-parser:
+test-local-parser:
 	cargo test -- parser
 
 clean:
@@ -38,9 +38,20 @@ install-mdbook:
 s serve:
 	cd book && mdbook serve
 
-
 build-book:
 	cd book && mdbook build
+
+build-ubuntu-docker:
+	cd docker/ubuntu-x86_64 && docker build -t cyclang-base .
+
+set-llvm-sys-ffi-workaround:
+	echo 'export LLVM_SYS_17_FFI_WORKAROUND=true' >> ~/.bashrc
+
+set-x86-64-env:
+	echo 'source $$HOME/.cargo/env' >> $$HOME/.bashrc
+
+test-x86-64-docker: build-ubuntu-docker
+	docker run -it -v "${PWD}:/cyclang" cyclang-base make test-local
 
 fib-wasm:
 	cargo run -- --file=./examples/wasm/fib.cyc --target=wasm --emit-llvm-ir

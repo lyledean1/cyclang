@@ -5,7 +5,7 @@ use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
-use std::ffi::c_char;
+
 extern crate llvm_sys;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
@@ -172,10 +172,6 @@ impl ASTContext {
             }
             lhs_value
         }
-    }
-
-    pub fn get_value_name(&self, value: LLVMValueRef) -> *const i8 {
-        unsafe { LLVMGetValueName(value) }
     }
 
     pub fn build_br(&self, block: LLVMBasicBlockRef) -> LLVMValueRef {
