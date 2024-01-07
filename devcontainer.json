@@ -1,7 +1,0 @@
-{
-    "name": "My Development Environment",
-    "dockerFile": "/docker/ubuntu-x86_64/Dockerfile",
-    "settings": {
-      "terminal.integrated.shell.linux": "/bin/bash"
-    }
-}
