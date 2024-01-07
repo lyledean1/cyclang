@@ -67,4 +67,4 @@ fib-wasm:
 	node ./examples/wasm/fib.js
 
 cargo-publish:
-	cargo publish cyclang-macros && cargo publish cyclang
+	cargo publish -p cyclang-macros && cargo publish -p cyclang
