@@ -1,0 +1,27 @@
+fn binary_search(List<i32> arr, i32 target) -> i32 {
+    let left = 0;
+    let right = len(arr) - 1;
+
+    while (left <= right) {
+        mid = (left + right) / 2;
+        val = arr[mid];
+
+        if (arr[mid] == target) {
+            return mid;
+        }
+        
+        if (arr[mid] < target) {
+            left = mid + 1;
+        }
+
+        if (arr[mid] > target) {
+            right = mid - 1;
+        }
+    }
+    return -1;
+}
+
+let arr: List<i32> = [2,4,6,8,10,12,14,16,18,20];
+let target: i32 = 16;
+let result: i32 = binary_search(arr,target);
+print(result);

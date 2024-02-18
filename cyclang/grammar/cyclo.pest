@@ -19,7 +19,7 @@ block_stmt = { "{" ~ WHITESPACE? ~ (return_stmt | expression_list_inner | stmt_i
 // let statements and functions
 let_stmt = { (((("let" ~ WHITESPACE?)? ~ name)) ~ WHITESPACE?) ~ (colon ~ type_name ~ WHITESPACE?)? ~ assignment_stmt}
 index_stmt = {list_index ~ WHITESPACE?  ~ assignment_stmt  }
-assignment_stmt = _{equal ~ WHITESPACE? ~ (list_index | call_stmt | expression | grouping | name)}
+assignment_stmt = _{equal ~ WHITESPACE? ~ (list_index | expression | call_stmt | grouping | name)}
 func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~ arrow ~ WHITESPACE? ~ type_name)? ~ WHITESPACE? ~ block_stmt }
 func_arg = { WHITESPACE? ~ type_name ~ WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
 type_name = { base_type | list_type}
@@ -33,7 +33,7 @@ base_type = _{bool_type | i32_type | i64_type | string_type}
 list_type = {"List<" ~  (base_type | list_type )~ ">"}
 // binary statemeents
 binary = {  operand ~ WHITESPACE? ~ operator_sequence }
-operand = _{ literal ~ WHITESPACE? | grouping | call_stmt | name  }
+operand = _{ literal ~ WHITESPACE? | grouping | call_stmt | list_index | name }
 operator_sequence = _{ operator ~ WHITESPACE* ~ operand ~ (WHITESPACE* ~ operator_sequence)? }
 operator = { "==" | "!=" | ">=" | "<=" | ">" | "<" | "+" | "-" | "*" | "/" | "^" }
 
@@ -41,7 +41,7 @@ grouping = { "(" ~ expression ~ ")" }
 literal = { number | string | bool | nil | list  }
 
 list = { lbracket ~ WHITESPACE? ~ literal ~ (WHITESPACE? ~ "," ~ WHITESPACE? ~ literal)* ~ rbracket }
-list_index = {(call_stmt  |expression | name) ~ lbracket ~ (expression  |number | name | call_stmt) ~ rbracket}
+list_index = {(call_stmt | name) ~ lbracket ~ (expression  |name | number | call_stmt) ~ rbracket}
 name = { (alpha | "_") ~ (alpha | digits | "_")* }
 number = { "-"? ~ digits }
 digits = @{ ASCII_DIGIT+ }

@@ -1168,4 +1168,50 @@ mod test {
         "#;
         assert!(parse_cyclo_program(input).is_ok());
     }
+
+    #[test]
+    fn test_subtract_from_array_length() {
+        let input = r#"
+        let right = len(arr) - 1;
+        "#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_assign_var_for_arr() {
+        let input = r#"
+        let mid = 4;
+        if (arr[mid] == target) {
+            return mid;
+        }
+        "#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parsing_binary_search() {
+        let input = r#"
+        fn binary_search(List<i32> arr, i32 target) -> i32 {
+            let left = 0;
+            let right = len(arr) - 1;
+        
+            while (left <= right) {
+                mid = (left + right) / 2;
+        
+                if (arr[mid] == target) {
+                    return mid;
+                }
+                
+                if (arr[mid] < target) {
+                    left = mid + 1;
+                }
+        
+                if (arr[mid] > target) {
+                    right = mid - 1;
+                }
+            }
+            return -1;
+        }"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
 }

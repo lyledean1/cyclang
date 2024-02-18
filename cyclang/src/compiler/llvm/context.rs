@@ -471,6 +471,7 @@ impl LLVMFunction {
                     Type::i32 => args_vec.push(int32_type()),
                     Type::i64 => args_vec.push(int64_type()),
                     Type::String => args_vec.push(int8_ptr_type()),
+                    // todo -> add list type
                     _ => {
                         unreachable!("unknown type {:?}", t)
                     }
