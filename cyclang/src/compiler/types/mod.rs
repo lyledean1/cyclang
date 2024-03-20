@@ -26,7 +26,7 @@ use crate::compiler::llvm::{
     int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type, int8_type,
 };
 
-use crate::cyclo_error::CycloError;
+use anyhow::Result;
 use llvm_sys::prelude::*;
 
 #[derive(Debug)]
@@ -155,7 +155,7 @@ pub trait Func: Base {
         &self,
         _context: &mut ASTContext,
         _call_arguments: Vec<Expression>,
-    ) -> Result<Box<dyn TypeBase>, CycloError> {
+    ) -> Result<Box<dyn TypeBase>> {
         unimplemented!("{:?} type does not implement call", self.get_type())
     }
 }

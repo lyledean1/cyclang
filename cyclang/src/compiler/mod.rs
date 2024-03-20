@@ -6,12 +6,11 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
-use crate::cyclo_error::CycloError;
+use anyhow::Result;
+use anyhow::anyhow;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::io::{Error, ErrorKind};
-
 use crate::compiler::llvm::context::*;
 use crate::compiler::llvm::control_flow::new_if_stmt;
 use crate::compiler::llvm::functions::*;
@@ -36,7 +35,6 @@ use self::types::return_type::ReturnType;
 use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::types::list::ListType;
 use crate::compiler::types::num64::NumberType64;
-use crate::cyclo_error::CycloError::CompileError;
 
 pub mod llvm;
 pub mod types;
@@ -106,7 +104,7 @@ impl Target {
 fn llvm_compile_to_ir(
     exprs: Vec<Expression>,
     compile_options: Option<CompileOptions>,
-) -> Result<String, CycloError> {
+) -> Result<String> {
     unsafe {
         let mut is_execution_engine = false;
         let mut is_default_target: bool = true;
@@ -261,7 +259,7 @@ impl ASTContext {
         &mut self,
         name: String,
         input: Expression,
-    ) -> Result<Box<dyn TypeBase>, CycloError> {
+    ) -> Result<Box<dyn TypeBase>> {
         match input {
             Expression::Number(input) => Ok(NumberType::new(Box::new(input), name, self)),
             Expression::String(input) => Ok(StringType::new(
@@ -293,7 +291,7 @@ impl ASTContext {
         }
     }
 
-    pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>, CycloError> {
+    pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>> {
         match input {
             Expression::Number(input) => {
                 Ok(NumberType::new(Box::new(input), "num".to_string(), self))
@@ -316,11 +314,7 @@ impl ASTContext {
                         match self.var_cache.get(&input) {
                             Some(val) => Ok(val),
                             None => {
-                                let error_message = format!("Unknown variable {}", input);
-                                Err(CompileError(Error::new(
-                                    ErrorKind::Unsupported,
-                                    error_message,
-                                )))
+                                Err(anyhow!(format!("Unknown variable {}", input)))
                             }
                         }
                     }
@@ -425,10 +419,7 @@ impl ASTContext {
                     let rhs = self.match_ast(*rhs)?;
                     Ok(lhs.mul(self, rhs))
                 }
-                "^" => Err(CompileError(Error::new(
-                    ErrorKind::Unsupported,
-                    "^ is not implemented yet".to_string(),
-                ))),
+                "^" => Err(anyhow!("^ is not implemented yet")),
                 "==" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
@@ -460,12 +451,7 @@ impl ASTContext {
                     Ok(lhs.gte(self, rhs))
                 }
                 _ => {
-                    let error_message =
-                        format!("Invalid operator found for {:?} {} {:?}", lhs, op, rhs);
-                    Err(CompileError(Error::new(
-                        ErrorKind::Unsupported,
-                        error_message,
-                    )))
+                    Err(anyhow!("Invalid operator found for {:?} {} {:?}", lhs, op, rhs))
                 }
             },
             Expression::Grouping(_input) => self.match_ast(*_input),
@@ -511,11 +497,7 @@ impl ASTContext {
                     Ok(call_val)
                 }
                 _ => {
-                    let error_message = format!("call does not exist for function {:?}", name);
-                    Err(CompileError(Error::new(
-                        ErrorKind::Unsupported,
-                        error_message,
-                    )))
+                    Err(anyhow!("call does not exist for function {:?}", name))
                 }
             },
             Expression::FuncStmt(name, args, _return_type, body) => unsafe {
@@ -539,11 +521,7 @@ impl ASTContext {
                 Ok(Box::new(func))
             },
             Expression::FuncArg(arg_name, arg_type) => {
-                let error_message = format!("this should be unreachable code, for Expression::FuncArg arg_name:{} arg_type:{:?}", arg_name, arg_type);
-                Err(CompileError(Error::new(
-                    ErrorKind::Unsupported,
-                    error_message,
-                )))
+                Err(anyhow!("this should be unreachable code, for Expression::FuncArg arg_name:{} arg_type:{:?}", arg_name, arg_type))
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
                 new_if_stmt(self, *condition, *if_stmt, *else_stmt)
@@ -571,7 +549,7 @@ impl ASTContext {
 pub fn compile(
     input: Vec<Expression>,
     compile_options: Option<CompileOptions>,
-) -> Result<String, CycloError> {
+) -> Result<String> {
     // output LLVM IR
 
     llvm_compile_to_ir(input, compile_options)?;

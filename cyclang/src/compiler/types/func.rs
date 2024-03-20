@@ -5,7 +5,7 @@ use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
-use crate::cyclo_error::CycloError;
+use anyhow::Result;
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
 
@@ -38,7 +38,7 @@ impl Func for FuncType {
         &self,
         context: &mut crate::compiler::llvm::context::ASTContext,
         args: Vec<Expression>,
-    ) -> Result<Box<dyn TypeBase>, CycloError> {
+    ) -> Result<Box<dyn TypeBase>> {
         unsafe {
             // need to build up call with actual LLVMValue
 

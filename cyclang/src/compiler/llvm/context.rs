@@ -9,7 +9,7 @@ use std::collections::HashMap;
 extern crate llvm_sys;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
-use crate::cyclo_error::CycloError;
+use anyhow::Result;
 use crate::parser::{Expression, Type};
 use libc::c_uint;
 use llvm_sys::core::*;
@@ -334,7 +334,7 @@ impl LLVMFunction {
         return_type: Type,
         body: Expression,
         block: LLVMBasicBlockRef,
-    ) -> Result<Self, CycloError> {
+    ) -> Result<Self> {
         let param_types: &mut Vec<*mut llvm_sys::LLVMType> =
             &mut LLVMFunction::get_arg_types(args.clone());
 

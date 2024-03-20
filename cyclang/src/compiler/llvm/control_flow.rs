@@ -8,7 +8,8 @@ use super::context::ASTContext;
 use crate::compiler::int1_type;
 use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::NumberType;
-use crate::cyclo_error::CycloError;
+use anyhow::Result;
+
 use llvm_sys::core::*;
 use llvm_sys::LLVMIntPredicate;
 
@@ -17,7 +18,7 @@ pub fn new_if_stmt(
     condition: Expression,
     if_stmt: Expression,
     else_stmt: Option<Expression>,
-) -> Result<Box<dyn TypeBase>, CycloError> {
+) -> Result<Box<dyn TypeBase>> {
     let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
     let function = context.current_function.function;
     let if_entry_block: *mut llvm_sys::LLVMBasicBlock = context.current_function.block;
@@ -83,7 +84,7 @@ pub fn new_while_stmt(
     context: &mut ASTContext,
     condition: Expression,
     while_block_stmt: Expression,
-) -> Result<Box<dyn TypeBase>, CycloError> {
+) -> Result<Box<dyn TypeBase>> {
     let function = context.current_function.function;
 
     let loop_cond_block = context.append_basic_block(function, "loop_cond");
@@ -128,7 +129,7 @@ pub fn new_for_loop(
     length: i32,
     increment: i32,
     for_block_expr: Expression,
-) -> Result<Box<dyn TypeBase>, CycloError> {
+) -> Result<Box<dyn TypeBase>> {
     unsafe {
         let for_block = context.current_function.block;
         let function = context.current_function.function;
