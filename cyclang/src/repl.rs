@@ -1,11 +1,12 @@
 use crate::compiler::{self, CompileOptions};
-use crate::cyclo_error::CycloError;
 use crate::parser;
 use crate::parser::Expression;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use rustyline::{Cmd, EventHandler, KeyCode, KeyEvent, Modifiers};
 use text_colorizer::*;
+use anyhow::Result;
+
 pub fn run() {
     let version: &str = env!("CARGO_PKG_VERSION");
 
@@ -47,7 +48,7 @@ pub fn run() {
     }
 }
 
-fn parse_and_compile(input: String, rl: &mut DefaultEditor) -> Result<String, CycloError> {
+fn parse_and_compile(input: String, rl: &mut DefaultEditor) -> Result<String> {
     let joined_history = rl
         .history()
         .iter()

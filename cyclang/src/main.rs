@@ -11,7 +11,6 @@ use std::fs;
 use std::process::exit;
 use text_colorizer::Colorize;
 
-mod cyclo_error;
 mod parser;
 mod repl;
 #[macro_use]
