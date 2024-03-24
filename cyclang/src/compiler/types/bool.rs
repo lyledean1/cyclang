@@ -9,6 +9,8 @@ use super::Arithmetic;
 use crate::compiler::types::{Base, BaseTypes, Comparison, Func, TypeBase};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use anyhow::anyhow;
+use anyhow::Result;
 
 #[derive(Clone, BaseMacro, ComparisonMacro)]
 #[base_type("BaseTypes::Bool")]
@@ -56,14 +58,15 @@ impl TypeBase for BoolType {
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         Some(self.llvm_value_pointer)
     }
-    fn print(&self, astcontext: &mut ASTContext) {
+    fn print(&self, astcontext: &mut ASTContext) -> Result<()> {
         let bool_func_args = get_value_for_print_argument(astcontext, "", self.clone());
 
-        let bool_to_string_func = astcontext.llvm_func_cache.get("bool_to_str").unwrap();
+        let bool_to_string_func = astcontext.llvm_func_cache.get("bool_to_str").ok_or(anyhow!("unable to find bool_to_str function"))?;
         let str_value = astcontext.build_call(bool_to_string_func, bool_func_args, 1, "");
         let print_args: Vec<LLVMValueRef> = vec![str_value];
-        let print_func = astcontext.llvm_func_cache.get("printf").unwrap();
+        let print_func = astcontext.llvm_func_cache.get("printf").ok_or(anyhow!("unable to find printf function"))?;
         astcontext.build_call(print_func, print_args, 1, "");
+        Ok(())
     }
 }
 
