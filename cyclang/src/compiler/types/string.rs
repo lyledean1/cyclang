@@ -8,6 +8,9 @@ use std::ffi::CString;
 
 extern crate llvm_sys;
 use crate::compiler::llvm::cstr_from_string;
+use anyhow::Result;
+use anyhow::anyhow;
+
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
@@ -172,21 +175,9 @@ impl TypeBase for StringType {
             })
         }
     }
-    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
-        match _rhs.get_type() {
-            BaseTypes::String => {
-                //TODO: need to revisit implementation of strings
-                unimplemented!()
-            }
-            _ => {
-                unreachable!(
-                    "Can't reassign variable {:?} that has type {:?} to type {:?}",
-                    self.name,
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
+    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Result<()> {
+        // TODO - add string implementation for assigning variable
+        unimplemented!()
     }
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_value

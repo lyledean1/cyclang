@@ -2,6 +2,9 @@ use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::llvm::*;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use anyhow::Result;
+use anyhow::anyhow;
+
 use cyclang_macros::{ArithmeticMacro, BaseMacro, ComparisonMacro, DebugMacro};
 use std::any::Any;
 
@@ -32,25 +35,6 @@ impl TypeBase for NumberType {
             llvm_value_pointer: Some(ptr),
         })
     }
-    fn assign(&mut self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
-        match self.get_type() {
-            BaseTypes::Number => context.build_load_store(
-                _rhs.get_ptr().unwrap(),
-                self.get_ptr().unwrap(),
-                self.get_llvm_type(),
-                self.get_name_as_str(),
-            ),
-            _ => {
-                unreachable!(
-                    "Can't reassign variable {:?} that has type {:?} to type {:?}",
-                    self.name,
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_value
     }
