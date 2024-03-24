@@ -461,7 +461,7 @@ impl ASTContext {
                         // Assign a temp variable to the stack
                         let lhs: Box<dyn TypeBase> = self.match_ast(*lhs)?;
                         // Assign this new value
-                        val.assign(self, lhs);
+                        val.assign(self, lhs)?;
                         Ok(val)
                     }
                     _ => {

@@ -1,5 +1,5 @@
 extern crate llvm_sys;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 use llvm_sys::prelude::*;
 
 #[derive(Debug, Clone)]
@@ -14,8 +14,6 @@ impl Base for VoidType {
 impl Arithmetic for VoidType {}
 
 impl Comparison for VoidType {}
-
-impl Debug for VoidType {}
 
 impl Func for VoidType {}
 
