@@ -1,6 +1,6 @@
 use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 
 use cyclang_macros::BaseMacro;
 use std::any::Any;
@@ -9,7 +9,6 @@ use std::ffi::CString;
 extern crate llvm_sys;
 use crate::compiler::llvm::cstr_from_string;
 use anyhow::Result;
-use anyhow::anyhow;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -106,41 +105,6 @@ impl Arithmetic for StringType {
     }
 }
 
-impl Debug for StringType {
-    fn print(&self, ast_context: &mut ASTContext) {
-        unsafe {
-            // Set Value
-            // create string vairables and then function
-            // This is the Main Print Func
-            let llvm_value_to_cstr = LLVMGetAsString(self.llvm_value, self.length);
-            // Load Value from Value Index Ptr
-            let val = LLVMBuildGlobalStringPtr(
-                ast_context.builder,
-                llvm_value_to_cstr,
-                llvm_value_to_cstr,
-            );
-
-            // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
-            let mut print_args: Vec<LLVMValueRef> = vec![ast_context.printf_str_value, val];
-            match ast_context.llvm_func_cache.get("printf") {
-                Some(print_func) => {
-                    LLVMBuildCall2(
-                        ast_context.builder,
-                        print_func.func_type,
-                        print_func.function,
-                        print_args.as_mut_ptr(),
-                        2,
-                        cstr_from_string("").as_ptr(),
-                    );
-                }
-                _ => {
-                    unreachable!()
-                }
-            }
-        }
-    }
-}
-
 impl TypeBase for StringType {
     fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
     where
@@ -192,6 +156,38 @@ impl TypeBase for StringType {
     }
     fn get_str(&self) -> String {
         self.str_value.clone()
+    }
+    fn print(&self, ast_context: &mut ASTContext) {
+        unsafe {
+            // Set Value
+            // create string vairables and then function
+            // This is the Main Print Func
+            let llvm_value_to_cstr = LLVMGetAsString(self.llvm_value, self.length);
+            // Load Value from Value Index Ptr
+            let val = LLVMBuildGlobalStringPtr(
+                ast_context.builder,
+                llvm_value_to_cstr,
+                llvm_value_to_cstr,
+            );
+
+            // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
+            let mut print_args: Vec<LLVMValueRef> = vec![ast_context.printf_str_value, val];
+            match ast_context.llvm_func_cache.get("printf") {
+                Some(print_func) => {
+                    LLVMBuildCall2(
+                        ast_context.builder,
+                        print_func.func_type,
+                        print_func.function,
+                        print_args.as_mut_ptr(),
+                        2,
+                        cstr_from_string("").as_ptr(),
+                    );
+                }
+                _ => {
+                    unreachable!()
+                }
+            }
+        }
     }
 }
 
