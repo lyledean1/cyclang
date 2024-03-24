@@ -1,18 +1,16 @@
 use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::llvm::*;
 
-use anyhow::anyhow;
-use anyhow::Result;
 use cyclang_macros::{BaseMacro, ComparisonMacro};
 use std::any::Any;
 
 extern crate llvm_sys;
 use super::Arithmetic;
-use crate::compiler::types::{Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::types::{Base, BaseTypes, Comparison, Func, TypeBase};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
-#[derive(Debug, Clone, BaseMacro, ComparisonMacro)]
+#[derive(Clone, BaseMacro, ComparisonMacro)]
 #[base_type("BaseTypes::Bool")]
 pub struct BoolType {
     pub builder: LLVMBuilderRef,
@@ -31,18 +29,6 @@ fn get_value_for_print_argument(
     match value.get_ptr() {
         Some(v) => vec![context.build_load(v, int1_type(), name)],
         None => vec![value.get_value()],
-    }
-}
-
-impl Debug for BoolType {
-    fn print(&self, astcontext: &mut ASTContext) {
-        let bool_func_args = get_value_for_print_argument(astcontext, "", self.clone());
-
-        let bool_to_string_func = astcontext.llvm_func_cache.get("bool_to_str").unwrap();
-        let str_value = astcontext.build_call(bool_to_string_func, bool_func_args, 1, "");
-        let print_args: Vec<LLVMValueRef> = vec![str_value];
-        let print_func = astcontext.llvm_func_cache.get("printf").unwrap();
-        astcontext.build_call(print_func, print_args, 1, "");
     }
 }
 
@@ -69,6 +55,15 @@ impl TypeBase for BoolType {
     }
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         Some(self.llvm_value_pointer)
+    }
+    fn print(&self, astcontext: &mut ASTContext) {
+        let bool_func_args = get_value_for_print_argument(astcontext, "", self.clone());
+
+        let bool_to_string_func = astcontext.llvm_func_cache.get("bool_to_str").unwrap();
+        let str_value = astcontext.build_call(bool_to_string_func, bool_func_args, 1, "");
+        let print_args: Vec<LLVMValueRef> = vec![str_value];
+        let print_func = astcontext.llvm_func_cache.get("printf").unwrap();
+        astcontext.build_call(print_func, print_args, 1, "");
     }
 }
 

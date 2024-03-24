@@ -1,18 +1,16 @@
 use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::llvm::*;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
-use anyhow::Result;
-use anyhow::anyhow;
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 
-use cyclang_macros::{ArithmeticMacro, BaseMacro, ComparisonMacro, DebugMacro};
+use cyclang_macros::{ArithmeticMacro, BaseMacro, ComparisonMacro};
 use std::any::Any;
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
-#[derive(Debug, Clone, ArithmeticMacro, ComparisonMacro, DebugMacro, BaseMacro)]
+#[derive(Debug, Clone, ArithmeticMacro, ComparisonMacro, BaseMacro)]
 #[base_type("BaseTypes::Number64")]
 pub struct NumberType64 {
     //TODO: remove pub use of these

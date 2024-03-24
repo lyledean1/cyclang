@@ -4,7 +4,7 @@ use crate::compiler::llvm::{cstr_from_string, int1_ptr_type, int32_ptr_type, int
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 use anyhow::Result;
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
@@ -30,8 +30,6 @@ impl Base for FuncType {
 impl Arithmetic for FuncType {}
 
 impl Comparison for FuncType {}
-
-impl Debug for FuncType {}
 
 impl Func for FuncType {
     fn call(
