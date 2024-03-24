@@ -26,10 +26,11 @@ use crate::compiler::llvm::{
     int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type, int8_type,
 };
 
+use anyhow::anyhow;
 use anyhow::Result;
 use llvm_sys::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum BaseTypes {
     String,
     Number,
@@ -82,8 +83,22 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Debug + Func {
     {
         unimplemented!("new has not been implemented for this type");
     }
-    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
-        unimplemented!("{:?} type does not implement assign", self.get_type())
+    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Result<()> {
+        if _rhs.get_type() != self.get_type() {
+            return Err(anyhow!(
+                "Can't reassign variable {:?} that has type {:?} to type {:?}",
+                self.get_name_as_str(),
+                self.get_type(),
+                _rhs.get_type()
+            ));
+        }
+        _ast_context.build_load_store(
+            _rhs.get_ptr().unwrap(),
+            self.get_ptr().unwrap(),
+            self.get_llvm_type(),
+            self.get_name_as_str(),
+        );
+        Ok(())
     }
     unsafe fn get_name(&self) -> *const c_char {
         LLVMGetValueName(self.get_value())

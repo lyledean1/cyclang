@@ -1,6 +1,8 @@
 use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::llvm::*;
 
+use anyhow::anyhow;
+use anyhow::Result;
 use cyclang_macros::{BaseMacro, ComparisonMacro};
 use std::any::Any;
 
@@ -61,26 +63,6 @@ impl TypeBase for BoolType {
             llvm_value: bool_value,
             llvm_value_pointer: alloca,
         })
-    }
-    fn assign(&mut self, _astcontext: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
-        match _rhs.get_type() {
-            BaseTypes::Bool => {
-                _astcontext.build_load_store(
-                    _rhs.get_ptr().unwrap(),
-                    self.get_ptr().unwrap(),
-                    int1_type(),
-                    self.get_name_as_str(),
-                );
-            }
-            _ => {
-                unreachable!(
-                    "Can't reassign variable {:?} that has type {:?} to type {:?}",
-                    self.name,
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
     }
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_value

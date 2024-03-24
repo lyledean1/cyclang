@@ -1,11 +1,11 @@
 use crate::compiler::{self, CompileOptions};
 use crate::parser;
 use crate::parser::Expression;
+use anyhow::Result;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use rustyline::{Cmd, EventHandler, KeyCode, KeyEvent, Modifiers};
 use text_colorizer::*;
-use anyhow::Result;
 
 pub fn run() {
     let version: &str = env!("CARGO_PKG_VERSION");

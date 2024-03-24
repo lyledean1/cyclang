@@ -6,15 +6,15 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
-use anyhow::Result;
 use anyhow::anyhow;
+use anyhow::Result;
 
-use std::collections::HashMap;
-use std::ffi::CStr;
 use crate::compiler::llvm::context::*;
 use crate::compiler::llvm::control_flow::new_if_stmt;
 use crate::compiler::llvm::functions::*;
 use crate::parser::{Expression, Type};
+use std::collections::HashMap;
+use std::ffi::CStr;
 
 extern crate llvm_sys;
 use llvm_sys::core::*;
@@ -255,11 +255,7 @@ impl ASTContext {
     }
 
     //TODO: figure a better way to create a named variable in the LLVM IR
-    fn try_match_with_var(
-        &mut self,
-        name: String,
-        input: Expression,
-    ) -> Result<Box<dyn TypeBase>> {
+    fn try_match_with_var(&mut self, name: String, input: Expression) -> Result<Box<dyn TypeBase>> {
         match input {
             Expression::Number(input) => Ok(NumberType::new(Box::new(input), name, self)),
             Expression::String(input) => Ok(StringType::new(
@@ -546,10 +542,7 @@ impl ASTContext {
     }
 }
 
-pub fn compile(
-    input: Vec<Expression>,
-    compile_options: Option<CompileOptions>,
-) -> Result<String> {
+pub fn compile(input: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String> {
     // output LLVM IR
 
     llvm_compile_to_ir(input, compile_options)?;

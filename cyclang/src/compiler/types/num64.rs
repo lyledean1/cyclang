@@ -2,6 +2,9 @@ use crate::compiler::llvm::context::ASTContext;
 use crate::compiler::llvm::cstr_from_string;
 use crate::compiler::llvm::*;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Debug, Func, TypeBase};
+use anyhow::Result;
+use anyhow::anyhow;
+
 use cyclang_macros::{ArithmeticMacro, BaseMacro, ComparisonMacro, DebugMacro};
 use std::any::Any;
 
@@ -22,7 +25,7 @@ impl TypeBase for NumberType64 {
     fn new(_value: Box<dyn Any>, name: String, context: &mut ASTContext) -> Box<dyn TypeBase> {
         let value_as_i64 = match _value.downcast_ref::<i64>() {
             Some(val) => *val,
-            None => panic!("The input value must be an i32"),
+            None => panic!("The input value must be an i64"),
         };
         let llvm_value = context.const_int(int64_type(), value_as_i64.try_into().unwrap(), 0);
         let llvm_value_pointer =
@@ -33,25 +36,6 @@ impl TypeBase for NumberType64 {
             llvm_value_pointer,
         })
     }
-    fn assign(&mut self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) {
-        match self.get_type() {
-            BaseTypes::Number64 => context.build_load_store(
-                self.get_ptr().unwrap(),
-                _rhs.get_ptr().unwrap(),
-                self.get_llvm_type(),
-                self.get_name_as_str(),
-            ),
-            _ => {
-                unreachable!(
-                    "Can't reassign variable {:?} that has type {:?} to type {:?}",
-                    self.name,
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_value
     }
