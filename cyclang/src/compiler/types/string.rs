@@ -157,7 +157,7 @@ impl TypeBase for StringType {
     fn get_str(&self) -> String {
         self.str_value.clone()
     }
-    fn print(&self, ast_context: &mut ASTContext) {
+    fn print(&self, ast_context: &mut ASTContext) -> Result<()> {
         unsafe {
             // Set Value
             // create string vairables and then function
@@ -188,6 +188,7 @@ impl TypeBase for StringType {
                 }
             }
         }
+        Ok(())
     }
 }
 

@@ -11,10 +11,7 @@ pub mod return_type;
 pub mod string;
 pub mod void;
 
-//TODO: Upgrade to LLVMGetValueName2
-use crate::compiler::llvm::cstr_from_string;
 use llvm_sys::core::LLVMGetValueName;
-use llvm_sys::core::*;
 use std::any::Any;
 use std::ffi::CStr;
 
@@ -131,13 +128,14 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
         }
     }
 
-    fn print(&self, context: &mut ASTContext) {
-        let mut print_args: Vec<LLVMValueRef> = vec![
+    fn print(&self, context: &mut ASTContext) -> Result<()> {
+        let print_args: Vec<LLVMValueRef> = vec![
             context.get_printf_str(self.get_type()),
             self.get_value_for_printf(context),
         ];
-        let print_func = context.llvm_func_cache.get("printf").unwrap();
+        let print_func = context.llvm_func_cache.get("printf").ok_or(anyhow!("unable to call print function"))?;
         context.build_call(print_func, print_args, 2, "");
+        Ok(())
     }
 }
 

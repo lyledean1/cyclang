@@ -530,7 +530,7 @@ impl ASTContext {
             }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(*input)?;
-                expression_value.print(self);
+                expression_value.print(self)?;
                 Ok(expression_value)
             }
             Expression::ReturnStmt(input) => {
