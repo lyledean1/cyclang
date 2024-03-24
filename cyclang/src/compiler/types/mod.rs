@@ -12,11 +12,11 @@ pub mod string;
 pub mod void;
 
 //TODO: Upgrade to LLVMGetValueName2
+use crate::compiler::llvm::cstr_from_string;
 use llvm_sys::core::LLVMGetValueName;
+use llvm_sys::core::*;
 use std::any::Any;
 use std::ffi::CStr;
-use crate::compiler::llvm::cstr_from_string;
-use llvm_sys::core::*;
 
 use crate::{compiler::llvm::context::ASTContext, parser::Expression};
 use dyn_clone::DynClone;
@@ -124,49 +124,20 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
     }
 
-    fn print(&self, context: &mut ASTContext) {
-        // Load Value from Value Index Ptr
+    fn get_value_for_printf(&self, context: &mut ASTContext) -> LLVMValueRef {
         match self.get_ptr() {
-            Some(v) => unsafe {
-                let value = context.build_load(v, self.get_llvm_type(), "debug"); //todo fix
-
-                let mut print_args: Vec<LLVMValueRef> =
-                    vec![context.get_printf_str(self.get_type()), value];
-                match context.llvm_func_cache.get("printf") {
-                    Some(print_func) => {
-                        LLVMBuildCall2(
-                            context.builder,
-                            print_func.func_type,
-                            print_func.function,
-                            print_args.as_mut_ptr(),
-                            2,
-                            cstr_from_string("").as_ptr(),
-                        );
-                    }
-                    _ => {
-                        unreachable!()
-                    }
-                }
-            },
-            None => match context.llvm_func_cache.get("printf") {
-                Some(print_func) => unsafe {
-                    let mut print_args: Vec<LLVMValueRef> =
-                        vec![context.printf_str_num_value, self.get_value()];
-
-                    LLVMBuildCall2(
-                        context.builder,
-                        print_func.func_type,
-                        print_func.function,
-                        print_args.as_mut_ptr(),
-                        2,
-                        cstr_from_string("").as_ptr(),
-                    );
-                },
-                _ => {
-                    unreachable!()
-                }
-            },
+            Some(v) => context.build_load(v, self.get_llvm_type(), "debug"),
+            None => self.get_value(),
         }
+    }
+
+    fn print(&self, context: &mut ASTContext) {
+        let mut print_args: Vec<LLVMValueRef> = vec![
+            context.get_printf_str(self.get_type()),
+            self.get_value_for_printf(context),
+        ];
+        let print_func = context.llvm_func_cache.get("printf").unwrap();
+        context.build_call(print_func, print_args, 2, "");
     }
 }
 
