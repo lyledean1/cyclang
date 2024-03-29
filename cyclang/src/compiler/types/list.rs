@@ -1,6 +1,6 @@
 extern crate llvm_sys;
 
-use crate::compiler::llvm::context::ASTContext;
+use crate::compiler::codegen::context::ASTContext;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 use llvm_sys::core::LLVMConstArray2;
 use llvm_sys::prelude::*;
