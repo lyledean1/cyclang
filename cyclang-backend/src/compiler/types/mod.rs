@@ -15,7 +15,6 @@ use llvm_sys::core::LLVMGetValueName;
 use std::any::Any;
 use std::ffi::CStr;
 
-use crate::parser::Expression;
 use dyn_clone::DynClone;
 extern crate libc;
 use libc::c_char;
@@ -29,6 +28,7 @@ use crate::compiler::context::ASTContext;
 use anyhow::anyhow;
 use anyhow::Result;
 use llvm_sys::prelude::*;
+use cyclang_parser::{Expression};
 
 #[derive(Debug, PartialEq)]
 pub enum BaseTypes {
@@ -100,8 +100,10 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
         );
         Ok(())
     }
-    unsafe fn get_name(&self) -> *const c_char {
-        LLVMGetValueName(self.get_value())
+    fn get_name(&self) -> *const c_char {
+        unsafe {
+            LLVMGetValueName(self.get_value())
+        }
     }
 
     fn get_name_as_str(&self) -> &str {

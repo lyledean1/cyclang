@@ -11,9 +11,9 @@ use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
 use crate::compiler::CompileOptions;
-use crate::parser::Expression;
 use anyhow::anyhow;
 use std::collections::HashMap;
+use crate::compiler::{Expression};
 
 pub struct ASTContext {
     pub var_cache: VariableCache,
@@ -341,7 +341,7 @@ impl ASTContext {
                     Err(anyhow!("call does not exist for function {:?}", name))
                 }
             },
-            Expression::FuncStmt(name, args, _return_type, body) => unsafe {
+            Expression::FuncStmt(name, args, _return_type, body) => {
                 let llvm_func = LLVMFunction::new(
                     self,
                     name.clone(),

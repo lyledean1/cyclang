@@ -11,7 +11,7 @@ pub enum Target {
 }
 
 impl Target {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_target_name(s: &str) -> Option<Self> {
         match s {
             "wasm" => Some(Target::wasm),
             "arm32" => Some(Target::arm32),

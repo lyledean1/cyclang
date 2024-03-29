@@ -1,7 +1,7 @@
 use crate::compiler::codegen::target::Target;
 use crate::compiler::context::ASTContext;
-use crate::parser::Expression;
 use anyhow::Result;
+use cyclang_parser::Expression;
 
 extern crate llvm_sys;
 

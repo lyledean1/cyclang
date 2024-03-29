@@ -1,6 +1,6 @@
 [workspace]
 members = [
-"cyclang-macros", "cyclang"]
+"cyclang-macros", "cyclang", "cyclang-backend", "cyclang-parser"]
 resolver = "2"
 
 [workspace.package]
@@ -28,3 +28,5 @@ rustyline = "12.0.0"
 syn = "2.0.38"
 text-colorizer = "1.0.0"
 cyclang-macros = { path = "./cyclang-macros" , version = "0.1.15"}
+cyclang-backend = { path = "./cyclang-backend", version = "0.1.15"}
+cyclang-parser = { path = "./cyclang-parser", version = "0.1.15"}
