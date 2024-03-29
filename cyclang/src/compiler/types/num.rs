@@ -25,8 +25,12 @@ impl TypeBase for NumberType {
             Some(val) => *val,
             None => panic!("The input value must be an i32"),
         };
-        let value = context.codegen.const_int(int32_type(), value_as_i32.try_into().unwrap(), 0);
-        let ptr = context.codegen.build_alloca_store(value, int32_ptr_type(), &name);
+        let value = context
+            .codegen
+            .const_int(int32_type(), value_as_i32.try_into().unwrap(), 0);
+        let ptr = context
+            .codegen
+            .build_alloca_store(value, int32_ptr_type(), &name);
         Box::new(NumberType {
             name,
             llvm_value: value,

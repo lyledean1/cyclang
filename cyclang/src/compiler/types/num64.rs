@@ -25,9 +25,15 @@ impl TypeBase for NumberType64 {
             Some(val) => *val,
             None => panic!("The input value must be an i64"),
         };
-        let llvm_value = context.codegen.const_int(int64_type(), value_as_i64.try_into().unwrap(), 0);
-        let llvm_value_pointer =
-            Some(context.codegen.build_alloca_store(llvm_value, int64_ptr_type(), &name));
+        let llvm_value =
+            context
+                .codegen
+                .const_int(int64_type(), value_as_i64.try_into().unwrap(), 0);
+        let llvm_value_pointer = Some(context.codegen.build_alloca_store(
+            llvm_value,
+            int64_ptr_type(),
+            &name,
+        ));
         Box::new(NumberType64 {
             name,
             llvm_value,
