@@ -6,7 +6,7 @@ use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::CompileOptions;
-use crate::parser::{Expression, Type};
+use cyclang_parser::{Expression, Type};
 use anyhow::Result;
 use libc::c_uint;
 use llvm_sys::core::{

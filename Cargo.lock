@@ -194,7 +194,9 @@ version = "0.1.18"
 dependencies = [
  "anyhow",
  "clap",
+ "cyclang-backend",
  "cyclang-macros",
+ "cyclang-parser",
  "dyn-clone",
  "libc",
  "llvm-sys",
@@ -208,12 +210,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "cyclang-backend"
+version = "0.1.18"
+dependencies = [
+ "anyhow",
+ "cyclang-macros",
+ "cyclang-parser",
+ "dyn-clone",
+ "libc",
+ "llvm-sys",
+ "proc-macro2",
+ "quote",
+ "syn",
+ "text-colorizer",
+]
+
+[[package]]
 name = "cyclang-macros"
 version = "0.1.18"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "cyclang-parser"
+version = "0.1.18"
+dependencies = [
+ "anyhow",
+ "dyn-clone",
+ "libc",
+ "pest",
+ "pest_derive",
+ "proc-macro2",
+ "quote",
+ "rustyline",
+ "syn",
+ "text-colorizer",
 ]
 
 [[package]]
@@ -383,9 +417,9 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "pest"
-version = "2.7.4"
+version = "2.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c022f1e7b65d6a24c0dbbd5fb344c66881bc01f3e5ae74a1c8100f2f985d98a4"
+checksum = "56f8023d0fb78c8e03784ea1c7f3fa36e68a723138990b8d5a47d916b651e7a8"
 dependencies = [
  "memchr",
  "thiserror",

@@ -1,6 +1,5 @@
 use crate::compiler::{self, CompileOptions};
-use crate::parser;
-use crate::parser::Expression;
+use cyclang_parser::{Expression, parse_cyclo_program};
 use anyhow::Result;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
@@ -57,14 +56,14 @@ fn parse_and_compile(input: String, rl: &mut DefaultEditor) -> Result<String> {
         .join("\n");
 
     let final_string = format!("{}{}", joined_history, input);
-    let exprs = parser::parse_cyclo_program(&final_string)?;
+    let exprs = parse_cyclo_program(&final_string)?;
     let compile_options = Some(CompileOptions {
         is_execution_engine: true,
         target: None,
     });
     let output = compiler::compile(exprs.clone(), compile_options)?;
 
-    for expr in parser::parse_cyclo_program(&input)? {
+    for expr in parse_cyclo_program(&input)? {
         if let Expression::LetStmt(_, _, _) | Expression::FuncStmt(_, _, _, _) = expr {
             let _ = rl.add_history_entry(input.as_str());
         }

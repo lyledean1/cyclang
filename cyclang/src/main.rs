@@ -1,20 +1,15 @@
-#[macro_use]
-extern crate pest_derive;
-
 extern crate cyclang_macros;
 
 use clap::Parser;
-use compiler::codegen::target::Target;
-use compiler::CompileOptions;
+use cyclang_backend::compiler::codegen::target::Target;
+use cyclang_backend::compiler::CompileOptions;
 use std::fmt;
 use std::fs;
 use std::process::exit;
 use text_colorizer::Colorize;
-
-mod parser;
+use cyclang_backend::compiler;
+use cyclang_parser::{parse_cyclo_program};
 mod repl;
-#[macro_use]
-mod compiler;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -41,7 +36,7 @@ impl fmt::Display for ParserError {
 
 fn get_target(target: Option<String>) -> Option<Target> {
     if let Some(target) = target {
-        return Target::from_str(&target);
+        return Target::from_target_name(&target);
     }
     None
 }
@@ -55,7 +50,7 @@ fn compile_output_from_string(
         is_execution_engine,
         target: get_target(target),
     });
-    match parser::parse_cyclo_program(&contents) {
+    match parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
         Ok(exprs) => compiler::compile(exprs, compile_options).unwrap_or_else(|e| {
             eprintln!("unable to compile contents due to error: {}", e);

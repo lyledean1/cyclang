@@ -1,4 +1,6 @@
 extern crate pest;
+#[macro_use]
+extern crate pest_derive;
 
 use pest::Parser;
 use std::num::ParseIntError;
@@ -477,7 +479,7 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::Expression::{FuncArg, Number, Variable};
+    use crate::Expression::{FuncArg, Number, Variable};
 
     #[test]
     fn test_parse_string_expression() {
@@ -823,7 +825,7 @@ mod test {
     fn test_empty_block_stmt() {
         let input = "
         {
-            
+
         }
         ";
         assert!(parse_cyclo_program(input).is_ok());
@@ -954,7 +956,7 @@ mod test {
                 FuncArg("x".into(), Type::i32),
                 FuncArg("y".into(), Type::i32),
             ]
-            .to_vec(),
+                .to_vec(),
             Type::i32,
             vec![Expression::ReturnStmt(Box::new(Expression::Binary(
                 Box::new(Variable("x".into())),
@@ -1035,7 +1037,7 @@ mod test {
                 FuncArg("x".into(), Type::i32),
                 FuncArg("y".into(), Type::i32),
             ]
-            .to_vec(),
+                .to_vec(),
             Type::i32,
             vec![Expression::ReturnStmt(Box::new(Expression::Binary(
                 Box::new(Expression::CallStmt(
@@ -1120,7 +1122,7 @@ mod test {
         if (value)
         {
             print("hello");
-        } 
+        }
         else {
             print("else");
         }
