@@ -1,12 +1,15 @@
 #![allow(dead_code)]
 
-use crate::compiler::codegen::{cstr_from_string, int1_type, int32_type, int64_type, int8_ptr_type};
+use crate::compiler::codegen::{
+    cstr_from_string, int1_type, int32_type, int64_type, int8_ptr_type,
+};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 
 extern crate llvm_sys;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
 use crate::parser::{Expression, Type};
@@ -14,12 +17,11 @@ use anyhow::Result;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
-use crate::compiler::codegen::builder::LLVMCodegen;
 
 pub struct ASTContext {
     pub var_cache: VariableCache,
     pub func_cache: VariableCache,
-    pub codegen: LLVMCodegen,
+    pub codegen: LLVMCodegenBuilder,
     pub depth: i32,
 }
 
@@ -234,7 +236,9 @@ impl LLVMFunction {
 
         context.codegen.current_function = new_function.clone();
 
-        context.codegen.position_builder_at_end(function_entry_block);
+        context
+            .codegen
+            .position_builder_at_end(function_entry_block);
 
         // Set func args here
         context.match_ast(body.clone())?;

@@ -11,28 +11,16 @@ use anyhow::Result;
 
 use crate::compiler::codegen::context::*;
 use crate::compiler::codegen::control_flow::new_if_stmt;
-use crate::compiler::codegen::functions::*;
-use crate::parser::{Expression, Type};
-use std::collections::HashMap;
-use std::ffi::CStr;
+use crate::compiler::codegen::target::Target;
+use crate::parser::Expression;
 
 extern crate llvm_sys;
-use llvm_sys::core::*;
-use llvm_sys::execution_engine::{
-    LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
-    LLVMLinkInMCJIT,
-};
 use llvm_sys::prelude::*;
-use llvm_sys::target::{
-    LLVMInitializeWebAssemblyAsmPrinter, LLVMInitializeWebAssemblyTarget,
-    LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget,
-};
 use std::process::Command;
-use std::ptr;
 
 use self::codegen::control_flow::{new_for_loop, new_while_stmt};
-use crate::compiler::codegen::builder::LLVMCodegen;
 use self::types::return_type::ReturnType;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::codegen::cstr_from_string;
 use crate::compiler::types::list::ListType;
 use crate::compiler::types::num64::NumberType64;
@@ -45,210 +33,22 @@ pub struct CompileOptions {
     pub is_execution_engine: bool,
     pub target: Option<Target>,
 }
-
-#[derive(Debug, Clone, Copy)]
-#[allow(non_camel_case_types)]
-pub enum Target {
-    wasm,
-    arm32,
-    arm64,
-    x86_32,
-    x86_64,
-}
-
-impl Target {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "wasm" => Some(Target::wasm),
-            "arm32" => Some(Target::arm32),
-            "arm64" => Some(Target::arm64),
-            "x86_32" => Some(Target::x86_32),
-            "x86_64" => Some(Target::x86_64),
-            _ => None,
-        }
-    }
-
-    pub fn get_llvm_target_name(&self) -> String {
-        match self {
-            Target::wasm => "wasm32-unknown-unknown-wasm".to_string(),
-            Target::arm32 => "arm-unknown-linux-gnueabihf".to_string(),
-            Target::arm64 => "aarch64-unknown-linux-gnu".to_string(),
-            Target::x86_32 => "i386-unknown-unknown-elf".to_string(),
-            Target::x86_64 => "x86_64-unknown-unknown-elf".to_string(),
-        }
-    }
-
-    pub fn initialize(&self) {
-        unsafe {
-            match self {
-                Target::wasm => {
-                    LLVMInitializeWebAssemblyTarget();
-                    LLVMInitializeWebAssemblyAsmPrinter();
-                }
-                Target::arm32 => {
-                    unimplemented!("arm32 not implemented yet ")
-                }
-                Target::arm64 => {
-                    unimplemented!("arm64 not implemented yet ")
-                }
-                Target::x86_32 => {
-                    unimplemented!("x86_32 not implemented yet ")
-                }
-                Target::x86_64 => {
-                    unimplemented!("x86_64 not implemented yet ")
-                }
-            }
-        }
-    }
-}
-
-fn llvm_compile_to_ir(
-    exprs: Vec<Expression>,
-    compile_options: Option<CompileOptions>,
-) -> Result<String> {
-    unsafe {
-        let mut is_execution_engine = false;
-        let mut is_default_target: bool = true;
-
-        if let Some(compile_options) = compile_options {
-            is_execution_engine = compile_options.is_execution_engine;
-            is_default_target = compile_options.target.is_none();
-        }
-
-        if is_execution_engine {
-            LLVMLinkInMCJIT();
-        }
-
-        if is_default_target {
-            LLVM_InitializeNativeTarget();
-            LLVM_InitializeNativeAsmPrinter();
-        }
-        if !is_default_target {
-            compile_options.unwrap().target.unwrap().initialize();
-        }
-
-        let context = LLVMContextCreate();
-        let module = LLVMModuleCreateWithName(cstr_from_string("main").as_ptr());
-        let builder = LLVMCreateBuilderInContext(context);
-        if !is_default_target {
-            LLVMSetTarget(
-                module,
-                cstr_from_string("wasm32-unknown-unknown-wasm").as_ptr(),
-            );
-        }
-        // common void type
-        let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
-
-        // our "main" function which will be the entry point when we run the executable
-        let main_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
-        let main_func = LLVMAddFunction(module, cstr_from_string("main").as_ptr(), main_func_type);
-        let main_block =
-            LLVMAppendBasicBlockInContext(context, main_func, cstr_from_string("main").as_ptr());
-        LLVMPositionBuilderAtEnd(builder, main_block);
-
-        // Define common functions
-
-        let llvm_func_cache = build_helper_funcs(module, context, main_block);
-
-        let var_cache = VariableCache::new();
-        let func_cache = VariableCache::new();
-
-        let format_str = "%d\n";
-        let printf_str_num_value = LLVMBuildGlobalStringPtr(
-            builder,
-            cstr_from_string(format_str).as_ptr(),
-            cstr_from_string("number_printf_val").as_ptr(),
-        );
-        let printf_str_num64_value = LLVMBuildGlobalStringPtr(
-            builder,
-            cstr_from_string("%llu\n").as_ptr(),
-            cstr_from_string("number64_printf_val").as_ptr(),
-        );
-        let printf_str_value = LLVMBuildGlobalStringPtr(
-            builder,
-            cstr_from_string("%s\n").as_ptr(),
-            cstr_from_string("str_printf_val").as_ptr(),
-        );
-
-        let codegen = LLVMCodegen{
-            builder,
-            module,
-            context,
-            llvm_func_cache,
-            current_function: LLVMFunction {
-                function: main_func,
-                func_type: main_func_type,
-                block: main_block,
-                entry_block: main_block,
-                symbol_table: HashMap::new(),
-                args: vec![],
-                return_type: Type::None,
-            },
-            printf_str_value,
-            printf_str_num_value,
-            printf_str_num64_value,
-        };
-        let mut ast_ctx = ASTContext {
-            var_cache,
-            func_cache,
-            depth: 0,
-            codegen,
-        };
-        for expr in exprs {
-            ast_ctx.match_ast(expr)?;
-        }
-        LLVMBuildRetVoid(builder);
-
-        // Run execution engine
-        let mut engine = ptr::null_mut();
-        let mut error = ptr::null_mut();
-
-        // Call the main function. It should execute its code.
-        if is_execution_engine {
-            if LLVMCreateExecutionEngineForModule(&mut engine, module, &mut error) != 0 {
-                LLVMDisposeMessage(error);
-                panic!("Failed to create execution engine");
-            }
-            let main_func: extern "C" fn() = std::mem::transmute(LLVMGetFunctionAddress(
-                engine,
-                b"main\0".as_ptr() as *const _,
-            ));
-            main_func();
-        }
-
-        if !is_execution_engine {
-            LLVMPrintModuleToFile(
-                module,
-                cstr_from_string("bin/main.ll").as_ptr(),
-                ptr::null_mut(),
-            );
-        }
-        // Use Clang to output LLVM IR -> Binary
-        // LLVMWriteBitcodeToFile(module, cstr_from_string("bin/main.bc"));
-
-        let module_cstr = CStr::from_ptr(LLVMPrintModuleToString(module));
-        let module_string = module_cstr.to_string_lossy().into_owned();
-
-        // clean up
-        LLVMDisposeBuilder(builder);
-        if is_execution_engine {
-            LLVMDisposeExecutionEngine(engine);
-        }
-        if !is_execution_engine {
-            LLVMDisposeModule(module);
-        }
-        LLVMContextDispose(context);
-        Ok(module_string)
-    }
-}
-
 struct ExprContext {
     alloca: Option<LLVMValueRef>,
 }
 
-//TODO: remove this and see code warnings
-#[allow(unused_variables, unused_assignments)]
 impl ASTContext {
+    pub fn init(compile_options: Option<CompileOptions>) -> Result<ASTContext> {
+        let var_cache = VariableCache::new();
+        let func_cache = VariableCache::new();
+        let codegen = LLVMCodegenBuilder::init(compile_options)?;
+        Ok(ASTContext {
+            var_cache,
+            func_cache,
+            depth: 0,
+            codegen,
+        })
+    }
     pub fn set_current_block(&mut self, block: LLVMBasicBlockRef) {
         self.codegen.position_builder_at_end(block);
         self.codegen.current_function.block = block;
@@ -322,13 +122,8 @@ impl ASTContext {
             }
             Expression::List(v) => {
                 let mut vec_expr = vec![];
-                let previous_type: BaseTypes = BaseTypes::Void;
                 for x in v {
                     let expr = self.match_ast(x)?;
-                    let current_type = expr.get_type();
-                    // if previous_type != BaseTypes::Void && previous_type != current_type {
-                    //     unreachable!("add error for mismatching types")
-                    // }
                     vec_expr.push(expr)
                 }
                 let first_element = vec_expr.first().unwrap();
@@ -375,7 +170,6 @@ impl ASTContext {
                 Some(val) => {
                     let name = cstr_from_string("access_array").as_ptr();
                     let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
-                    let ptr = val.get_ptr().unwrap();
                     let index = self.match_ast(*i)?;
                     let zero_index = self.codegen.const_int(int64_type(), 0, 0);
                     let build_load_index =
@@ -544,23 +338,18 @@ impl ASTContext {
             }
         }
     }
+
+    pub fn dispose_and_get_module_str(&self) -> Result<String> {
+        //TODO: should this live here?
+        self.codegen.dispose_and_get_module_str()
+    }
 }
 
-pub fn compile(input: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String> {
+pub fn compile(exprs: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String> {
     // output LLVM IR
-
-    llvm_compile_to_ir(input, compile_options)?;
-    // compile to binary
-    if let Some(compile_options) = compile_options {
-        if !compile_options.is_execution_engine {
-            Command::new("clang")
-                .arg("bin/main.ll")
-                .arg("-o")
-                .arg("bin/main")
-                .output()?;
-            let output = Command::new("bin/main").output()?;
-            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
-        }
+    let mut ast_ctx = ASTContext::init(compile_options)?;
+    for expr in exprs {
+        ast_ctx.match_ast(expr)?;
     }
-    Ok("".to_string())
+    ast_ctx.dispose_and_get_module_str()
 }

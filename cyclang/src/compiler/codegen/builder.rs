@@ -1,10 +1,35 @@
-use libc::c_uint;
-use llvm_sys::core::{LLVMAppendBasicBlock, LLVMArrayType2, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildLoad2, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSExt, LLVMBuildStore, LLVMConstArray2, LLVMConstInt, LLVMGetIntTypeWidth, LLVMPositionBuilderAtEnd, LLVMTypeOf};
-use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMBool, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef};
 use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
+use crate::compiler::codegen::functions::build_helper_funcs;
 use crate::compiler::codegen::{cstr_from_string, int64_type};
+use crate::compiler::CompileOptions;
+use crate::parser::Type;
+use anyhow::Result;
+use libc::c_uint;
+use llvm_sys::core::{
+    LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
+    LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
+    LLVMBuildGlobalStringPtr, LLVMBuildLoad2, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSExt,
+    LLVMBuildStore, LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose,
+    LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule,
+    LLVMFunctionType, LLVMGetIntTypeWidth, LLVMModuleCreateWithName, LLVMPositionBuilderAtEnd,
+    LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMSetTarget, LLVMTypeOf,
+    LLVMVoidTypeInContext,
+};
+use llvm_sys::execution_engine::{
+    LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
+    LLVMLinkInMCJIT,
+};
+use llvm_sys::prelude::{
+    LLVMBasicBlockRef, LLVMBool, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef,
+    LLVMValueRef,
+};
+use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget};
+use std::collections::HashMap;
+use std::ffi::CStr;
+use std::process::Command;
+use std::ptr;
 
-pub struct LLVMCodegen {
+pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
     pub module: LLVMModuleRef,
     pub context: LLVMContextRef,
@@ -13,9 +38,155 @@ pub struct LLVMCodegen {
     pub printf_str_value: LLVMValueRef,
     pub printf_str_num_value: LLVMValueRef,
     pub printf_str_num64_value: LLVMValueRef,
+    is_execution_engine: bool,
+    is_default_target: bool,
 }
 
-impl LLVMCodegen {
+impl LLVMCodegenBuilder {
+    // Initialise execution engine and LLVM IR constructs
+    pub fn init(compile_options: Option<CompileOptions>) -> Result<LLVMCodegenBuilder> {
+        unsafe {
+            let mut is_execution_engine = false;
+            let mut is_default_target: bool = true;
+
+            if let Some(compile_options) = compile_options {
+                is_execution_engine = compile_options.is_execution_engine;
+                is_default_target = compile_options.target.is_none();
+            }
+
+            if is_execution_engine {
+                LLVMLinkInMCJIT();
+            }
+
+            if is_default_target {
+                LLVM_InitializeNativeTarget();
+                LLVM_InitializeNativeAsmPrinter();
+            }
+            if !is_default_target {
+                compile_options.unwrap().target.unwrap().initialize();
+            }
+
+            let context = LLVMContextCreate();
+            let module = LLVMModuleCreateWithName(cstr_from_string("main").as_ptr());
+            let builder = LLVMCreateBuilderInContext(context);
+            if !is_default_target {
+                LLVMSetTarget(
+                    module,
+                    cstr_from_string("wasm32-unknown-unknown-wasm").as_ptr(),
+                );
+            }
+            // common void type
+            let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
+
+            // our "main" function which will be the entry point when we run the executable
+            let main_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
+            let main_func =
+                LLVMAddFunction(module, cstr_from_string("main").as_ptr(), main_func_type);
+            let main_block = LLVMAppendBasicBlockInContext(
+                context,
+                main_func,
+                cstr_from_string("main").as_ptr(),
+            );
+            LLVMPositionBuilderAtEnd(builder, main_block);
+
+            // Define common functions
+
+            let llvm_func_cache = build_helper_funcs(module, context, main_block);
+
+            let format_str = "%d\n";
+            let printf_str_num_value = LLVMBuildGlobalStringPtr(
+                builder,
+                cstr_from_string(format_str).as_ptr(),
+                cstr_from_string("number_printf_val").as_ptr(),
+            );
+            let printf_str_num64_value = LLVMBuildGlobalStringPtr(
+                builder,
+                cstr_from_string("%llu\n").as_ptr(),
+                cstr_from_string("number64_printf_val").as_ptr(),
+            );
+            let printf_str_value = LLVMBuildGlobalStringPtr(
+                builder,
+                cstr_from_string("%s\n").as_ptr(),
+                cstr_from_string("str_printf_val").as_ptr(),
+            );
+
+            Ok(LLVMCodegenBuilder {
+                builder,
+                module,
+                context,
+                llvm_func_cache,
+                current_function: LLVMFunction {
+                    function: main_func,
+                    func_type: main_func_type,
+                    block: main_block,
+                    entry_block: main_block,
+                    symbol_table: HashMap::new(),
+                    args: vec![],
+                    return_type: Type::None,
+                },
+                printf_str_value,
+                printf_str_num_value,
+                printf_str_num64_value,
+                is_execution_engine,
+                is_default_target,
+            })
+        }
+    }
+
+    pub fn dispose_and_get_module_str(&self) -> Result<String> {
+        unsafe {
+            LLVMBuildRetVoid(self.builder);
+
+            // Run execution engine
+            let mut engine = ptr::null_mut();
+            let mut error = ptr::null_mut();
+
+            // Call the main function. It should execute its code.
+            if self.is_execution_engine {
+                if LLVMCreateExecutionEngineForModule(&mut engine, self.module, &mut error) != 0 {
+                    LLVMDisposeMessage(error);
+                    panic!("Failed to create execution engine");
+                }
+                let main_func: extern "C" fn() = std::mem::transmute(LLVMGetFunctionAddress(
+                    engine,
+                    b"main\0".as_ptr() as *const _,
+                ));
+                main_func();
+            }
+
+            if !self.is_execution_engine {
+                LLVMPrintModuleToFile(
+                    self.module,
+                    cstr_from_string("bin/main.ll").as_ptr(),
+                    ptr::null_mut(),
+                );
+            }
+            // clean up
+            LLVMDisposeBuilder(self.builder);
+            if self.is_execution_engine {
+                LLVMDisposeExecutionEngine(engine);
+            }
+            if !self.is_execution_engine {
+                LLVMDisposeModule(self.module);
+            }
+            LLVMContextDispose(self.context);
+            Ok(self.emit_binary()?)
+        }
+    }
+
+    pub fn emit_binary(&self) -> Result<String> {
+        if !self.is_execution_engine {
+            Command::new("clang")
+                .arg("bin/main.ll")
+                .arg("-o")
+                .arg("bin/main")
+                .output()?;
+            let output = Command::new("bin/main").output()?;
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        }
+        Ok("".to_string())
+    }
+
     /// build_load
     ///
     /// This reads a value from one memory location via the LLVMBuildLoad instruction
