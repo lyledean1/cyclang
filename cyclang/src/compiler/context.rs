@@ -1,21 +1,19 @@
-use std::collections::HashMap;
-use anyhow::anyhow;
-use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMValueRef};
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::codegen::{cstr_from_string, int64_type, var_type_str};
 use crate::compiler::codegen::context::LLVMFunction;
-use crate::compiler::codegen::control_flow::{new_for_loop, new_if_stmt, new_while_stmt};
-use crate::compiler::CompileOptions;
+use crate::compiler::codegen::{cstr_from_string, int64_type, var_type_str};
 use crate::compiler::types::bool::BoolType;
-use crate::compiler::types::num::NumberType;
-use crate::compiler::types::string::StringType;
-use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::list::ListType;
+use crate::compiler::types::num::NumberType;
 use crate::compiler::types::num64::NumberType64;
 use crate::compiler::types::return_type::ReturnType;
+use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
+use crate::compiler::types::TypeBase;
+use crate::compiler::CompileOptions;
 use crate::parser::Expression;
+use anyhow::anyhow;
+use std::collections::HashMap;
 
 pub struct ASTContext {
     pub var_cache: VariableCache,
@@ -38,7 +36,6 @@ impl ASTContext {
 
 #[derive(Clone)]
 struct Container {
-    pub locals: HashMap<i32, bool>,
     pub trait_object: Box<dyn TypeBase>,
 }
 pub struct VariableCache {
@@ -66,7 +63,6 @@ impl VariableCache {
         self.map.insert(
             key.to_string(),
             Container {
-                locals,
                 trait_object,
             },
         );
@@ -89,6 +85,7 @@ impl VariableCache {
         }
     }
 
+    #[allow(dead_code)]
     fn del(&mut self, key: &str) {
         self.map.remove(key);
     }
@@ -103,7 +100,6 @@ impl VariableCache {
     }
 }
 
-
 impl ASTContext {
     pub fn init(compile_options: Option<CompileOptions>) -> anyhow::Result<ASTContext> {
         let var_cache = VariableCache::new();
@@ -116,17 +112,13 @@ impl ASTContext {
             codegen,
         })
     }
-    pub fn set_current_block(&mut self, block: LLVMBasicBlockRef) {
-        self.codegen.position_builder_at_end(block);
-        self.codegen.current_function.block = block;
-    }
-
-    pub fn set_entry_block(&mut self, block: LLVMBasicBlockRef) {
-        self.codegen.current_function.entry_block = block;
-    }
 
     //TODO: figure a better way to create a named variable in the LLVM IR
-    fn try_match_with_var(&mut self, name: String, input: Expression) -> anyhow::Result<Box<dyn TypeBase>> {
+    fn try_match_with_var(
+        &mut self,
+        name: String,
+        input: Expression,
+    ) -> anyhow::Result<Box<dyn TypeBase>> {
         match input {
             Expression::Number(input) => Ok(NumberType::new(Box::new(input), name, self)),
             Expression::String(input) => Ok(StringType::new(
@@ -142,18 +134,6 @@ impl ASTContext {
             _ => {
                 // just return without var
                 self.match_ast(input)
-            }
-        }
-    }
-
-    pub fn get_printf_str(&mut self, val: BaseTypes) -> LLVMValueRef {
-        match val {
-            BaseTypes::Number => self.codegen.printf_str_num_value,
-            BaseTypes::Number64 => self.codegen.printf_str_num64_value,
-            BaseTypes::Bool => self.codegen.printf_str_value,
-            BaseTypes::String => self.codegen.printf_str_value,
-            _ => {
-                unreachable!("get_printf_str not implemented for type {:?}", val)
             }
         }
     }
@@ -385,13 +365,16 @@ impl ASTContext {
                 Err(anyhow!("this should be unreachable code, for Expression::FuncArg arg_name:{} arg_type:{:?}", arg_name, arg_type))
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                new_if_stmt(self, *condition, *if_stmt, *else_stmt)
+                //TODO: fix this so its an associated function
+                LLVMCodegenBuilder::new_if_stmt(self, *condition, *if_stmt, *else_stmt)
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
-                new_while_stmt(self, *condition, *while_block_stmt)
+                //TODO: fix this so its an associated function
+                LLVMCodegenBuilder::new_while_stmt(self, *condition, *while_block_stmt)
             }
-            Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
-                new_for_loop(self, var_name, init, length, increment, *for_block_expr)
+            Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {                //TODO: fix this so its an associated function
+                //TODO: fix this so its an associated function
+                LLVMCodegenBuilder::new_for_loop(self, var_name, init, length, increment, *for_block_expr)
             }
             Expression::Print(input) => {
                 let expression_value = self.match_ast(*input)?;

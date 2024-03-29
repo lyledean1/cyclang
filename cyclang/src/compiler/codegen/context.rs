@@ -9,6 +9,7 @@ use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 
 extern crate llvm_sys;
+use crate::compiler::context::ASTContext;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
 use crate::parser::{Expression, Type};
@@ -16,7 +17,6 @@ use anyhow::Result;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
-use crate::compiler::context::ASTContext;
 
 pub struct LLVMFunctionCache {
     map: HashMap<String, LLVMFunction>,
@@ -49,8 +49,7 @@ impl LLVMFunction {
         body: Expression,
         block: LLVMBasicBlockRef,
     ) -> Result<Self> {
-        let param_types: &mut Vec<*mut llvm_sys::LLVMType> =
-            &mut LLVMFunction::get_arg_types(args.clone());
+        let param_types: &mut Vec<*mut LLVMType> = &mut LLVMFunction::get_arg_types(args.clone());
 
         let mut function_type = LLVMFunctionType(
             LLVMVoidType(),
@@ -163,7 +162,7 @@ impl LLVMFunction {
             context.codegen.build_ret_void();
         }
 
-        context.set_current_block(block);
+        context.codegen.set_current_block(block);
         context.var_cache.set(
             name.as_str(),
             Box::new(FuncType {

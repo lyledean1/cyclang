@@ -1,6 +1,6 @@
-use crate::compiler::context::ASTContext;
 use crate::compiler::codegen::cstr_from_string;
 use crate::compiler::codegen::*;
+use crate::compiler::context::ASTContext;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 
 use cyclang_macros::{ArithmeticMacro, BaseMacro, ComparisonMacro};

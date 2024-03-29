@@ -131,7 +131,7 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
 
     fn print(&self, context: &mut ASTContext) -> Result<()> {
         let print_args: Vec<LLVMValueRef> = vec![
-            context.get_printf_str(self.get_type()),
+            context.codegen.get_printf_str(self.get_type()),
             self.get_value_for_printf(context),
         ];
         let print_func = context
