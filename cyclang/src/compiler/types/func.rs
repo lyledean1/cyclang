@@ -1,6 +1,7 @@
 use crate::parser::{Expression, Type};
 extern crate llvm_sys;
 use crate::compiler::codegen::{cstr_from_string, int1_ptr_type, int32_ptr_type, int64_ptr_type};
+use crate::compiler::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
@@ -8,7 +9,6 @@ use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, Type
 use anyhow::Result;
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
-use crate::compiler::context::ASTContext;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution
@@ -33,11 +33,7 @@ impl Arithmetic for FuncType {}
 impl Comparison for FuncType {}
 
 impl Func for FuncType {
-    fn call(
-        &self,
-        context: &mut ASTContext,
-        args: Vec<Expression>,
-    ) -> Result<Box<dyn TypeBase>> {
+    fn call(&self, context: &mut ASTContext, args: Vec<Expression>) -> Result<Box<dyn TypeBase>> {
         unsafe {
             // need to build up call with actual LLVMValue
 

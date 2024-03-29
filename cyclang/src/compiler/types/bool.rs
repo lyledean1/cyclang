@@ -1,5 +1,5 @@
-use crate::compiler::context::ASTContext;
 use crate::compiler::codegen::*;
+use crate::compiler::context::ASTContext;
 
 use cyclang_macros::{BaseMacro, ComparisonMacro};
 use std::any::Any;
