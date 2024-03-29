@@ -4,7 +4,7 @@ use crate::compiler::types::BaseTypes;
 use crate::compiler::TypeBase;
 use crate::parser::Expression;
 extern crate llvm_sys;
-use super::context::ASTContext;
+use crate::compiler::context::ASTContext;
 use crate::compiler::codegen::cstr_from_string;
 use crate::compiler::int1_type;
 use crate::compiler::NumberType;

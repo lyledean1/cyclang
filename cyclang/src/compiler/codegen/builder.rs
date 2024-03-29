@@ -12,7 +12,7 @@ use llvm_sys::core::{
     LLVMBuildStore, LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose,
     LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule,
     LLVMFunctionType, LLVMGetIntTypeWidth, LLVMModuleCreateWithName, LLVMPositionBuilderAtEnd,
-    LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMSetTarget, LLVMTypeOf,
+    LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf,
     LLVMVoidTypeInContext,
 };
 use llvm_sys::execution_engine::{
@@ -25,7 +25,6 @@ use llvm_sys::prelude::{
 };
 use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget};
 use std::collections::HashMap;
-use std::ffi::CStr;
 use std::process::Command;
 use std::ptr;
 
@@ -170,7 +169,7 @@ impl LLVMCodegenBuilder {
                 LLVMDisposeModule(self.module);
             }
             LLVMContextDispose(self.context);
-            Ok(self.emit_binary()?)
+            self.emit_binary()
         }
     }
 

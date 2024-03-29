@@ -1,4 +1,4 @@
-use crate::compiler::codegen::context::ASTContext;
+use crate::compiler::context::ASTContext;
 use crate::compiler::codegen::*;
 
 use cyclang_macros::{BaseMacro, ComparisonMacro};
