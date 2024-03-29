@@ -4,8 +4,8 @@ extern crate pest_derive;
 extern crate cyclang_macros;
 
 use clap::Parser;
+use compiler::codegen::target::Target;
 use compiler::CompileOptions;
-use compiler::Target;
 use std::fmt;
 use std::fs;
 use std::process::exit;
@@ -57,13 +57,10 @@ fn compile_output_from_string(
     });
     match parser::parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
-        Ok(exprs) => match compiler::compile(exprs, compile_options) {
-            Ok(output) => output,
-            Err(e) => {
-                eprintln!("unable to compile contents due to error: {}", e);
-                exit(1)
-            }
-        },
+        Ok(exprs) => compiler::compile(exprs, compile_options).unwrap_or_else(|e| {
+            eprintln!("unable to compile contents due to error: {}", e);
+            exit(1)
+        }),
         Err(e) => {
             eprintln!("unable to parse contents due to error: {}", e);
             exit(1)

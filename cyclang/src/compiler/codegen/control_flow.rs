@@ -5,8 +5,8 @@ use crate::compiler::TypeBase;
 use crate::parser::Expression;
 extern crate llvm_sys;
 use super::context::ASTContext;
-use crate::compiler::int1_type;
 use crate::compiler::codegen::cstr_from_string;
+use crate::compiler::int1_type;
 use crate::compiler::NumberType;
 use anyhow::Result;
 
@@ -73,7 +73,9 @@ pub fn new_if_stmt(
 
     context.set_current_block(if_entry_block);
 
-    let cmp = context.codegen.build_load(cond.get_ptr().unwrap(), int1_type(), "cmp");
+    let cmp = context
+        .codegen
+        .build_load(cond.get_ptr().unwrap(), int1_type(), "cmp");
     context.codegen.build_cond_br(cmp, then_block, else_block);
 
     context.set_current_block(merge_block);
@@ -91,10 +93,14 @@ pub fn new_while_stmt(
     let loop_body_block = context.codegen.append_basic_block(function, "loop_body");
     let loop_exit_block = context.codegen.append_basic_block(function, "loop_exit");
 
-    let bool_type_ptr = context.codegen.build_alloca(int1_type(), "while_value_bool_var");
+    let bool_type_ptr = context
+        .codegen
+        .build_alloca(int1_type(), "while_value_bool_var");
     let value_condition = context.match_ast(condition)?;
 
-    let cmp = context.codegen.build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
+    let cmp = context
+        .codegen
+        .build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
 
     context.codegen.build_store(cmp, bool_type_ptr);
 
@@ -115,7 +121,9 @@ pub fn new_while_stmt(
         "while_value_bool_var",
     );
 
-    context.codegen.build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
+    context
+        .codegen
+        .build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
 
     // Position builder at loop exit block
     context.set_current_block(loop_exit_block);
@@ -181,16 +189,24 @@ pub fn new_for_loop(
             cstr_from_string("").as_ptr(),
         );
 
-        context.codegen.build_cond_br(loop_condition, loop_body_block, loop_exit_block);
+        context
+            .codegen
+            .build_cond_br(loop_condition, loop_body_block, loop_exit_block);
 
         // Build loop body block
         context.set_current_block(loop_body_block);
         let for_block_cond = context.match_ast(for_block_expr)?;
-        let lhs_val =
-            context.codegen.build_load(ptr.unwrap(), LLVMInt32TypeInContext(context.codegen.context), "i");
+        let lhs_val = context.codegen.build_load(
+            ptr.unwrap(),
+            LLVMInt32TypeInContext(context.codegen.context),
+            "i",
+        );
 
-        let incr_val =
-            context.codegen.const_int(LLVMInt32TypeInContext(context.codegen.context), increment as u64, 0);
+        let incr_val = context.codegen.const_int(
+            LLVMInt32TypeInContext(context.codegen.context),
+            increment as u64,
+            0,
+        );
 
         let new_value = LLVMBuildAdd(
             context.codegen.builder,

@@ -4,10 +4,11 @@ use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use std::ffi::CString;
 
+pub(crate) mod builder;
 pub mod context;
 pub mod control_flow;
 pub mod functions;
-pub(crate) mod builder;
+pub mod target;
 
 pub fn cstr_from_string(name: &str) -> CString {
     // can't return pointer type since it will get dropped due to lifetimes

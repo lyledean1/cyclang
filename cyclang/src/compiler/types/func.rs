@@ -46,7 +46,9 @@ impl Func for FuncType {
                 let ast_value = context.match_ast(arg.clone())?;
                 if let Some(ptr) = ast_value.get_ptr() {
                     let loaded_value =
-                        context.codegen.build_load(ptr, ast_value.get_llvm_type(), "call_arg");
+                        context
+                            .codegen
+                            .build_load(ptr, ast_value.get_llvm_type(), "call_arg");
                     call_args.push(loaded_value);
                 } else {
                     call_args.push(ast_value.get_value());
@@ -86,7 +88,11 @@ impl Func for FuncType {
                     }))
                 }
                 Type::Bool => {
-                    let ptr = context.codegen.build_alloca_store(call_value, int1_ptr_type(), "bool_value");
+                    let ptr = context.codegen.build_alloca_store(
+                        call_value,
+                        int1_ptr_type(),
+                        "bool_value",
+                    );
                     Ok(Box::new(BoolType {
                         builder: context.codegen.builder,
                         llvm_value: call_value,

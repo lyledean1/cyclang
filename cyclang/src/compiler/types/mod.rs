@@ -133,7 +133,11 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
             context.get_printf_str(self.get_type()),
             self.get_value_for_printf(context),
         ];
-        let print_func = context.codegen.llvm_func_cache.get("printf").ok_or(anyhow!("unable to call print function"))?;
+        let print_func = context
+            .codegen
+            .llvm_func_cache
+            .get("printf")
+            .ok_or(anyhow!("unable to call print function"))?;
         context.codegen.build_call(print_func, print_args, 2, "");
         Ok(())
     }
