@@ -13,15 +13,8 @@ categories.workspace = true
 
 [dependencies]
 clap = {version = "4.1.8", features = ["derive"]}
-dyn-clone = "1.0.11"
-libc = "0.2.149"
-llvm-sys = "170.0.0"
-pest = "2.7.0"
-pest_derive = "2.7.0"
-proc-macro2 = "1.0.69"
 quote = "1.0.33"
-rustyline = "12.0.0"
-syn = "2.0.38"
+rustyline = "14.0.0"
 text-colorizer = "1.0.0"
 anyhow = "1.0.81"
 cyclang-macros = { workspace = true}
