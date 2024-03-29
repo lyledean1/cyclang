@@ -3,7 +3,6 @@ extern crate cyclang_macros;
 use clap::Parser;
 use cyclang_backend::compiler::codegen::target::Target;
 use cyclang_backend::compiler::CompileOptions;
-use std::fmt;
 use std::fs;
 use std::process::exit;
 use text_colorizer::Colorize;
@@ -21,17 +20,6 @@ struct Args {
     target: Option<String>,
     #[arg(short, long)]
     emit_llvm_ir: bool,
-}
-
-#[derive(Debug)]
-struct ParserError {
-    message: String,
-}
-
-impl fmt::Display for ParserError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MyError: {}", self.message)
-    }
 }
 
 fn get_target(target: Option<String>) -> Option<Target> {
