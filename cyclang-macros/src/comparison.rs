@@ -72,32 +72,32 @@ fn generate_comparison_operation(
                  match (self.get_ptr(), self.get_type()) {
                         (Some(lhs_ptr), BaseTypes::Number) => {
                                 // If loading a pointer
-                                let mut lhs_val = context.build_load(
+                                let mut lhs_val = context.codegen.build_load(
                                     lhs_ptr,
                                     self.get_llvm_type(),
                                     self.get_name_as_str(),
                                 );
-                                let mut rhs_val = context.build_load(
+                                let mut rhs_val = context.codegen.build_load(
                                     rhs.get_ptr().unwrap(),
                                     rhs.get_llvm_type(),
                                     rhs.get_name_as_str(),
                                 );
 
-                                lhs_val = context.cast_i32_to_i64(lhs_val, rhs_val);
-                                rhs_val = context.cast_i32_to_i64(rhs_val, lhs_val);
+                                lhs_val = context.codegen.cast_i32_to_i64(lhs_val, rhs_val);
+                                rhs_val = context.codegen.cast_i32_to_i64(rhs_val, lhs_val);
 
                                 let cmp = LLVMBuildICmp(
-                                    context.builder,
+                                    context.codegen.builder,
                                     #llvm_predicate_name,
                                     lhs_val,
                                     rhs_val,
                                     cstr_from_string("result").as_ptr(),
                                 );
 
-                                let alloca = context.build_alloca_store(cmp, int1_type(), "bool_cmp");
+                                let alloca = context.codegen.build_alloca_store(cmp, int1_type(), "bool_cmp");
                                 Box::new(BoolType {
                                     name: self.get_name_as_str().to_string(),
-                                    builder: context.builder,
+                                    builder: context.codegen.builder,
                                     llvm_value: cmp,
                                     llvm_value_pointer: alloca,
                                 })
@@ -106,20 +106,20 @@ fn generate_comparison_operation(
                                 let mut lhs_val = self.get_value();
                                 let mut rhs_val = rhs.get_value();
 
-                                lhs_val = context.cast_i32_to_i64(lhs_val, rhs_val);
-                                rhs_val = context.cast_i32_to_i64(rhs_val, lhs_val);
+                                lhs_val = context.codegen.cast_i32_to_i64(lhs_val, rhs_val);
+                                rhs_val = context.codegen.cast_i32_to_i64(rhs_val, lhs_val);
 
                                 let cmp = LLVMBuildICmp(
-                                    context.builder,
+                                    context.codegen.builder,
                                     #llvm_predicate_name,
                                     lhs_val,
                                     rhs_val,
                                     cstr_from_string("result").as_ptr(),
                                 );
-                                let alloca = context.build_alloca_store(cmp, int1_type(), "bool_cmp");
+                                let alloca = context.codegen.build_alloca_store(cmp, int1_type(), "bool_cmp");
                                 Box::new(BoolType {
                                     name: self.get_name_as_str().to_string(),
-                                    builder: context.builder,
+                                    builder: context.codegen.builder,
                                     llvm_value: cmp,
                                     llvm_value_pointer: alloca,
                                 })

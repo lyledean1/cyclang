@@ -15,13 +15,13 @@ use llvm_sys::core::LLVMGetValueName;
 use std::any::Any;
 use std::ffi::CStr;
 
-use crate::{compiler::llvm::context::ASTContext, parser::Expression};
+use crate::{compiler::codegen::context::ASTContext, parser::Expression};
 use dyn_clone::DynClone;
 extern crate libc;
 use libc::c_char;
 
 extern crate llvm_sys;
-use crate::compiler::llvm::{
+use crate::compiler::codegen::{
     int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type, int8_type,
 };
 
@@ -91,7 +91,7 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
                 _rhs.get_type()
             ));
         }
-        _ast_context.build_load_store(
+        _ast_context.codegen.build_load_store(
             _rhs.get_ptr().unwrap(),
             self.get_ptr().unwrap(),
             self.get_llvm_type(),
@@ -123,7 +123,7 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
 
     fn get_value_for_printf(&self, context: &mut ASTContext) -> LLVMValueRef {
         match self.get_ptr() {
-            Some(v) => context.build_load(v, self.get_llvm_type(), "debug"),
+            Some(v) => context.codegen.build_load(v, self.get_llvm_type(), "debug"),
             None => self.get_value(),
         }
     }
@@ -133,8 +133,8 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
             context.get_printf_str(self.get_type()),
             self.get_value_for_printf(context),
         ];
-        let print_func = context.llvm_func_cache.get("printf").ok_or(anyhow!("unable to call print function"))?;
-        context.build_call(print_func, print_args, 2, "");
+        let print_func = context.codegen.llvm_func_cache.get("printf").ok_or(anyhow!("unable to call print function"))?;
+        context.codegen.build_call(print_func, print_args, 2, "");
         Ok(())
     }
 }

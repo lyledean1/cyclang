@@ -9,7 +9,7 @@ fn main() {
         .expect("Failed to execute `which`. Make sure it's installed and available in PATH.");
 
     if !which_output.status.success() {
-        panic!("Could not find `llvm-config`. Make sure llvm is installed.");
+        panic!("Could not find `codegen-config`. Make sure codegen is installed.");
     }
 
     let which_str = String::from_utf8_lossy(&which_output.stdout);
@@ -18,10 +18,10 @@ fn main() {
     let llvm_config_output = Command::new(llvm_config_path)
         .arg("--version")
         .output()
-        .expect("Failed to execute llvm-config.");
+        .expect("Failed to execute codegen-config.");
 
     if !llvm_config_output.status.success() {
-        panic!("llvm-config execution failed");
+        panic!("codegen-config execution failed");
     }
 
     let version_str = String::from_utf8_lossy(&llvm_config_output.stdout);
@@ -38,7 +38,7 @@ fn main() {
 
     let llvm_dir = Path::new(llvm_config_path)
         .parent()
-        .expect("Failed to get parent directory of llvm-config")
+        .expect("Failed to get parent directory of codegen-config")
         .parent()
         .expect("Failed to get LLVM directory");
 

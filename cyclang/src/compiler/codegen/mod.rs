@@ -7,6 +7,7 @@ use std::ffi::CString;
 pub mod context;
 pub mod control_flow;
 pub mod functions;
+pub(crate) mod builder;
 
 pub fn cstr_from_string(name: &str) -> CString {
     // can't return pointer type since it will get dropped due to lifetimes

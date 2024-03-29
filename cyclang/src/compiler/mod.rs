@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::compiler::llvm::*;
+use crate::compiler::codegen::*;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num::NumberType;
@@ -9,9 +9,9 @@ use crate::compiler::types::{BaseTypes, TypeBase};
 use anyhow::anyhow;
 use anyhow::Result;
 
-use crate::compiler::llvm::context::*;
-use crate::compiler::llvm::control_flow::new_if_stmt;
-use crate::compiler::llvm::functions::*;
+use crate::compiler::codegen::context::*;
+use crate::compiler::codegen::control_flow::new_if_stmt;
+use crate::compiler::codegen::functions::*;
 use crate::parser::{Expression, Type};
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -30,13 +30,14 @@ use llvm_sys::target::{
 use std::process::Command;
 use std::ptr;
 
-use self::llvm::control_flow::{new_for_loop, new_while_stmt};
+use self::codegen::control_flow::{new_for_loop, new_while_stmt};
+use crate::compiler::codegen::builder::LLVMCodegen;
 use self::types::return_type::ReturnType;
-use crate::compiler::llvm::cstr_from_string;
+use crate::compiler::codegen::cstr_from_string;
 use crate::compiler::types::list::ListType;
 use crate::compiler::types::num64::NumberType64;
 
-pub mod llvm;
+pub mod codegen;
 pub mod types;
 
 #[derive(Debug, Clone, Copy)]
@@ -169,13 +170,11 @@ fn llvm_compile_to_ir(
             cstr_from_string("str_printf_val").as_ptr(),
         );
 
-        let mut ast_ctx = ASTContext {
+        let codegen = LLVMCodegen{
             builder,
             module,
             context,
             llvm_func_cache,
-            var_cache,
-            func_cache,
             current_function: LLVMFunction {
                 function: main_func,
                 func_type: main_func_type,
@@ -185,10 +184,15 @@ fn llvm_compile_to_ir(
                 args: vec![],
                 return_type: Type::None,
             },
-            depth: 0,
             printf_str_value,
             printf_str_num_value,
             printf_str_num64_value,
+        };
+        let mut ast_ctx = ASTContext {
+            var_cache,
+            func_cache,
+            depth: 0,
+            codegen,
         };
         for expr in exprs {
             ast_ctx.match_ast(expr)?;
@@ -246,12 +250,12 @@ struct ExprContext {
 #[allow(unused_variables, unused_assignments)]
 impl ASTContext {
     pub fn set_current_block(&mut self, block: LLVMBasicBlockRef) {
-        self.position_builder_at_end(block);
-        self.current_function.block = block;
+        self.codegen.position_builder_at_end(block);
+        self.codegen.current_function.block = block;
     }
 
     pub fn set_entry_block(&mut self, block: LLVMBasicBlockRef) {
-        self.current_function.entry_block = block;
+        self.codegen.current_function.entry_block = block;
     }
 
     //TODO: figure a better way to create a named variable in the LLVM IR
@@ -277,10 +281,10 @@ impl ASTContext {
 
     fn get_printf_str(&mut self, val: BaseTypes) -> LLVMValueRef {
         match val {
-            BaseTypes::Number => self.printf_str_num_value,
-            BaseTypes::Number64 => self.printf_str_num64_value,
-            BaseTypes::Bool => self.printf_str_value,
-            BaseTypes::String => self.printf_str_value,
+            BaseTypes::Number => self.codegen.printf_str_num_value,
+            BaseTypes::Number64 => self.codegen.printf_str_num64_value,
+            BaseTypes::Bool => self.codegen.printf_str_value,
+            BaseTypes::String => self.codegen.printf_str_value,
             _ => {
                 unreachable!("get_printf_str not implemented for type {:?}", val)
             }
@@ -302,7 +306,7 @@ impl ASTContext {
             }
             Expression::Bool(input) => Ok(BoolType::new(Box::new(input), "bool".to_string(), self)),
             Expression::Variable(input) => {
-                match self.current_function.symbol_table.get(&input) {
+                match self.codegen.current_function.symbol_table.get(&input) {
                     Some(val) => Ok(val.clone()),
                     None => {
                         // check if variable is in function
@@ -336,10 +340,10 @@ impl ASTContext {
                 let array_type = first_element.get_llvm_type();
                 let array_len = vec_expr.len() as u64;
                 let llvm_array_value =
-                    self.const_array(array_type, elements.as_mut_ptr(), array_len);
+                    self.codegen.const_array(array_type, elements.as_mut_ptr(), array_len);
 
-                let llvm_array_type = self.array_type(array_type, array_len);
-                let array_ptr = self.build_alloca_store(llvm_array_value, llvm_array_type, "array");
+                let llvm_array_type = self.codegen.array_type(array_type, array_len);
+                let array_ptr = self.codegen.build_alloca_store(llvm_array_value, llvm_array_type, "array");
                 Ok(Box::new(ListType {
                     llvm_value: llvm_array_value,
                     llvm_value_ptr: array_ptr,
@@ -350,11 +354,11 @@ impl ASTContext {
                 let name = cstr_from_string("access_array").as_ptr();
                 let val = self.match_ast(*v)?;
                 let index = self.match_ast(*i)?;
-                let zero_index = self.const_int(int64_type(), 0, 0);
+                let zero_index = self.codegen.const_int(int64_type(), 0, 0);
                 let build_load_index =
-                    self.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
+                    self.codegen.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
                 let mut indices = [zero_index, build_load_index];
-                let val = self.build_gep(
+                let val = self.codegen.build_gep(
                     val.get_llvm_type(),
                     val.get_ptr().unwrap(),
                     indices.as_mut_ptr(),
@@ -373,18 +377,18 @@ impl ASTContext {
                     let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
                     let ptr = val.get_ptr().unwrap();
                     let index = self.match_ast(*i)?;
-                    let zero_index = self.const_int(int64_type(), 0, 0);
+                    let zero_index = self.codegen.const_int(int64_type(), 0, 0);
                     let build_load_index =
-                        self.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
+                        self.codegen.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
                     let mut indices = [zero_index, build_load_index];
-                    let element_ptr = self.build_gep(
+                    let element_ptr = self.codegen.build_gep(
                         val.get_llvm_type(),
                         val.get_ptr().unwrap(),
                         indices.as_mut_ptr(),
                         2_u32,
                         name,
                     );
-                    self.build_store(lhs.get_value(), element_ptr);
+                    self.codegen.build_store(lhs.get_value(), element_ptr);
                     Ok(val)
                 }
                 _ => {
@@ -503,7 +507,7 @@ impl ASTContext {
                     args.clone(),
                     _return_type.clone(),
                     *body.clone(),
-                    self.current_function.block,
+                    self.codegen.current_function.block,
                 )?;
 
                 let func = FuncType {
@@ -535,7 +539,7 @@ impl ASTContext {
             }
             Expression::ReturnStmt(input) => {
                 let expression_value = self.match_ast(*input)?;
-                self.build_ret(expression_value.get_value());
+                self.codegen.build_ret(expression_value.get_value());
                 Ok(Box::new(ReturnType {}))
             }
         }
