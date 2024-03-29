@@ -4,9 +4,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   g++ \
-  codegen-17 \
-  codegen-17-tools \
-  codegen-17-dev \
+  llvm-17 \
+  llvm-17-tools \
+  llvm-17-dev \
   clang-17 \
   libpolly-17-dev \
   libzstd-dev \
@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100 && \
     update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100 && \
-    update-alternatives --install /usr/bin/codegen-config codegen-config /usr/bin/codegen-config-17 100
+    update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-17 100
 
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 
