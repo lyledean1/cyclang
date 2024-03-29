@@ -1,4 +1,4 @@
-use crate::compiler::llvm::context::ASTContext;
+use crate::compiler::codegen::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 
@@ -7,7 +7,7 @@ use std::any::Any;
 use std::ffi::CString;
 
 extern crate llvm_sys;
-use crate::compiler::llvm::cstr_from_string;
+use crate::compiler::codegen::cstr_from_string;
 use anyhow::Result;
 
 use llvm_sys::core::*;
@@ -60,7 +60,7 @@ impl Comparison for StringType {
 impl Arithmetic for StringType {
     fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
-            BaseTypes::String => match _ast_context.llvm_func_cache.get("sprintf") {
+            BaseTypes::String => match _ast_context.codegen.llvm_func_cache.get("sprintf") {
                 Some(_sprintf_func) => unsafe {
                     // TODO: Use sprintf to concatenate two strings
                     // Remove extra quotes
@@ -69,7 +69,7 @@ impl Arithmetic for StringType {
 
                     let string = CString::new(new_string.clone()).unwrap();
                     let value = LLVMConstStringInContext(
-                        _ast_context.context,
+                        _ast_context.codegen.context,
                         string.as_ptr(),
                         string.as_bytes().len() as u32,
                         0,
@@ -77,7 +77,7 @@ impl Arithmetic for StringType {
                     let mut len_value: usize = string.as_bytes().len();
                     let ptr: *mut usize = (&mut len_value) as *mut usize;
                     let buffer_ptr = LLVMBuildPointerCast(
-                        _ast_context.builder,
+                        _ast_context.codegen.builder,
                         value,
                         LLVMPointerType(LLVMInt8Type(), 0),
                         cstr_from_string("buffer_ptr").as_ptr(),
@@ -117,7 +117,7 @@ impl TypeBase for StringType {
         let string: CString = CString::new(value_as_string.clone()).unwrap();
         unsafe {
             let value = LLVMConstStringInContext(
-                _context.context,
+                _context.codegen.context,
                 string.as_ptr(),
                 string.as_bytes().len() as u32,
                 0,
@@ -125,7 +125,7 @@ impl TypeBase for StringType {
             let mut len_value: usize = string.as_bytes().len();
             let ptr: *mut usize = (&mut len_value) as *mut usize;
             let buffer_ptr = LLVMBuildPointerCast(
-                _context.builder,
+                _context.codegen.builder,
                 value,
                 LLVMPointerType(LLVMInt8Type(), 0),
                 cstr_from_string(_name.as_str()).as_ptr(),
@@ -165,17 +165,17 @@ impl TypeBase for StringType {
             let llvm_value_to_cstr = LLVMGetAsString(self.llvm_value, self.length);
             // Load Value from Value Index Ptr
             let val = LLVMBuildGlobalStringPtr(
-                ast_context.builder,
+                ast_context.codegen.builder,
                 llvm_value_to_cstr,
                 llvm_value_to_cstr,
             );
 
             // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
-            let mut print_args: Vec<LLVMValueRef> = vec![ast_context.printf_str_value, val];
-            match ast_context.llvm_func_cache.get("printf") {
+            let mut print_args: Vec<LLVMValueRef> = vec![ast_context.codegen.printf_str_value, val];
+            match ast_context.codegen.llvm_func_cache.get("printf") {
                 Some(print_func) => {
                     LLVMBuildCall2(
-                        ast_context.builder,
+                        ast_context.codegen.builder,
                         print_func.func_type,
                         print_func.function,
                         print_args.as_mut_ptr(),

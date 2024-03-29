@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::compiler::llvm::{cstr_from_string, int1_type, int32_type, int64_type, int8_ptr_type};
+use crate::compiler::codegen::{cstr_from_string, int1_type, int32_type, int64_type, int8_ptr_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::TypeBase;
@@ -11,23 +11,16 @@ use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
 use crate::parser::{Expression, Type};
 use anyhow::Result;
-use libc::c_uint;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
+use crate::compiler::codegen::builder::LLVMCodegen;
 
 pub struct ASTContext {
-    pub builder: LLVMBuilderRef,
-    pub module: LLVMModuleRef,
-    pub context: LLVMContextRef,
     pub var_cache: VariableCache,
     pub func_cache: VariableCache,
-    pub llvm_func_cache: LLVMFunctionCache,
-    pub current_function: LLVMFunction,
+    pub codegen: LLVMCodegen,
     pub depth: i32,
-    pub printf_str_value: LLVMValueRef,
-    pub printf_str_num_value: LLVMValueRef,
-    pub printf_str_num64_value: LLVMValueRef,
 }
 
 impl ASTContext {
@@ -39,201 +32,6 @@ impl ASTContext {
     }
     pub fn decr(&mut self) {
         self.depth -= 1;
-    }
-
-    /// build_load
-    ///
-    /// This reads a value from one memory location via the LLVMBuildLoad instruction
-    ///
-    /// # Arguments
-    ///
-    /// * `ptr` - The LLVM Value you are loading from memory
-    /// * `ptr_type` - The LLVM Type you will be storing in memory
-    /// * `name` - The LLVM name of the alloca
-    ///
-    pub fn build_load(&self, ptr: LLVMValueRef, ptr_type: LLVMTypeRef, name: &str) -> LLVMValueRef {
-        unsafe { LLVMBuildLoad2(self.builder, ptr_type, ptr, cstr_from_string(name).as_ptr()) }
-    }
-
-    /// build_store
-    ///
-    /// This stores a value into memory on the stack via the LLVMBuildStore instruction
-    ///
-    /// # Arguments
-    ///
-    /// * `val` - The LLVM Value you are storing into memory
-    /// * `ptr` - The LLVM pointer you will be storing the value in memory
-    ///
-    pub fn build_store(&self, val: LLVMValueRef, ptr: LLVMValueRef) {
-        unsafe {
-            LLVMBuildStore(self.builder, val, ptr);
-        }
-    }
-
-    /// build_alloca
-    ///
-    /// This builds memory on the stack via the LLVMBuildAlloca instruction
-    ///
-    /// # Arguments
-    ///
-    /// * `ptr_type` - The LLVM Type you will be storing in memory
-    /// * `name` - The LLVM name of the alloca
-    ///
-    pub fn build_alloca(&self, ptr_type: LLVMTypeRef, name: &str) -> LLVMValueRef {
-        unsafe { LLVMBuildAlloca(self.builder, ptr_type, cstr_from_string(name).as_ptr()) }
-    }
-
-    /// build_alloca_store
-    ///
-    /// This calls LLVM to allocate memory on the stack via the LLVMBuildAlloca function and then
-    /// stores the provided value into that new allocated stack memory. It then returns a pointer to that value.
-    ///
-    /// # Arguments
-    ///
-    /// * `val` - The LLVM Value you will be storing in memory
-    /// * `ptr_type` - The LLVM Type you will be storing in memory
-    /// * `name` - The LLVM name of the alloca
-    ///
-    pub fn build_alloca_store(
-        &self,
-        val: LLVMValueRef,
-        ptr_type: LLVMTypeRef,
-        name: &str,
-    ) -> LLVMValueRef {
-        let ptr = self.build_alloca(ptr_type, name);
-        self.build_store(val, ptr);
-        ptr
-    }
-
-    /// build_load_store
-    ///
-    /// This reads a value from one memory location via the LLVMBuildLoad instruction
-    /// and writes it to another via the LLVMBuildStore location.
-    ///
-    /// # Arguments
-    ///
-    /// * `load_ptr` - The LLVM Value you are loading from memory
-    /// * `store_ptr` - The LLVM Type you will be storing in memory
-    /// * `ptr_type` - The LLVM Type you will be storing in memory
-    /// * `name` - The LLVM name of the alloca
-    ///
-    pub fn build_load_store(
-        &self,
-        load_ptr: LLVMValueRef,
-        store_ptr: LLVMValueRef,
-        ptr_type: LLVMTypeRef,
-        name: &str,
-    ) {
-        let rhs_val = self.build_load(load_ptr, ptr_type, name);
-        self.build_store(rhs_val, store_ptr);
-    }
-
-    pub fn append_basic_block(&self, function: LLVMValueRef, name: &str) -> LLVMBasicBlockRef {
-        unsafe { LLVMAppendBasicBlock(function, cstr_from_string(name).as_ptr()) }
-    }
-
-    pub fn build_call(
-        &self,
-        func: LLVMFunction,
-        args: Vec<LLVMValueRef>,
-        num_args: c_uint,
-        name: &str,
-    ) -> LLVMValueRef {
-        unsafe {
-            LLVMBuildCall2(
-                self.builder,
-                func.func_type,
-                func.function,
-                args.clone().as_mut_ptr(),
-                num_args,
-                cstr_from_string(name).as_ptr(),
-            )
-        }
-    }
-
-    pub fn cast_i32_to_i64(
-        &self,
-        mut lhs_value: LLVMValueRef,
-        rhs_value: LLVMValueRef,
-    ) -> LLVMValueRef {
-        unsafe {
-            let lhs_value_type = LLVMTypeOf(lhs_value);
-            let lhs_value_width = LLVMGetIntTypeWidth(lhs_value_type);
-            let rhs_value_type = LLVMTypeOf(rhs_value);
-            let rhs_value_width = LLVMGetIntTypeWidth(rhs_value_type);
-
-            if let (32, 64) = (lhs_value_width, rhs_value_width) {
-                lhs_value = LLVMBuildSExt(
-                    self.builder,
-                    lhs_value,
-                    int64_type(),
-                    cstr_from_string("cast_to_i64").as_ptr(),
-                );
-            }
-            lhs_value
-        }
-    }
-
-    pub fn build_br(&self, block: LLVMBasicBlockRef) -> LLVMValueRef {
-        unsafe { LLVMBuildBr(self.builder, block) }
-    }
-
-    pub fn build_cond_br(
-        &self,
-        cond: LLVMValueRef,
-        then_block: LLVMBasicBlockRef,
-        else_block: LLVMBasicBlockRef,
-    ) -> LLVMValueRef {
-        unsafe { LLVMBuildCondBr(self.builder, cond, then_block, else_block) }
-    }
-
-    pub fn position_builder_at_end(&self, block: LLVMBasicBlockRef) {
-        unsafe {
-            LLVMPositionBuilderAtEnd(self.builder, block);
-        }
-    }
-
-    pub fn build_ret_void(&self) {
-        unsafe {
-            LLVMBuildRetVoid(self.builder);
-        }
-    }
-
-    pub fn build_ret(&self, value: LLVMValueRef) -> LLVMValueRef {
-        unsafe { LLVMBuildRet(self.builder, value) }
-    }
-
-    pub fn const_int(
-        &self,
-        int_type: LLVMTypeRef,
-        val: ::libc::c_ulonglong,
-        sign_extend: LLVMBool,
-    ) -> LLVMValueRef {
-        unsafe { LLVMConstInt(int_type, val, sign_extend) }
-    }
-
-    pub fn const_array(
-        &self,
-        element_type: LLVMTypeRef,
-        const_values: *mut LLVMValueRef,
-        length: u64,
-    ) -> LLVMValueRef {
-        unsafe { LLVMConstArray2(element_type, const_values, length) }
-    }
-
-    pub fn array_type(&self, element_type: LLVMTypeRef, element_count: u64) -> LLVMTypeRef {
-        unsafe { LLVMArrayType2(element_type, element_count) }
-    }
-
-    pub fn build_gep(
-        &self,
-        llvm_type: LLVMTypeRef,
-        ptr: LLVMValueRef,
-        indices: *mut LLVMValueRef,
-        num_indices: ::libc::c_uint,
-        name: *const ::libc::c_char,
-    ) -> LLVMValueRef {
-        unsafe { LLVMBuildGEP2(self.builder, llvm_type, ptr, indices, num_indices, name) }
     }
 }
 
@@ -367,7 +165,7 @@ impl LLVMFunction {
         }
         // get correct function return type
         let function = LLVMAddFunction(
-            context.module,
+            context.codegen.module,
             cstr_from_string(&name).as_ptr(),
             function_type,
         );
@@ -379,9 +177,9 @@ impl LLVMFunction {
         };
         context.func_cache.set(&name, Box::new(func), context.depth);
 
-        let function_entry_block = context.append_basic_block(function, "entry");
+        let function_entry_block = context.codegen.append_basic_block(function, "entry");
 
-        let previous_func = context.current_function.clone();
+        let previous_func = context.codegen.current_function.clone();
         let mut new_function = LLVMFunction {
             function,
             func_type: function_type,
@@ -417,7 +215,7 @@ impl LLVMFunction {
                     Type::Bool => {
                         let val = LLVMGetParam(function, i as u32);
                         let bool_type = BoolType {
-                            builder: context.builder,
+                            builder: context.codegen.builder,
                             llvm_value: val,
                             llvm_value_pointer: val,
                             name: "bool_param".into(),
@@ -434,9 +232,9 @@ impl LLVMFunction {
             }
         }
 
-        context.current_function = new_function.clone();
+        context.codegen.current_function = new_function.clone();
 
-        context.position_builder_at_end(function_entry_block);
+        context.codegen.position_builder_at_end(function_entry_block);
 
         // Set func args here
         context.match_ast(body.clone())?;
@@ -444,7 +242,7 @@ impl LLVMFunction {
         // Delete func args here
         // // Check to see if there is a Return type
         if return_type == Type::None {
-            context.build_ret_void();
+            context.codegen.build_ret_void();
         }
 
         context.set_current_block(block);
@@ -458,7 +256,7 @@ impl LLVMFunction {
             context.depth,
         );
         //reset previous function
-        context.current_function = previous_func;
+        context.codegen.current_function = previous_func;
         Ok(new_function)
     }
 

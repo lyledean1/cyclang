@@ -1,6 +1,6 @@
-use crate::compiler::llvm::context::ASTContext;
-use crate::compiler::llvm::cstr_from_string;
-use crate::compiler::llvm::*;
+use crate::compiler::codegen::context::ASTContext;
+use crate::compiler::codegen::cstr_from_string;
+use crate::compiler::codegen::*;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 
 use cyclang_macros::{ArithmeticMacro, BaseMacro, ComparisonMacro};
@@ -25,9 +25,9 @@ impl TypeBase for NumberType64 {
             Some(val) => *val,
             None => panic!("The input value must be an i64"),
         };
-        let llvm_value = context.const_int(int64_type(), value_as_i64.try_into().unwrap(), 0);
+        let llvm_value = context.codegen.const_int(int64_type(), value_as_i64.try_into().unwrap(), 0);
         let llvm_value_pointer =
-            Some(context.build_alloca_store(llvm_value, int64_ptr_type(), &name));
+            Some(context.codegen.build_alloca_store(llvm_value, int64_ptr_type(), &name));
         Box::new(NumberType64 {
             name,
             llvm_value,

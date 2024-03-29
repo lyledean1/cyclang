@@ -47,24 +47,24 @@ fn generate_arithmetic_operation(
                 BaseTypes::Number | BaseTypes::Number64 => unsafe {
                     match (self.get_ptr(), _rhs.get_ptr()) {
                         (Some(ptr), Some(rhs_ptr)) => {
-                            let mut lhs_val = context.build_load(
+                            let mut lhs_val = context.codegen.build_load(
                                 ptr,
                                 self.get_llvm_type(),
                                 "rhs", //todo: fix with function to get name
                             );
-                            let mut rhs_val = context.build_load(
+                            let mut rhs_val = context.codegen.build_load(
                                 rhs_ptr,
                                 _rhs.get_llvm_type(),
                                 "lhs", //todo: fix with function to get name
                             );
 
                             // convert to i64 if mismatched types
-                            lhs_val = context.cast_i32_to_i64(lhs_val, rhs_val);
-                            rhs_val = context.cast_i32_to_i64(rhs_val, lhs_val);
+                            lhs_val = context.codegen.cast_i32_to_i64(lhs_val, rhs_val);
+                            rhs_val = context.codegen.cast_i32_to_i64(rhs_val, lhs_val);
 
                             let result =
-                                #llvm_fn_name(context.builder, lhs_val, rhs_val, cstr_from_string(#add_name).as_ptr());
-                            let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), "param_add");
+                                #llvm_fn_name(context.codegen.builder, lhs_val, rhs_val, cstr_from_string(#add_name).as_ptr());
+                            let alloca = context.codegen.build_alloca_store(result, self.get_llvm_ptr_type(), "param_add");
                             let name = self.get_name_as_str().to_string();
                             Box::new(#struct_name {
                                 name,
@@ -76,16 +76,16 @@ fn generate_arithmetic_operation(
                             let mut lhs_val = self.get_value();
                             let mut rhs_val = _rhs.get_value();
                             // convert to i64 if mismatched types
-                            lhs_val = context.cast_i32_to_i64(lhs_val, rhs_val);
-                            rhs_val = context.cast_i32_to_i64(rhs_val, lhs_val);
+                            lhs_val = context.codegen.cast_i32_to_i64(lhs_val, rhs_val);
+                            rhs_val = context.codegen.cast_i32_to_i64(rhs_val, lhs_val);
 
                             let result = #llvm_fn_name(
-                                context.builder,
+                                context.codegen.builder,
                                 lhs_val,
                                 rhs_val,
                                 cstr_from_string(#name).as_ptr(),
                             );
-                            let alloca = context.build_alloca_store(result, self.get_llvm_ptr_type(), "param_add");
+                            let alloca = context.codegen.build_alloca_store(result, self.get_llvm_ptr_type(), "param_add");
                             let name = self.get_name_as_str().to_string();
 
                             //TODO: fix the new instruction

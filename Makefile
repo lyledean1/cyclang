@@ -5,7 +5,7 @@ all: hooks install build
 run:
 	./bin/main
 
-#run clang on the llvm ir to generate a binary 
+#run clang on the codegen ir to generate a binary
 build-ir:
 	clang ./bin/main.ll -o ./bin/main
 

@@ -1,8 +1,8 @@
 // These are inbuilt LLVM functions used as helpers inside the code
-use crate::compiler::llvm::context::LLVMFunction;
-use crate::compiler::llvm::context::LLVMFunctionCache;
-use crate::compiler::llvm::cstr_from_string;
-use crate::compiler::llvm::*;
+use crate::compiler::codegen::context::LLVMFunction;
+use crate::compiler::codegen::context::LLVMFunctionCache;
+use crate::compiler::codegen::cstr_from_string;
+use crate::compiler::codegen::*;
 use crate::parser::Type;
 use std::collections::HashMap;
 
