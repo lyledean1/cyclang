@@ -1,4 +1,4 @@
-use crate::compiler::codegen::context::ASTContext;
+use crate::compiler::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 

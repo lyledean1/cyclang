@@ -15,7 +15,7 @@ use llvm_sys::core::LLVMGetValueName;
 use std::any::Any;
 use std::ffi::CStr;
 
-use crate::{compiler::codegen::context::ASTContext, parser::Expression};
+use crate::parser::Expression;
 use dyn_clone::DynClone;
 extern crate libc;
 use libc::c_char;
@@ -24,6 +24,7 @@ extern crate llvm_sys;
 use crate::compiler::codegen::{
     int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type, int8_type,
 };
+use crate::compiler::context::ASTContext;
 
 use anyhow::anyhow;
 use anyhow::Result;

@@ -8,6 +8,7 @@ use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, Type
 use anyhow::Result;
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
+use crate::compiler::context::ASTContext;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution
@@ -34,7 +35,7 @@ impl Comparison for FuncType {}
 impl Func for FuncType {
     fn call(
         &self,
-        context: &mut crate::compiler::codegen::context::ASTContext,
+        context: &mut ASTContext,
         args: Vec<Expression>,
     ) -> Result<Box<dyn TypeBase>> {
         unsafe {
