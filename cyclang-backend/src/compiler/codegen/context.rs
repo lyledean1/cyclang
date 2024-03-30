@@ -10,8 +10,8 @@ extern crate llvm_sys;
 use crate::compiler::context::ASTContext;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
-use cyclang_parser::{Expression, Type};
 use anyhow::Result;
+use cyclang_parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
@@ -48,7 +48,8 @@ impl LLVMFunction {
         block: LLVMBasicBlockRef,
     ) -> Result<Self> {
         unsafe {
-            let param_types: &mut Vec<*mut LLVMType> = &mut LLVMFunction::get_arg_types(args.clone());
+            let param_types: &mut Vec<*mut LLVMType> =
+                &mut LLVMFunction::get_arg_types(args.clone());
 
             let mut function_type = LLVMFunctionType(
                 LLVMVoidType(),
@@ -59,16 +60,28 @@ impl LLVMFunction {
 
             match return_type {
                 Type::i32 => {
-                    function_type =
-                        LLVMFunctionType(int32_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
+                    function_type = LLVMFunctionType(
+                        int32_type(),
+                        param_types.as_mut_ptr(),
+                        args.len() as u32,
+                        0,
+                    );
                 }
                 Type::i64 => {
-                    function_type =
-                        LLVMFunctionType(int64_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
+                    function_type = LLVMFunctionType(
+                        int64_type(),
+                        param_types.as_mut_ptr(),
+                        args.len() as u32,
+                        0,
+                    );
                 }
                 Type::Bool => {
-                    function_type =
-                        LLVMFunctionType(int1_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
+                    function_type = LLVMFunctionType(
+                        int1_type(),
+                        param_types.as_mut_ptr(),
+                        args.len() as u32,
+                        0,
+                    );
                 }
                 Type::None => {
                     // skip

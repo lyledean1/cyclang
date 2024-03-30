@@ -1,6 +1,6 @@
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::codegen::context::LLVMFunction;
-use crate::compiler::codegen::{cstr_from_string, int64_type, var_type_str};
+use crate::compiler::codegen::{cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::list::ListType;
@@ -10,15 +10,21 @@ use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
+use crate::compiler::visitor::Visitor;
 use crate::compiler::CompileOptions;
+use crate::compiler::Expression;
+use anyhow::Result;
 use anyhow::anyhow;
+use libc::c_ulonglong;
 use std::collections::HashMap;
-use crate::compiler::{Expression};
+use std::ffi::CString;
+use llvm_sys::core::{LLVMBuildPointerCast, LLVMConstStringInContext, LLVMInt8Type, LLVMPointerType};
 
 pub struct ASTContext {
     pub var_cache: VariableCache,
     pub func_cache: VariableCache,
     pub codegen: LLVMCodegenBuilder,
+    pub visitor: Box<dyn Visitor<Box<dyn TypeBase>>>,
     pub depth: i32,
 }
 
@@ -60,12 +66,7 @@ impl VariableCache {
     pub fn set(&mut self, key: &str, trait_object: Box<dyn TypeBase>, depth: i32) {
         let mut locals: HashMap<i32, bool> = HashMap::new();
         locals.insert(depth, true);
-        self.map.insert(
-            key.to_string(),
-            Container {
-                trait_object,
-            },
-        );
+        self.map.insert(key.to_string(), Container { trait_object });
         match self.local.get(&depth) {
             Some(val) => {
                 let mut val_clone = val.clone();
@@ -105,7 +106,10 @@ impl ASTContext {
         let var_cache = VariableCache::new();
         let func_cache = VariableCache::new();
         let codegen = LLVMCodegenBuilder::init(compile_options)?;
+        //TODO: remove
+        let visitor = Box::new(LLVMCodegenVisitor {});
         Ok(ASTContext {
+            visitor,
             var_cache,
             func_cache,
             depth: 0,
@@ -113,60 +117,13 @@ impl ASTContext {
         })
     }
 
-    //TODO: figure a better way to create a named variable in the LLVM IR
-    fn try_match_with_var(
-        &mut self,
-        name: String,
-        input: Expression,
-    ) -> anyhow::Result<Box<dyn TypeBase>> {
+    pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>> {
         match input {
-            Expression::Number(input) => Ok(NumberType::new(Box::new(input), name, self)),
-            Expression::String(input) => Ok(StringType::new(
-                Box::new(input),
-                var_type_str(name, "str_var".to_string()),
-                self,
-            )),
-            Expression::Bool(input) => Ok(BoolType::new(
-                Box::new(input),
-                var_type_str(name, "bool_var".to_string()),
-                self,
-            )),
-            _ => {
-                // just return without var
-                self.match_ast(input)
-            }
-        }
-    }
-
-    pub fn match_ast(&mut self, input: Expression) -> anyhow::Result<Box<dyn TypeBase>> {
-        match input {
-            Expression::Number(input) => {
-                Ok(NumberType::new(Box::new(input), "num".to_string(), self))
-            }
-            Expression::Number64(input) => Ok(NumberType64::new(
-                Box::new(input),
-                "num64".to_string(),
-                self,
-            )),
-            Expression::String(input) => {
-                Ok(StringType::new(Box::new(input), "str".to_string(), self))
-            }
-            Expression::Bool(input) => Ok(BoolType::new(Box::new(input), "bool".to_string(), self)),
-            Expression::Variable(input) => {
-                match self.codegen.current_function.symbol_table.get(&input) {
-                    Some(val) => Ok(val.clone()),
-                    None => {
-                        // check if variable is in function
-                        // TODO: should this be reversed i.e check func var first then global
-                        match self.var_cache.get(&input) {
-                            Some(val) => Ok(val),
-                            None => {
-                                Err(anyhow!(format!("Unknown variable {}", input)))
-                            }
-                        }
-                    }
-                }
-            }
+            Expression::Number(_) => self.visitor.visit_number(&input, &self.codegen),
+            Expression::Number64(_) => self.visitor.visit_number(&input, &self.codegen),
+            Expression::String(_) => self.visitor.visit_string(&input, &self.codegen),
+            Expression::Bool(_) => self.visitor.visit_bool(&input, &self.codegen),
+            Expression::Variable(_) => self.visitor.visit_variable(&input, &self.codegen, &self.var_cache),
             Expression::List(v) => {
                 let mut vec_expr = vec![];
                 for x in v {
@@ -191,7 +148,7 @@ impl ASTContext {
                     llvm_value_ptr: array_ptr,
                     llvm_type: llvm_array_type,
                 }))
-            }
+            },
             Expression::ListIndex(v, i) => {
                 let name = cstr_from_string("access_array").as_ptr();
                 let val = self.match_ast(*v)?;
@@ -310,7 +267,7 @@ impl ASTContext {
                         Ok(val)
                     }
                     _ => {
-                        let lhs = self.try_match_with_var(var.clone(), *lhs)?;
+                        let lhs = self.match_ast( *lhs)?;
                         self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
                         Ok(lhs)
                     }
@@ -372,7 +329,7 @@ impl ASTContext {
                 //TODO: fix this so its an associated function
                 LLVMCodegenBuilder::new_while_stmt(self, *condition, *while_block_stmt)
             }
-            Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {                //TODO: fix this so its an associated function
+            Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
                 //TODO: fix this so its an associated function
                 LLVMCodegenBuilder::new_for_loop(self, var_name, init, length, increment, *for_block_expr)
             }
@@ -392,5 +349,129 @@ impl ASTContext {
     pub fn dispose_and_get_module_str(&self) -> anyhow::Result<String> {
         //TODO: should this live here?
         self.codegen.dispose_and_get_module_str()
+    }
+}
+
+struct LLVMCodegenVisitor {
+    // codegen: LLVMCodegenBuilder,
+    // var_cache: VariableCache,
+}
+impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
+    fn visit_number(
+        &mut self,
+        left: &Expression,
+        codegen: &LLVMCodegenBuilder,
+    ) -> Result<Box<dyn TypeBase>> {
+        match left {
+            Expression::Number(val) => {
+                let name = "num32";
+                let c_val = *val as c_ulonglong;
+                let value = codegen.const_int(int32_type(), c_val, 0);
+                let ptr = codegen.build_alloca_store(value, int32_ptr_type(), name);
+                Ok(Box::new(NumberType {
+                    name: name.to_string(),
+                    llvm_value: value,
+                    llvm_value_pointer: Some(ptr),
+                }))
+            }
+            Expression::Number64(val) => {
+                let name = "num64";
+                let c_val = *val as c_ulonglong;
+                let value = codegen.const_int(int64_type(), c_val, 0);
+                let ptr = codegen.build_alloca_store(value, int64_ptr_type(), name);
+                Ok(Box::new(NumberType64 {
+                    name: name.to_string(),
+                    llvm_value: value,
+                    llvm_value_pointer: Some(ptr),
+                }))
+            }
+            _=> {
+                Err(anyhow!("type is not a number (i32,i64)"))
+
+            }
+        }
+    }
+
+    fn visit_string(&mut self, left: &Expression, codegen: &LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
+        if let Expression::String(val) = left {
+            let name = "str_val";
+            let string: CString = CString::new(val.clone()).unwrap();
+            unsafe {
+                let value = LLVMConstStringInContext(
+                    codegen.context,
+                    string.as_ptr(),
+                    string.as_bytes().len() as u32,
+                    0,
+                );
+                let mut len_value: usize = string.as_bytes().len();
+                let ptr: *mut usize = (&mut len_value) as *mut usize;
+                let buffer_ptr = LLVMBuildPointerCast(
+                    codegen.builder,
+                    value,
+                    LLVMPointerType(LLVMInt8Type(), 0),
+                    cstr_from_string(name).as_ptr(),
+                );
+                return Ok(Box::new(StringType {
+                    name: name.to_string(),
+                    length: ptr,
+                    llvm_value: value,
+                    llvm_value_pointer: Some(buffer_ptr),
+                    str_value: val.to_string(), // fix
+                }))
+            }
+        }
+        Err(anyhow!("type is not a string"))
+    }
+
+    fn visit_bool(&mut self, left: &Expression, codegen: &LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
+        if let Expression::Bool(val) = left {
+            let value = *val;
+            let name = "bool_value";
+            let bool_value =
+                codegen
+                .const_int(int1_type(), value.into(), 0);
+            let alloca =
+                codegen
+                .build_alloca_store(bool_value, int1_type(), name);
+            return Ok(Box::new(BoolType {
+                name: name.parse()?,
+                builder: codegen.builder,
+                llvm_value: bool_value,
+                llvm_value_pointer: alloca,
+            }))
+        }
+        Err(anyhow!("type is not a bool"))
+    }
+
+    fn visit_variable(&mut self, left: &Expression, codegen: &LLVMCodegenBuilder, var_cache: &VariableCache) -> Result<Box<dyn TypeBase>> {
+        if let Expression::Variable(input) = left {
+            return match codegen.current_function.symbol_table.get(input) {
+                Some(val) => Ok(val.clone()),
+                None => {
+                    // check if variable is in function
+                    // TODO: should this be reversed i.e check func var first then global
+                    match var_cache.get(input) {
+                        Some(val) => Ok(val),
+                        None => {
+                            Err(anyhow!(format!("Unknown variable {}", input)))
+                        }
+                    }
+                }
+            }
+        }
+        Err(anyhow!("type is not an i32"))
+    }
+
+    fn visit_binary(
+        &mut self,
+        _left: &Expression,
+        _operator: &str,
+        _right: &Expression,
+    ) -> Result<Box<dyn TypeBase>> {
+        todo!()
+    }
+
+    fn visit_list(&mut self, _left: &Expression, _codegen: &LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
+        todo!()
     }
 }

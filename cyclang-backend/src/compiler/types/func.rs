@@ -6,9 +6,9 @@ use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 use anyhow::Result;
+use cyclang_parser::{Expression, Type};
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
-use cyclang_parser::{Expression, Type};
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution

@@ -27,8 +27,8 @@ use crate::compiler::context::ASTContext;
 
 use anyhow::anyhow;
 use anyhow::Result;
+use cyclang_parser::Expression;
 use llvm_sys::prelude::*;
-use cyclang_parser::{Expression};
 
 #[derive(Debug, PartialEq)]
 pub enum BaseTypes {
@@ -101,9 +101,7 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
         Ok(())
     }
     fn get_name(&self) -> *const c_char {
-        unsafe {
-            LLVMGetValueName(self.get_value())
-        }
+        unsafe { LLVMGetValueName(self.get_value()) }
     }
 
     fn get_name_as_str(&self) -> &str {

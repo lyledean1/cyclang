@@ -8,6 +8,7 @@ extern crate llvm_sys;
 pub mod codegen;
 pub mod context;
 pub mod types;
+pub mod visitor;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CompileOptions {

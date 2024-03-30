@@ -6,8 +6,8 @@ use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::CompileOptions;
-use cyclang_parser::{Expression, Type};
 use anyhow::Result;
+use cyclang_parser::{Expression, Type};
 use libc::c_uint;
 use llvm_sys::core::{
     LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
@@ -139,7 +139,7 @@ impl LLVMCodegenBuilder {
 
     pub fn dispose_and_get_module_str(&self) -> Result<String> {
         unsafe {
-            LLVMBuildRetVoid(self.builder);
+            self.build_ret_void();
 
             // Run execution engine
             let mut engine = ptr::null_mut();

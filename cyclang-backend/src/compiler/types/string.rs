@@ -3,7 +3,6 @@ use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
 
 use cyclang_macros::BaseMacro;
-use std::any::Any;
 use std::ffi::CString;
 
 extern crate llvm_sys;
@@ -16,11 +15,11 @@ use llvm_sys::prelude::*;
 #[derive(Debug, Clone, BaseMacro)]
 #[base_type("BaseTypes::String")]
 pub struct StringType {
-    name: String,
-    llvm_value: LLVMValueRef,
-    length: *mut usize,
-    llvm_value_pointer: Option<LLVMValueRef>,
-    str_value: String,
+    pub name: String,
+    pub llvm_value: LLVMValueRef,
+    pub length: *mut usize,
+    pub llvm_value_pointer: Option<LLVMValueRef>,
+    pub str_value: String,
 }
 
 impl Comparison for StringType {
@@ -106,39 +105,6 @@ impl Arithmetic for StringType {
 }
 
 impl TypeBase for StringType {
-    fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
-    where
-        Self: Sized,
-    {
-        let value_as_string = match _value.downcast_ref::<String>() {
-            Some(val) => val.to_string(),
-            None => panic!("The input value must be a string"),
-        };
-        let string: CString = CString::new(value_as_string.clone()).unwrap();
-        unsafe {
-            let value = LLVMConstStringInContext(
-                _context.codegen.context,
-                string.as_ptr(),
-                string.as_bytes().len() as u32,
-                0,
-            );
-            let mut len_value: usize = string.as_bytes().len();
-            let ptr: *mut usize = (&mut len_value) as *mut usize;
-            let buffer_ptr = LLVMBuildPointerCast(
-                _context.codegen.builder,
-                value,
-                LLVMPointerType(LLVMInt8Type(), 0),
-                cstr_from_string(_name.as_str()).as_ptr(),
-            );
-            Box::new(StringType {
-                name: _name,
-                length: ptr,
-                llvm_value: value,
-                llvm_value_pointer: Some(buffer_ptr),
-                str_value: value_as_string, // fix
-            })
-        }
-    }
     fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Result<()> {
         // TODO - add string implementation for assigning variable
         unimplemented!()
