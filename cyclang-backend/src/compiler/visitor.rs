@@ -2,6 +2,7 @@ use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use anyhow::Result;
 use cyclang_parser::Expression;
 use crate::compiler::context::{VariableCache};
+use crate::compiler::types::TypeBase;
 
 pub trait Visitor<T> {
     fn visit_number(&mut self, expression: &Expression, codegen: &LLVMCodegenBuilder) -> Result<T>;
@@ -15,8 +16,7 @@ pub trait Visitor<T> {
     fn visit_binary(
         &mut self,
         left: &Expression,
-        operator: &str,
-        right: &Expression,
-    ) -> Result<T>;
-    fn visit_list(&mut self, expressions: &Expression, codegen: &LLVMCodegenBuilder) -> Result<T>;
+        codegen: &LLVMCodegenBuilder,
+    ) -> Result<Box<dyn TypeBase>> ;
+    fn visit_list(&mut self, left: &Expression, codegen: &LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>>;
 }

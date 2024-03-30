@@ -117,7 +117,8 @@ impl ASTContext {
         })
     }
 
-    pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>> {
+    pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>>
+    {
         match input {
             Expression::Number(_) => self.visitor.visit_number(&input, &self.codegen),
             Expression::Number64(_) => self.visitor.visit_number(&input, &self.codegen),
@@ -356,6 +357,7 @@ struct LLVMCodegenVisitor {
     // codegen: LLVMCodegenBuilder,
     // var_cache: VariableCache,
 }
+
 impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     fn visit_number(
         &mut self,
@@ -464,14 +466,17 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
 
     fn visit_binary(
         &mut self,
-        _left: &Expression,
-        _operator: &str,
-        _right: &Expression,
+        left: &Expression,
+        codegen: &LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
-        todo!()
+        unimplemented!()
     }
 
-    fn visit_list(&mut self, _left: &Expression, _codegen: &LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
-        todo!()
+    fn visit_list(&mut self, left: &Expression, codegen: &LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>>
+    {
+        if let Expression::List(v) = left {
+            unimplemented!()
+        }
+        Err(anyhow!("unable to visit list"))
     }
 }
