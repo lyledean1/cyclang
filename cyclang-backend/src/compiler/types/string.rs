@@ -1,8 +1,6 @@
 use crate::compiler::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
-
-use cyclang_macros::BaseMacro;
 use std::ffi::CString;
 
 extern crate llvm_sys;
@@ -12,8 +10,7 @@ use anyhow::Result;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
-#[derive(Debug, Clone, BaseMacro)]
-#[base_type("BaseTypes::String")]
+#[derive(Debug, Clone)]
 pub struct StringType {
     pub name: String,
     pub llvm_value: LLVMValueRef,
@@ -21,6 +18,10 @@ pub struct StringType {
     pub llvm_value_pointer: Option<LLVMValueRef>,
     pub str_value: String,
 }
+
+impl Base for StringType
+{ fn get_type(& self) -> BaseTypes { BaseTypes :: String } }
+
 
 impl Comparison for StringType {
     fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
