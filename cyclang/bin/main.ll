@@ -9,11 +9,13 @@ source_filename = "main"
 
 define void @main() {
 main:
-  %bool_value = alloca i1, align 1
-  store i1 true, ptr %bool_value, align 1
-  %0 = load i1, ptr %bool_value, align 1
-  %1 = call ptr @bool_to_str(i1 %0)
-  call void (ptr, ...) @printf(ptr %1)
+  %num32 = alloca ptr, align 8
+  store i32 20, ptr %num32, align 4
+  %call_arg = load i32, ptr %num32, align 4
+  %0 = call i32 @fib(i32 %call_arg)
+  %call_value_int32 = alloca ptr, align 8
+  store i32 %0, ptr %call_value_int32, align 4
+  call void (ptr, ...) @printf(ptr @number_printf_val, i32 %0)
   ret void
 }
 
@@ -31,3 +33,44 @@ else:                                             ; preds = %entry
 declare void @printf(ptr, ...)
 
 declare ptr @sprintf(ptr, ptr, ptr, ptr, ...)
+
+define i32 @fib(i32 %0) {
+entry:
+  %num32 = alloca ptr, align 8
+  store i32 2, ptr %num32, align 4
+  %result = icmp slt i32 %0, 2
+  %bool_cmp = alloca i1, align 1
+  store i1 %result, ptr %bool_cmp, align 1
+  %cmp = load i1, ptr %bool_cmp, align 1
+  br i1 %cmp, label %then_block, label %else_block
+
+then_block:                                       ; preds = %entry
+  ret i32 %0
+
+merge_block:                                      ; preds = %else_block
+  %num321 = alloca ptr, align 8
+  store i32 1, ptr %num321, align 4
+  %subNumberType = sub i32 %0, 1
+  %param_add = alloca ptr, align 8
+  store i32 %subNumberType, ptr %param_add, align 4
+  %call_arg = load i32, ptr %param_add, align 4
+  %1 = call i32 @fib(i32 %call_arg)
+  %call_value_int32 = alloca ptr, align 8
+  store i32 %1, ptr %call_value_int32, align 4
+  %num322 = alloca ptr, align 8
+  store i32 2, ptr %num322, align 4
+  %subNumberType3 = sub i32 %0, 2
+  %param_add4 = alloca ptr, align 8
+  store i32 %subNumberType3, ptr %param_add4, align 4
+  %call_arg5 = load i32, ptr %param_add4, align 4
+  %2 = call i32 @fib(i32 %call_arg5)
+  %call_value_int326 = alloca ptr, align 8
+  store i32 %2, ptr %call_value_int326, align 4
+  %addNumberType = add i32 %1, %2
+  %param_add7 = alloca ptr, align 8
+  store i32 %addNumberType, ptr %param_add7, align 4
+  ret i32 %addNumberType
+
+else_block:                                       ; preds = %entry
+  br label %merge_block
+}

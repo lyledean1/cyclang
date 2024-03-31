@@ -105,5 +105,9 @@ impl TypeBase for FuncType {
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_func
     }
-    fn get_type(& self) -> BaseTypes { BaseTypes :: Bool }
+    fn get_type(& self) -> BaseTypes { BaseTypes :: Func }
+
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        self.llvm_type
+    }
 }
