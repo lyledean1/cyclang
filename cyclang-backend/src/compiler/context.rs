@@ -152,10 +152,7 @@ impl ASTContext {
     }
 }
 
-pub struct LLVMCodegenVisitor {
-    // codegen: LLVMCodegenBuilder,
-    // var_cache: VariableCache,
-}
+pub struct LLVMCodegenVisitor {}
 
 impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     fn visit_number(
@@ -372,6 +369,10 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("unable to assign variable for list"))
     }
 
+    fn visit_nil(&mut self) -> Result<Box<dyn TypeBase>> {
+        todo!()
+    }
+
     fn visit_binary_stmt(
         &mut self,
         left: &Expression,
@@ -404,10 +405,6 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             return context.match_ast(*val, &mut visitor, codegen);
         }
         Err(anyhow!("unable to apply grouping"))
-    }
-
-    fn visit_nil(&mut self) -> Result<Box<dyn TypeBase>> {
-        todo!()
     }
 
     fn visit_let_stmt(
