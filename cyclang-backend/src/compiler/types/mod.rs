@@ -20,10 +20,7 @@ extern crate libc;
 use libc::c_char;
 
 extern crate llvm_sys;
-use crate::compiler::codegen::{
-    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type,
-    int8_ptr_type, int8_type,
-};
+use crate::compiler::codegen::{int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type, int8_ptr_type, int8_type};
 use crate::compiler::context::ASTContext;
 
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
@@ -100,7 +97,7 @@ pub trait TypeBase: DynClone + Func {
         }
     }
 
-    fn print(&self, context: &mut ASTContext, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
+    fn print(&self, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
         let print_args: Vec<LLVMValueRef> = vec![
             codegen.get_printf_str(self.get_type()),
             self.get_value_for_printf(codegen),
@@ -130,7 +127,7 @@ pub trait TypeBase: DynClone + Func {
             BaseTypes::String => int8_ptr_type(),
             BaseTypes::Bool => int1_ptr_type(),
             BaseTypes::Number => int32_ptr_type(),
-            BaseTypes::Number64 => int64_type(),
+            BaseTypes::Number64 => int64_ptr_type(),
             _ => {
                 unreachable!("LLVMType for Type {:?} not found", self.get_type())
             }
@@ -141,10 +138,10 @@ pub trait TypeBase: DynClone + Func {
 pub trait Func {
     fn call(
         &self,
-        context: &mut ASTContext,
-        args: Vec<Expression>,
-        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
-        codegen: &mut LLVMCodegenBuilder,
+        _context: &mut ASTContext,
+        _args: Vec<Expression>,
+        _visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
+        _codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
         unimplemented!("type does not implement call")
     }

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 extern crate llvm_sys;
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::context::ASTContext;
+use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
 use crate::compiler::visitor::Visitor;
@@ -48,10 +48,10 @@ impl LLVMFunction {
         return_type: Type,
         body: Expression,
         block: LLVMBasicBlockRef,
-        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
         codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Self> {
         unsafe {
+            let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
             let param_types: &mut Vec<*mut LLVMType> =
                 &mut LLVMFunction::get_arg_types(args.clone());
 
@@ -168,7 +168,7 @@ impl LLVMFunction {
             codegen.position_builder_at_end(function_entry_block);
 
             // Set func args here
-            context.match_ast(body.clone(), visitor, codegen)?;
+            context.match_ast(body.clone(), &mut visitor, codegen)?;
 
             // Delete func args here
             // // Check to see if there is a Return type

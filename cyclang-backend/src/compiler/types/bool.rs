@@ -1,6 +1,4 @@
 use crate::compiler::codegen::*;
-use crate::compiler::context::ASTContext;
-use std::any::Any;
 
 extern crate llvm_sys;
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
@@ -35,7 +33,7 @@ impl TypeBase for BoolType {
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         Some(self.llvm_value_pointer)
     }
-    fn print(&self, astcontext: &mut ASTContext, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
+    fn print(&self, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
         let bool_func_args = get_value_for_print_argument(codegen, "", self.clone());
 
         let bool_to_string_func = codegen

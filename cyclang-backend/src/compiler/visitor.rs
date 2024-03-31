@@ -3,7 +3,6 @@ use crate::compiler::context::{ASTContext, VariableCache};
 use crate::compiler::types::TypeBase;
 use anyhow::Result;
 use cyclang_parser::Expression;
-use std::task::Context;
 
 pub trait Visitor<T> {
     fn visit_number(&mut self, expression: &Expression, codegen: &LLVMCodegenBuilder) -> Result<T>;

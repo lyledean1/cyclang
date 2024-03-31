@@ -1,7 +1,4 @@
-use crate::compiler::codegen::*;
-use crate::compiler::context::ASTContext;
 use crate::compiler::types::{BaseTypes, Func, TypeBase};
-use std::any::Any;
 
 extern crate llvm_sys;
 use llvm_sys::prelude::*;

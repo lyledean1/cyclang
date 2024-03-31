@@ -1,6 +1,6 @@
 use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
-use crate::compiler::codegen::{cstr_from_string, int1_type, int64_type, int8_ptr_type};
-use crate::compiler::context::ASTContext;
+use crate::compiler::codegen::{cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type};
+use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::return_type::ReturnType;
@@ -11,7 +11,7 @@ use crate::compiler::visitor::Visitor;
 use crate::compiler::CompileOptions;
 use anyhow::Result;
 use cyclang_parser::{Expression, Type};
-use libc::c_uint;
+use libc::{c_uint, c_ulonglong};
 use llvm_sys::core::{
     LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
     LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
@@ -541,10 +541,10 @@ impl LLVMCodegenBuilder {
         length: i32,
         increment: i32,
         for_block_expr: Expression,
-        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
         codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
         unsafe {
+            let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor{});
             let for_block = codegen.current_function.block;
             let function = codegen.current_function.function;
             codegen.set_current_block(for_block);
@@ -553,7 +553,16 @@ impl LLVMCodegenBuilder {
             let loop_body_block = codegen.append_basic_block(function, "loop_body");
             let loop_exit_block = codegen.append_basic_block(function, "loop_exit");
 
-            let i: Box<dyn TypeBase> = NumberType::new(Box::new(init), "i".to_string(), context);
+            // todo: REMOVE duplicated code for init variable
+            let name = "num32";
+            let c_val = init as c_ulonglong;
+            let value = codegen.const_int(int32_type(), c_val, 0);
+            let ptr = codegen.build_alloca_store(value, int32_ptr_type(), name);
+            let i = Box::new(NumberType {
+                name: name.to_string(),
+                llvm_value: value,
+                llvm_value_pointer: Some(ptr),
+            });
 
             let value = i.get_value();
             let ptr = i.get_ptr();
@@ -599,7 +608,7 @@ impl LLVMCodegenBuilder {
 
             // Build loop body block
             codegen.set_current_block(loop_body_block);
-            let for_block_cond = context.match_ast(for_block_expr, visitor, codegen)?;
+            let for_block_cond = context.match_ast(for_block_expr, &mut visitor, codegen)?;
             let lhs_val =
                 codegen.build_load(ptr.unwrap(), LLVMInt32TypeInContext(codegen.context), "i");
 

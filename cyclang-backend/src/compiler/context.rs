@@ -341,7 +341,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::ListAssign(var, i, rhs) = left {
-            match context.var_cache.get(&var) {
+            match context.var_cache.get(var) {
                 Some(val) => {
                     let name = cstr_from_string("access_array").as_ptr();
                     let lhs: Box<dyn TypeBase> =
@@ -418,7 +418,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::LetStmt(var, _, lhs) = left {
-            match context.var_cache.get(&var) {
+            match context.var_cache.get(var) {
                 Some(mut val) => {
                     // Check Variables are the same Type
                     // Then Update the value of the old variable
@@ -476,7 +476,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::CallStmt(name, args) = left {
-            return match context.func_cache.get(&name) {
+            return match context.func_cache.get(name) {
                 Some(val) => {
                     let call_val = val.call(context, args.clone(), &mut visitor, codegen)?;
                     context
@@ -496,7 +496,6 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>> {
-        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::FuncStmt(name, args, _return_type, body) = left {
             let llvm_func = LLVMFunction::new(
                 context,
@@ -505,7 +504,6 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 _return_type.clone(),
                 *body.clone(),
                 codegen.current_function.block,
-                &mut visitor,
                 codegen,
             )?;
 
@@ -517,7 +515,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             // Set Func as a variable
             context
                 .func_cache
-                .set(&name, Box::new(func.clone()), context.depth);
+                .set(name, Box::new(func.clone()), context.depth);
             return Ok(Box::new(func));
         }
         Err(anyhow!("unable to visit func stmt"))
@@ -572,7 +570,6 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>> {
-        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::ForStmt(var_name, init, length, increment, for_block_expr) = left {
             //TODO: fix this so its an associated function
             return LLVMCodegenBuilder::new_for_loop(
@@ -582,7 +579,6 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 *length,
                 *increment,
                 *for_block_expr.clone(),
-                &mut visitor,
                 codegen,
             );
         }
@@ -598,7 +594,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::Print(input) = left {
             let expression_value = context.match_ast(*input.clone(), &mut visitor, codegen)?;
-            expression_value.print(context, codegen)?;
+            expression_value.print(codegen)?;
             return Ok(expression_value);
         }
         Err(anyhow!("unable to visit print stmt"))

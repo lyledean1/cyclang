@@ -1,4 +1,3 @@
-use crate::compiler::context::ASTContext;
 use crate::compiler::types::{BaseTypes, Func, TypeBase};
 
 extern crate llvm_sys;
@@ -40,7 +39,7 @@ impl TypeBase for StringType {
     fn get_str(&self) -> String {
         self.str_value.clone()
     }
-    fn print(&self, context: &mut ASTContext, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
+    fn print(&self, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
         unsafe {
             // Set Value
             // create string vairables and then function
