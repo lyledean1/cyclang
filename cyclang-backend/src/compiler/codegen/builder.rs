@@ -9,16 +9,7 @@ use crate::compiler::CompileOptions;
 use anyhow::Result;
 use cyclang_parser::{Expression, Type};
 use libc::c_uint;
-use llvm_sys::core::{
-    LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
-    LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
-    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildRet, LLVMBuildRetVoid,
-    LLVMBuildSExt, LLVMBuildStore, LLVMConstArray2, LLVMConstInt, LLVMContextCreate,
-    LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage,
-    LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetParam, LLVMInt32TypeInContext,
-    LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd,
-    LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext,
-};
+use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildPointerCast, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSExt, LLVMBuildStore, LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetParam, LLVMInt32TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
 use llvm_sys::execution_engine::{
     LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
     LLVMLinkInMCJIT,
@@ -30,8 +21,12 @@ use llvm_sys::prelude::{
 use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget};
 use llvm_sys::LLVMIntPredicate;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
+use llvm_sys::LLVMIntPredicate::LLVMIntEQ;
+use crate::compiler::types::bool::BoolType;
+use crate::compiler::types::string::StringType;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -736,6 +731,172 @@ impl LLVMCodegenBuilder {
             symbol_table: HashMap::new(),
             args: vec![],
             return_type: Type::Bool, // ignore
+        }
+    }
+
+    pub fn add(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>) -> Result<Box<dyn TypeBase>> {
+        match rhs.get_type() {
+            BaseTypes::String => match self.llvm_func_cache.get("sprintf") {
+                Some(_sprintf_func) => unsafe {
+                    // TODO: Use sprintf to concatenate two strings
+                    // Remove extra quotes
+                    let new_string =
+                        format!("{}{}", lhs.get_str(), rhs.get_str()).replace('\"', "");
+
+                    let string = CString::new(new_string.clone()).unwrap();
+                    let value = LLVMConstStringInContext(
+                        self.context,
+                        string.as_ptr(),
+                        string.as_bytes().len() as u32,
+                        0,
+                    );
+                    let mut len_value: usize = string.as_bytes().len();
+                    let ptr: *mut usize = (&mut len_value) as *mut usize;
+                    let buffer_ptr = LLVMBuildPointerCast(
+                        self.builder,
+                        value,
+                        LLVMPointerType(LLVMInt8Type(), 0),
+                        cstr_from_string("buffer_ptr").as_ptr(),
+                    );
+                    Ok(Box::new(StringType {
+                        name: lhs.get_name_as_str().to_string(),
+                        length: ptr,
+                        llvm_value: value,
+                        llvm_value_pointer: Some(buffer_ptr),
+                        str_value: new_string,
+                    }))
+                },
+                _ => {
+                    unreachable!()
+                }
+            }
+            BaseTypes::Number | BaseTypes::Number64 => unsafe {
+                match (lhs.get_ptr(), rhs.get_ptr()) {
+                    (Some(ptr), Some(rhs_ptr)) => {
+                        let mut lhs_val =
+                            self.build_load(ptr, lhs.get_llvm_type(), "lhs");
+                        let mut rhs_val =
+                            self
+                                .build_load(rhs_ptr, rhs.get_llvm_type(), "rhs");
+                        lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
+                        rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
+                        let result = LLVMBuildAdd(
+                            self.builder,
+                            lhs_val,
+                            rhs_val,
+                            cstr_from_string("addNumberType").as_ptr(),
+                        );
+                        let alloca = self.build_alloca_store(
+                            result,
+                            lhs.get_llvm_ptr_type(),
+                            "param_add",
+                        );
+                        let name = lhs.get_name_as_str().to_string();
+                        Ok(Box::new(NumberType {
+                            name,
+                            llvm_value: result,
+                            llvm_value_pointer: Some(alloca),
+                        }))
+                    }
+                    _ => {
+                        let mut lhs_val = lhs.get_value();
+                        let mut rhs_val = rhs.get_value();
+                        lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
+                        rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
+                        let result = LLVMBuildAdd(
+                            self.builder,
+                            lhs_val,
+                            rhs_val,
+                            cstr_from_string("add").as_ptr(),
+                        );
+                        let alloca = self.build_alloca_store(
+                            result,
+                            lhs.get_llvm_ptr_type(),
+                            "param_add",
+                        );
+                        let name = lhs.get_name_as_str().to_string();
+                        Ok(Box::new(NumberType {
+                            name,
+                            llvm_value: result,
+                            llvm_value_pointer: Some(alloca),
+                        }))
+                    }
+                }
+            },
+            _ => {
+                unreachable!(
+                    "Can't {} type {:?} and type {:?}",
+                    stringify!("add"),
+                    lhs.get_type(),
+                    rhs.get_type()
+                )
+            }
+        }
+    }
+
+    pub fn eqeq_primitive(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>) -> Result<Box<dyn TypeBase>> {
+        match rhs.get_type() {
+            BaseTypes::Number | BaseTypes::Bool => {}
+            _ => {
+                unreachable!(
+                    "Can't do operation type {:?} and type {:?}",
+                    lhs.get_type(),
+                    rhs.get_type()
+                )
+            }
+        }
+        unsafe {
+            match (lhs.get_ptr(), lhs.get_type()) {
+                (Some(lhs_ptr), BaseTypes::Number) => {
+                    let mut lhs_val = self.build_load(
+                        lhs_ptr,
+                        lhs.get_llvm_type(),
+                        lhs.get_name_as_str(),
+                    );
+                    let mut rhs_val = self.build_load(
+                        rhs.get_ptr().unwrap(),
+                        rhs.get_llvm_type(),
+                        rhs.get_name_as_str(),
+                    );
+                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
+                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
+                    let cmp = LLVMBuildICmp(
+                        self.builder,
+                        LLVMIntEQ,
+                        lhs_val,
+                        rhs_val,
+                        cstr_from_string("result").as_ptr(),
+                    );
+                    let alloca = self
+                        .build_alloca_store(cmp, int1_type(), "bool_cmp");
+                    Ok(Box::new(BoolType {
+                        name: lhs.get_name_as_str().to_string(),
+                        builder: self.builder,
+                        llvm_value: cmp,
+                        llvm_value_pointer: alloca,
+                    }))
+                }
+                _ => {
+                    let mut lhs_val = lhs.get_value();
+                    let mut rhs_val = rhs.get_value();
+                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
+                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
+                    let cmp = LLVMBuildICmp(
+                        self.builder,
+                        LLVMIntEQ,
+                        lhs_val,
+                        rhs_val,
+                        cstr_from_string("result").as_ptr(),
+                    );
+                    let alloca = self.build_alloca_store(cmp, int1_type(), "bool_cmp");
+                    Ok(Box::new(BoolType {
+                        name: lhs.get_name_as_str().to_string(),
+                        builder: self.builder,
+                        llvm_value: cmp,
+                        llvm_value_pointer: alloca,
+                    }))
+                }
+            }
         }
     }
 }

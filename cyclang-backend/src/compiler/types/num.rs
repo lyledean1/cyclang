@@ -83,8 +83,7 @@ impl Comparison for NumberType {
                         rhs_val,
                         cstr_from_string("result").as_ptr(),
                     );
-                    let alloca = context
-                        .codegen
+                    let alloca = context.codegen
                         .build_alloca_store(cmp, int1_type(), "bool_cmp");
                     Box::new(BoolType {
                         name: self.get_name_as_str().to_string(),
@@ -105,8 +104,7 @@ impl Comparison for NumberType {
                         rhs_val,
                         cstr_from_string("result").as_ptr(),
                     );
-                    let alloca = context
-                        .codegen
+                    let alloca = context.codegen
                         .build_alloca_store(cmp, int1_type(), "bool_cmp");
                     Box::new(BoolType {
                         name: self.get_name_as_str().to_string(),
@@ -463,72 +461,6 @@ impl Comparison for NumberType {
 impl Func for NumberType {}
 
 impl Arithmetic for NumberType {
-    fn add(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::Number | BaseTypes::Number64 => unsafe {
-                match (self.get_ptr(), _rhs.get_ptr()) {
-                    (Some(ptr), Some(rhs_ptr)) => {
-                        let mut lhs_val =
-                            context.codegen.build_load(ptr, self.get_llvm_type(), "rhs");
-                        let mut rhs_val =
-                            context
-                                .codegen
-                                .build_load(rhs_ptr, _rhs.get_llvm_type(), "lhs");
-                        lhs_val = context.codegen.cast_i32_to_i64(lhs_val, rhs_val);
-                        rhs_val = context.codegen.cast_i32_to_i64(rhs_val, lhs_val);
-                        let result = LLVMBuildAdd(
-                            context.codegen.builder,
-                            lhs_val,
-                            rhs_val,
-                            cstr_from_string("addNumberType").as_ptr(),
-                        );
-                        let alloca = context.codegen.build_alloca_store(
-                            result,
-                            self.get_llvm_ptr_type(),
-                            "param_add",
-                        );
-                        let name = self.get_name_as_str().to_string();
-                        Box::new(NumberType {
-                            name,
-                            llvm_value: result,
-                            llvm_value_pointer: Some(alloca),
-                        })
-                    }
-                    _ => {
-                        let mut lhs_val = self.get_value();
-                        let mut rhs_val = _rhs.get_value();
-                        lhs_val = context.codegen.cast_i32_to_i64(lhs_val, rhs_val);
-                        rhs_val = context.codegen.cast_i32_to_i64(rhs_val, lhs_val);
-                        let result = LLVMBuildAdd(
-                            context.codegen.builder,
-                            lhs_val,
-                            rhs_val,
-                            cstr_from_string("add").as_ptr(),
-                        );
-                        let alloca = context.codegen.build_alloca_store(
-                            result,
-                            self.get_llvm_ptr_type(),
-                            "param_add",
-                        );
-                        let name = self.get_name_as_str().to_string();
-                        Box::new(NumberType {
-                            name,
-                            llvm_value: result,
-                            llvm_value_pointer: Some(alloca),
-                        })
-                    }
-                }
-            },
-            _ => {
-                unreachable!(
-                    "Can't {} type {:?} and type {:?}",
-                    stringify!("add"),
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
     fn sub(&self, context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         match _rhs.get_type() {
             BaseTypes::Number | BaseTypes::Number64 => unsafe {

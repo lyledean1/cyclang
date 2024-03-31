@@ -29,6 +29,7 @@ use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Expression;
 use llvm_sys::prelude::*;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 
 #[derive(Debug, PartialEq)]
 pub enum BaseTypes {
@@ -145,7 +146,7 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
 }
 
 pub trait Arithmetic: Base {
-    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
+    fn add(&self, _codegen: &LLVMCodegenBuilder, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
         unimplemented!("{:?} type does not implement add", self.get_type())
     }
     fn sub(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {

@@ -204,7 +204,7 @@ impl ASTContext {
                 "+" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.add(self, rhs))
+                    self.codegen.add(lhs, rhs)
                 }
                 "-" => {
                     let lhs = self.match_ast(*lhs)?;

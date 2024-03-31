@@ -1,7 +1,6 @@
 use crate::compiler::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
-use std::ffi::CString;
 
 extern crate llvm_sys;
 use crate::compiler::codegen::cstr_from_string;
@@ -57,53 +56,7 @@ impl Comparison for StringType {
     }
 }
 
-impl Arithmetic for StringType {
-    fn add(&self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::String => match _ast_context.codegen.llvm_func_cache.get("sprintf") {
-                Some(_sprintf_func) => unsafe {
-                    // TODO: Use sprintf to concatenate two strings
-                    // Remove extra quotes
-                    let new_string =
-                        format!("{}{}", self.get_str(), _rhs.get_str()).replace('\"', "");
-
-                    let string = CString::new(new_string.clone()).unwrap();
-                    let value = LLVMConstStringInContext(
-                        _ast_context.codegen.context,
-                        string.as_ptr(),
-                        string.as_bytes().len() as u32,
-                        0,
-                    );
-                    let mut len_value: usize = string.as_bytes().len();
-                    let ptr: *mut usize = (&mut len_value) as *mut usize;
-                    let buffer_ptr = LLVMBuildPointerCast(
-                        _ast_context.codegen.builder,
-                        value,
-                        LLVMPointerType(LLVMInt8Type(), 0),
-                        cstr_from_string("buffer_ptr").as_ptr(),
-                    );
-                    Box::new(StringType {
-                        name: self.name.clone(),
-                        length: ptr,
-                        llvm_value: value,
-                        llvm_value_pointer: Some(buffer_ptr),
-                        str_value: new_string,
-                    })
-                },
-                _ => {
-                    unreachable!()
-                }
-            },
-            _ => {
-                unreachable!(
-                    "Can't add type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-}
+impl Arithmetic for StringType {}
 
 impl TypeBase for StringType {
     fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Result<()> {
