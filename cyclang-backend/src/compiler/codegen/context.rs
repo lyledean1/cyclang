@@ -15,6 +15,7 @@ use cyclang_parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
+use crate::compiler::visitor::Visitor;
 
 pub struct LLVMFunctionCache {
     map: HashMap<String, LLVMFunction>,
@@ -46,6 +47,7 @@ impl LLVMFunction {
         return_type: Type,
         body: Expression,
         block: LLVMBasicBlockRef,
+        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>
     ) -> Result<Self> {
         unsafe {
             let param_types: &mut Vec<*mut LLVMType> =
@@ -166,7 +168,7 @@ impl LLVMFunction {
                 .position_builder_at_end(function_entry_block);
 
             // Set func args here
-            context.match_ast(body.clone())?;
+            context.match_ast(body.clone(),visitor)?;
 
             // Delete func args here
             // // Check to see if there is a Return type

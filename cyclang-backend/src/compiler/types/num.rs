@@ -38,9 +38,9 @@ impl TypeBase for NumberType {
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         self.llvm_value_pointer
     }
-    fn get_type(& self) -> BaseTypes { BaseTypes :: Number }
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Number
+    }
 }
 
-
 impl Func for NumberType {}
-

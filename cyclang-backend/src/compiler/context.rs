@@ -28,7 +28,6 @@ pub struct ASTContext {
     pub var_cache: VariableCache,
     pub func_cache: VariableCache,
     pub codegen: LLVMCodegenBuilder,
-    pub visitor: Box<dyn Visitor<Box<dyn TypeBase>>>,
     pub depth: i32,
 }
 
@@ -111,9 +110,7 @@ impl ASTContext {
         let func_cache = VariableCache::new();
         let codegen = LLVMCodegenBuilder::init(compile_options)?;
         //TODO: remove
-        let visitor = Box::new(LLVMCodegenVisitor {});
         Ok(ASTContext {
-            visitor,
             var_cache,
             func_cache,
             depth: 0,
@@ -121,17 +118,17 @@ impl ASTContext {
         })
     }
 
-    pub fn match_ast(&mut self, input: Expression) -> Result<Box<dyn TypeBase>> {
+    pub fn match_ast(&mut self, input: Expression, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>) -> Result<Box<dyn TypeBase>> {
         match input {
-            Expression::Number(_) => self.visitor.visit_number(&input, &self.codegen),
-            Expression::Number64(_) => self.visitor.visit_number(&input, &self.codegen),
-            Expression::String(_) => self.visitor.visit_string(&input, &self.codegen),
-            Expression::Bool(_) => self.visitor.visit_bool(&input, &self.codegen),
-            Expression::Variable(_) => self.visitor.visit_variable(&input, &self.codegen, &self.var_cache),
+            Expression::Number(_) => visitor.visit_number(&input, &self.codegen),
+            Expression::Number64(_) => visitor.visit_number(&input, &self.codegen),
+            Expression::String(_) => visitor.visit_string(&input, &self.codegen),
+            Expression::Bool(_) => visitor.visit_bool(&input, &self.codegen),
+            Expression::Variable(_) => visitor.visit_variable(&input, &self.codegen, &self.var_cache),
             Expression::List(v) => {
                 let mut vec_expr = vec![];
                 for x in v {
-                    let expr = self.match_ast(x)?;
+                    let expr = self.match_ast(x, visitor)?;
                     vec_expr.push(expr)
                 }
                 let first_element = vec_expr.first().unwrap();
@@ -155,8 +152,8 @@ impl ASTContext {
             },
             Expression::ListIndex(v, i) => {
                 let name = cstr_from_string("access_array").as_ptr();
-                let val = self.match_ast(*v)?;
-                let index = self.match_ast(*i)?;
+                let val = self.match_ast(*v, visitor)?;
+                let index = self.match_ast(*i, visitor)?;
                 let zero_index = self.codegen.const_int(int64_type(), 0, 0);
                 let build_load_index =
                     self.codegen.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
@@ -177,8 +174,8 @@ impl ASTContext {
             Expression::ListAssign(var, i, rhs) => match self.var_cache.get(&var) {
                 Some(val) => {
                     let name = cstr_from_string("access_array").as_ptr();
-                    let lhs: Box<dyn TypeBase> = self.match_ast(*rhs)?;
-                    let index = self.match_ast(*i)?;
+                    let lhs: Box<dyn TypeBase> = self.match_ast(*rhs, visitor)?;
+                    let index = self.match_ast(*i, visitor)?;
                     let zero_index = self.codegen.const_int(int64_type(), 0, 0);
                     let build_load_index =
                         self.codegen.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
@@ -200,63 +197,47 @@ impl ASTContext {
             Expression::Nil => {
                 unimplemented!()
             }
-            Expression::Binary(lhs, op, rhs) => match op.as_str() {
-                "+" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.arithmetic(lhs, rhs, op)
-                }
-                "-" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.arithmetic(lhs, rhs, op)
-                }
-                "/" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.arithmetic(lhs, rhs, op)
-                }
-                "*" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.arithmetic(lhs, rhs, op)
-                }
-                "^" => Err(anyhow!("^ is not implemented yet")),
-                "==" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.cmp(lhs, rhs, op)
-                }
-                "!=" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.cmp(lhs, rhs, op)
-                }
-                "<" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.cmp(lhs, rhs, op)
-                }
-                "<=" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.cmp(lhs, rhs, op)
-                }
-                ">" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.cmp(lhs, rhs, op)
-                }
-                ">=" => {
-                    let lhs = self.match_ast(*lhs)?;
-                    let rhs = self.match_ast(*rhs)?;
-                    self.codegen.cmp(lhs, rhs, op)
-                }
-                _ => {
-                    Err(anyhow!("Invalid operator found for {:?} {} {:?}", lhs, op, rhs))
+            Expression::Binary(lhs, op, rhs) => {
+                let lhs = self.match_ast(*lhs, visitor)?;
+                let rhs = self.match_ast(*rhs, visitor)?;
+                match op.as_str() {
+                    "+" => {
+                        self.codegen.arithmetic(lhs, rhs, op)
+                    }
+                    "-" => {
+                        self.codegen.arithmetic(lhs, rhs, op)
+                    }
+                    "/" => {
+                        self.codegen.arithmetic(lhs, rhs, op)
+                    }
+                    "*" => {
+                        self.codegen.arithmetic(lhs, rhs, op)
+                    }
+                    "^" => Err(anyhow!("^ is not implemented yet")),
+                    "==" => {
+                        self.codegen.cmp(lhs, rhs, op)
+                    }
+                    "!=" => {
+                        self.codegen.cmp(lhs, rhs, op)
+                    }
+                    "<" => {
+                        self.codegen.cmp(lhs, rhs, op)
+                    }
+                    "<=" => {
+                        self.codegen.cmp(lhs, rhs, op)
+                    }
+                    ">" => {
+                        self.codegen.cmp(lhs, rhs, op)
+                    }
+                    ">=" => {
+                        self.codegen.cmp(lhs, rhs, op)
+                    }
+                    _ => {
+                        Err(anyhow!("Operator: {} not implement", op.clone()))
+                    }
                 }
             },
-            Expression::Grouping(_input) => self.match_ast(*_input),
+            Expression::Grouping(_input) => self.match_ast(*_input,visitor),
             Expression::LetStmt(var, _, lhs) => {
                 match self.var_cache.get(&var) {
                     Some(mut val) => {
@@ -265,13 +246,13 @@ impl ASTContext {
                         // reassign variable
 
                         // Assign a temp variable to the stack
-                        let lhs: Box<dyn TypeBase> = self.match_ast(*lhs)?;
+                        let lhs: Box<dyn TypeBase> = self.match_ast(*lhs,visitor)?;
                         // Assign this new value
                         val.assign(self, lhs)?;
                         Ok(val)
                     }
                     _ => {
-                        let lhs = self.match_ast( *lhs)?;
+                        let lhs = self.match_ast( *lhs,visitor)?;
                         self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
                         Ok(lhs)
                     }
@@ -284,7 +265,7 @@ impl ASTContext {
                 self.incr();
                 let mut val: Box<dyn TypeBase> = Box::new(VoidType {});
                 for expr in exprs {
-                    val = self.match_ast(expr)?;
+                    val = self.match_ast(expr, visitor)?;
                 }
                 // Delete Variables
                 self.var_cache.del_locals(self.get_depth());
@@ -293,7 +274,7 @@ impl ASTContext {
             }
             Expression::CallStmt(name, args) => match self.func_cache.get(&name) {
                 Some(val) => {
-                    let call_val = val.call(self, args)?;
+                    let call_val = val.call(self, args, visitor)?;
                     self.var_cache
                         .set(name.as_str(), call_val.clone(), self.depth);
                     Ok(call_val)
@@ -310,6 +291,7 @@ impl ASTContext {
                     _return_type.clone(),
                     *body.clone(),
                     self.codegen.current_function.block,
+                    visitor,
                 )?;
 
                 let func = FuncType {
@@ -327,23 +309,23 @@ impl ASTContext {
             }
             Expression::IfStmt(condition, if_stmt, else_stmt) => {
                 //TODO: fix this so its an associated function
-                LLVMCodegenBuilder::new_if_stmt(self, *condition, *if_stmt, *else_stmt)
+                LLVMCodegenBuilder::new_if_stmt(self, *condition, *if_stmt, *else_stmt,visitor)
             }
             Expression::WhileStmt(condition, while_block_stmt) => {
                 //TODO: fix this so its an associated function
-                LLVMCodegenBuilder::new_while_stmt(self, *condition, *while_block_stmt)
+                LLVMCodegenBuilder::new_while_stmt(self, *condition, *while_block_stmt,visitor)
             }
             Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
                 //TODO: fix this so its an associated function
-                LLVMCodegenBuilder::new_for_loop(self, var_name, init, length, increment, *for_block_expr)
+                LLVMCodegenBuilder::new_for_loop(self, var_name, init, length, increment, *for_block_expr,visitor)
             }
             Expression::Print(input) => {
-                let expression_value = self.match_ast(*input)?;
+                let expression_value = self.match_ast(*input, visitor)?;
                 expression_value.print(self)?;
                 Ok(expression_value)
             }
             Expression::ReturnStmt(input) => {
-                let expression_value = self.match_ast(*input)?;
+                let expression_value = self.match_ast(*input,visitor)?;
                 self.codegen.build_ret(expression_value.get_value());
                 Ok(Box::new(ReturnType {}))
             }
@@ -356,7 +338,7 @@ impl ASTContext {
     }
 }
 
-struct LLVMCodegenVisitor {
+pub struct LLVMCodegenVisitor {
     // codegen: LLVMCodegenBuilder,
     // var_cache: VariableCache,
 }
@@ -483,6 +465,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         &mut self,
         left: &Expression,
         _codegen: &LLVMCodegenBuilder,
+        context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>> {
         if let Expression::List(_) = left {
             unimplemented!()

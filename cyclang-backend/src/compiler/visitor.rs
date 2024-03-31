@@ -1,5 +1,5 @@
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::context::VariableCache;
+use crate::compiler::context::{ASTContext, VariableCache};
 use crate::compiler::types::TypeBase;
 use anyhow::Result;
 use cyclang_parser::Expression;
@@ -26,6 +26,7 @@ pub trait Visitor<T> {
     fn visit_list(
         &mut self,
         left: &Expression,
-        codegen: &LLVMCodegenBuilder,
+        _codegen: &LLVMCodegenBuilder,
+        context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>>;
 }

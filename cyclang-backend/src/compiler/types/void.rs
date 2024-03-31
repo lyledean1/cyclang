@@ -5,8 +5,6 @@ use llvm_sys::prelude::*;
 #[derive(Debug, Clone)]
 pub struct VoidType {}
 
-
-
 impl Func for VoidType {}
 
 impl TypeBase for VoidType {

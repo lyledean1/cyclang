@@ -3,7 +3,6 @@ use crate::compiler::types::{BaseTypes, Func, TypeBase};
 extern crate llvm_sys;
 use llvm_sys::prelude::*;
 
-
 #[derive(Debug, Clone)]
 pub struct NumberType64 {
     //TODO: remove pub use of these
@@ -19,8 +18,9 @@ impl TypeBase for NumberType64 {
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         self.llvm_value_pointer
     }
-    fn get_type(& self) -> BaseTypes { BaseTypes :: Number64 }
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Number64
+    }
 }
 
 impl Func for NumberType64 {}
-

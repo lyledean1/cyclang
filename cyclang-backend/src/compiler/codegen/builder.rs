@@ -1,15 +1,27 @@
 use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
 use crate::compiler::codegen::{cstr_from_string, int1_type, int64_type, int8_ptr_type};
 use crate::compiler::context::ASTContext;
+use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::return_type::ReturnType;
+use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::CompileOptions;
-use anyhow::{Result};
+use anyhow::Result;
 use cyclang_parser::{Expression, Type};
 use libc::c_uint;
-use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildPointerCast, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetParam, LLVMInt32TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
+use llvm_sys::core::{
+    LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
+    LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
+    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildPointerCast,
+    LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub,
+    LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose,
+    LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule,
+    LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetParam, LLVMInt32TypeInContext, LLVMInt8Type,
+    LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd,
+    LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext,
+};
 use llvm_sys::execution_engine::{
     LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
     LLVMLinkInMCJIT,
@@ -20,13 +32,14 @@ use llvm_sys::prelude::{
 };
 use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget};
 use llvm_sys::LLVMIntPredicate;
+use llvm_sys::LLVMIntPredicate::{
+    LLVMIntEQ, LLVMIntNE, LLVMIntSGE, LLVMIntSGT, LLVMIntSLE, LLVMIntSLT,
+};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
-use llvm_sys::LLVMIntPredicate::{LLVMIntEQ, LLVMIntNE, LLVMIntSGE, LLVMIntSGT, LLVMIntSLE, LLVMIntSLT};
-use crate::compiler::types::bool::BoolType;
-use crate::compiler::types::string::StringType;
+use crate::compiler::visitor::Visitor;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -42,7 +55,7 @@ pub struct LLVMCodegenBuilder {
 
 macro_rules! llvm_build_fn {
     ($fn_name:ident, $builder:expr, $lhs:expr, $rhs:expr, $name:expr) => {{
-        $fn_name($builder,$lhs,$rhs,$name)
+        $fn_name($builder, $lhs, $rhs, $name)
     }};
 }
 
@@ -413,6 +426,7 @@ impl LLVMCodegenBuilder {
         condition: Expression,
         if_stmt: Expression,
         else_stmt: Option<Expression>,
+        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
     ) -> Result<Box<dyn TypeBase>> {
         let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
         let function = context.codegen.current_function.function;
@@ -420,14 +434,14 @@ impl LLVMCodegenBuilder {
 
         context.codegen.position_builder_at_end(if_entry_block);
 
-        let cond: Box<dyn TypeBase> = context.match_ast(condition)?;
+        let cond: Box<dyn TypeBase> = context.match_ast(condition, visitor)?;
         // Build If Block
         let then_block = context.codegen.append_basic_block(function, "then_block");
         let merge_block = context.codegen.append_basic_block(function, "merge_block");
 
         context.codegen.set_current_block(then_block);
 
-        let stmt = context.match_ast(if_stmt)?;
+        let stmt = context.match_ast(if_stmt,visitor)?;
 
         match stmt.get_type() {
             BaseTypes::Return => {
@@ -446,7 +460,7 @@ impl LLVMCodegenBuilder {
 
         match else_stmt {
             Some(v_stmt) => {
-                let stmt = context.match_ast(v_stmt)?;
+                let stmt = context.match_ast(v_stmt,visitor)?;
                 match stmt.get_type() {
                     BaseTypes::Return => {
                         // if its a return type we will skip branching in the LLVM IR
@@ -481,6 +495,7 @@ impl LLVMCodegenBuilder {
         context: &mut ASTContext,
         condition: Expression,
         while_block_stmt: Expression,
+        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
     ) -> Result<Box<dyn TypeBase>> {
         let function = context.codegen.current_function.function;
 
@@ -491,7 +506,7 @@ impl LLVMCodegenBuilder {
         let bool_type_ptr = context
             .codegen
             .build_alloca(int1_type(), "while_value_bool_var");
-        let value_condition = context.match_ast(condition)?;
+        let value_condition = context.match_ast(condition, visitor)?;
 
         let cmp =
             context
@@ -505,7 +520,7 @@ impl LLVMCodegenBuilder {
         context.codegen.set_current_block(loop_body_block);
         // Check if the global variable already exists
 
-        context.match_ast(while_block_stmt)?;
+        context.match_ast(while_block_stmt, visitor)?;
 
         context.codegen.build_br(loop_cond_block); // Jump back to loop condition
 
@@ -533,6 +548,7 @@ impl LLVMCodegenBuilder {
         length: i32,
         increment: i32,
         for_block_expr: Expression,
+        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
     ) -> Result<Box<dyn TypeBase>> {
         unsafe {
             let for_block = context.codegen.current_function.block;
@@ -591,7 +607,7 @@ impl LLVMCodegenBuilder {
 
             // Build loop body block
             context.codegen.set_current_block(loop_body_block);
-            let for_block_cond = context.match_ast(for_block_expr)?;
+            let for_block_cond = context.match_ast(for_block_expr, visitor)?;
             let lhs_val = context.codegen.build_load(
                 ptr.unwrap(),
                 LLVMInt32TypeInContext(context.codegen.context),
@@ -740,15 +756,17 @@ impl LLVMCodegenBuilder {
         }
     }
 
-    pub fn icmp(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>, op: LLVMIntPredicate) -> Result<Box<dyn TypeBase>> {
+    pub fn icmp(
+        &self,
+        lhs: Box<dyn TypeBase>,
+        rhs: Box<dyn TypeBase>,
+        op: LLVMIntPredicate,
+    ) -> Result<Box<dyn TypeBase>> {
         unsafe {
             match (lhs.get_ptr(), lhs.get_type()) {
                 (Some(lhs_ptr), BaseTypes::Number) => {
-                    let mut lhs_val = self.build_load(
-                        lhs_ptr,
-                        lhs.get_llvm_type(),
-                        lhs.get_name_as_str(),
-                    );
+                    let mut lhs_val =
+                        self.build_load(lhs_ptr, lhs.get_llvm_type(), lhs.get_name_as_str());
                     let mut rhs_val = self.build_load(
                         rhs.get_ptr().unwrap(),
                         rhs.get_llvm_type(),
@@ -763,8 +781,7 @@ impl LLVMCodegenBuilder {
                         rhs_val,
                         cstr_from_string("result").as_ptr(),
                     );
-                    let alloca = self
-                        .build_alloca_store(cmp, int1_type(), "bool_cmp");
+                    let alloca = self.build_alloca_store(cmp, int1_type(), "bool_cmp");
                     Ok(Box::new(BoolType {
                         name: lhs.get_name_as_str().to_string(),
                         builder: self.builder,
@@ -800,35 +817,39 @@ impl LLVMCodegenBuilder {
         unsafe {
             match op.as_str() {
                 "+" => {
-                    llvm_build_fn!(LLVMBuildAdd,
-                            self.builder,
-                            lhs,
-                            rhs,
-                            cstr_from_string("addNumberType").as_ptr()
+                    llvm_build_fn!(
+                        LLVMBuildAdd,
+                        self.builder,
+                        lhs,
+                        rhs,
+                        cstr_from_string("addNumberType").as_ptr()
                     )
                 }
                 "-" => {
-                    llvm_build_fn!(LLVMBuildSub,
-                            self.builder,
-                            lhs,
-                            rhs,
-                            cstr_from_string("subNumberType").as_ptr()
+                    llvm_build_fn!(
+                        LLVMBuildSub,
+                        self.builder,
+                        lhs,
+                        rhs,
+                        cstr_from_string("subNumberType").as_ptr()
                     )
                 }
                 "*" => {
-                    llvm_build_fn!(LLVMBuildMul,
-                            self.builder,
-                            lhs,
-                            rhs,
-                            cstr_from_string("mulNumberType").as_ptr()
+                    llvm_build_fn!(
+                        LLVMBuildMul,
+                        self.builder,
+                        lhs,
+                        rhs,
+                        cstr_from_string("mulNumberType").as_ptr()
                     )
                 }
                 "/" => {
-                    llvm_build_fn!(LLVMBuildSDiv,
-                            self.builder,
-                            lhs,
-                            rhs,
-                            cstr_from_string("mulNumberType").as_ptr()
+                    llvm_build_fn!(
+                        LLVMBuildSDiv,
+                        self.builder,
+                        lhs,
+                        rhs,
+                        cstr_from_string("mulNumberType").as_ptr()
                     )
                 }
                 _ => {
@@ -838,7 +859,12 @@ impl LLVMCodegenBuilder {
         }
     }
 
-    pub fn arithmetic(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>, op: String) -> Result<Box<dyn TypeBase>> {
+    pub fn arithmetic(
+        &self,
+        lhs: Box<dyn TypeBase>,
+        rhs: Box<dyn TypeBase>,
+        op: String,
+    ) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
             BaseTypes::String => match self.llvm_func_cache.get("sprintf") {
                 Some(_sprintf_func) => unsafe {
@@ -873,56 +899,37 @@ impl LLVMCodegenBuilder {
                 _ => {
                     unreachable!()
                 }
-            }
-            BaseTypes::Number | BaseTypes::Number64 => {
-                match (lhs.get_ptr(), rhs.get_ptr()) {
-                    (Some(ptr), Some(rhs_ptr)) => {
-                        let mut lhs_val =
-                            self.build_load(ptr, lhs.get_llvm_type(), "lhs");
-                        let mut rhs_val =
-                            self
-                                .build_load(rhs_ptr, rhs.get_llvm_type(), "rhs");
-                        lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
-                        rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
-                        let result = self.llvm_build_fn(
-                            lhs_val,
-                            rhs_val,
-                            op,
-                        );
-                        let alloca = self.build_alloca_store(
-                            result,
-                            lhs.get_llvm_ptr_type(),
-                            "param_add",
-                        );
-                        let name = lhs.get_name_as_str().to_string();
-                        Ok(Box::new(NumberType {
-                            name,
-                            llvm_value: result,
-                            llvm_value_pointer: Some(alloca),
-                        }))
-                    }
-                    _ => {
-                        let mut lhs_val = lhs.get_value();
-                        let mut rhs_val = rhs.get_value();
-                        lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
-                        rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
-                        let result = self.llvm_build_fn(
-                            lhs_val,
-                            rhs_val,
-                            op,
-                        );
-                        let alloca = self.build_alloca_store(
-                            result,
-                            lhs.get_llvm_ptr_type(),
-                            "param_add",
-                        );
-                        let name = lhs.get_name_as_str().to_string();
-                        Ok(Box::new(NumberType {
-                            name,
-                            llvm_value: result,
-                            llvm_value_pointer: Some(alloca),
-                        }))
-                    }
+            },
+            BaseTypes::Number | BaseTypes::Number64 => match (lhs.get_ptr(), rhs.get_ptr()) {
+                (Some(ptr), Some(rhs_ptr)) => {
+                    let mut lhs_val = self.build_load(ptr, lhs.get_llvm_type(), "lhs");
+                    let mut rhs_val = self.build_load(rhs_ptr, rhs.get_llvm_type(), "rhs");
+                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
+                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
+                    let result = self.llvm_build_fn(lhs_val, rhs_val, op);
+                    let alloca =
+                        self.build_alloca_store(result, lhs.get_llvm_ptr_type(), "param_add");
+                    let name = lhs.get_name_as_str().to_string();
+                    Ok(Box::new(NumberType {
+                        name,
+                        llvm_value: result,
+                        llvm_value_pointer: Some(alloca),
+                    }))
+                }
+                _ => {
+                    let mut lhs_val = lhs.get_value();
+                    let mut rhs_val = rhs.get_value();
+                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
+                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
+                    let result = self.llvm_build_fn(lhs_val, rhs_val, op);
+                    let alloca =
+                        self.build_alloca_store(result, lhs.get_llvm_ptr_type(), "param_add");
+                    let name = lhs.get_name_as_str().to_string();
+                    Ok(Box::new(NumberType {
+                        name,
+                        llvm_value: result,
+                        llvm_value_pointer: Some(alloca),
+                    }))
                 }
             },
             _ => {
@@ -936,7 +943,12 @@ impl LLVMCodegenBuilder {
         }
     }
 
-    pub fn cmp(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>, op: String) -> Result<Box<dyn TypeBase>> {
+    pub fn cmp(
+        &self,
+        lhs: Box<dyn TypeBase>,
+        rhs: Box<dyn TypeBase>,
+        op: String,
+    ) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
             BaseTypes::String => {
                 let value = lhs.get_str() == rhs.get_str();
@@ -960,30 +972,12 @@ impl LLVMCodegenBuilder {
             }
         }
         match op.as_str() {
-            "==" => {
-                self.icmp(lhs, rhs, LLVMIntEQ)
-
-            }
-            "!=" => {
-                self.icmp(lhs, rhs, LLVMIntNE)
-
-            }
-            "<" => {
-                self.icmp(lhs, rhs, LLVMIntSLT)
-
-            }
-            "<=" => {
-                self.icmp(lhs, rhs, LLVMIntSLE)
-
-            }
-            ">" => {
-                self.icmp(lhs, rhs, LLVMIntSGT)
-
-            }
-            ">=" => {
-                self.icmp(lhs, rhs, LLVMIntSGE)
-
-            }
+            "==" => self.icmp(lhs, rhs, LLVMIntEQ),
+            "!=" => self.icmp(lhs, rhs, LLVMIntNE),
+            "<" => self.icmp(lhs, rhs, LLVMIntSLT),
+            "<=" => self.icmp(lhs, rhs, LLVMIntSLE),
+            ">" => self.icmp(lhs, rhs, LLVMIntSGT),
+            ">=" => self.icmp(lhs, rhs, LLVMIntSGE),
             _ => {
                 unimplemented!()
             }

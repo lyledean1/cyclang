@@ -20,13 +20,17 @@ extern crate libc;
 use libc::c_char;
 
 extern crate llvm_sys;
-use crate::compiler::codegen::{int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type, int8_ptr_type, int8_type};
+use crate::compiler::codegen::{
+    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type,
+    int8_ptr_type, int8_type,
+};
 use crate::compiler::context::ASTContext;
 
 use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Expression;
 use llvm_sys::prelude::*;
+use crate::compiler::visitor::Visitor;
 
 #[derive(Debug, PartialEq)]
 pub enum BaseTypes {
@@ -39,7 +43,6 @@ pub enum BaseTypes {
     Void,
     Return,
 }
-
 
 pub trait TypeBase: DynClone + Func {
     // TODO: remove on implementation
@@ -136,11 +139,7 @@ pub trait TypeBase: DynClone + Func {
 }
 
 pub trait Func {
-    fn call(
-        &self,
-        _context: &mut ASTContext,
-        _call_arguments: Vec<Expression>,
-    ) -> Result<Box<dyn TypeBase>> {
+    fn call(&self, context: &mut ASTContext, args: Vec<Expression>, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>) -> Result<Box<dyn TypeBase>> {
         unimplemented!("type does not implement call")
     }
 }

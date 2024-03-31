@@ -16,7 +16,6 @@ pub struct BoolType {
     pub name: String,
 }
 
-
 fn get_value_for_print_argument(
     context: &mut ASTContext,
     name: &str,
@@ -76,7 +75,8 @@ impl TypeBase for BoolType {
         astcontext.codegen.build_call(print_func, print_args, 1, "");
         Ok(())
     }
-    fn get_type(& self) -> BaseTypes { BaseTypes :: Bool }
-
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Bool
+    }
 }
 impl Func for BoolType {}

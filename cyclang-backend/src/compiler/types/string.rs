@@ -68,7 +68,9 @@ impl TypeBase for StringType {
         }
         Ok(())
     }
-    fn get_type(& self) -> BaseTypes { BaseTypes :: String }
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::String
+    }
 }
 
 impl Func for StringType {}

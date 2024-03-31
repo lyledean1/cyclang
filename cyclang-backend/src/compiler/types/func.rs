@@ -9,6 +9,7 @@ use anyhow::Result;
 use cyclang_parser::{Expression, Type};
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
+use crate::compiler::visitor::Visitor;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution
@@ -19,14 +20,14 @@ pub struct FuncType {
     pub llvm_func: LLVMValueRef,
 }
 impl Func for FuncType {
-    fn call(&self, context: &mut ASTContext, args: Vec<Expression>) -> Result<Box<dyn TypeBase>> {
+    fn call(&self, context: &mut ASTContext, args: Vec<Expression>, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>) -> Result<Box<dyn TypeBase>> {
         unsafe {
             // need to build up call with actual LLVMValue
 
             let call_args = &mut vec![];
             for arg in args.iter() {
                 // build load args i.e if variable
-                let ast_value = context.match_ast(arg.clone())?;
+                let ast_value = context.match_ast(arg.clone(), visitor)?;
                 if let Some(ptr) = ast_value.get_ptr() {
                     let loaded_value =
                         context
@@ -98,14 +99,15 @@ impl Func for FuncType {
             }
         }
     }
-
 }
 
 impl TypeBase for FuncType {
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_func
     }
-    fn get_type(& self) -> BaseTypes { BaseTypes :: Func }
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::Func
+    }
 
     fn get_llvm_type(&self) -> LLVMTypeRef {
         self.llvm_type
