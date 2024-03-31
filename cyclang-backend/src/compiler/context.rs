@@ -125,14 +125,10 @@ impl ASTContext {
             Expression::Number64(_) => visitor.visit_number(&input, codegen),
             Expression::String(_) => visitor.visit_string(&input, codegen),
             Expression::Bool(_) => visitor.visit_bool(&input, codegen),
-            Expression::Variable(_) => {
-                visitor.visit_variable_expr(&input, codegen, &self.var_cache)
-            }
+            Expression::Variable(_) => visitor.visit_variable_expr(&input, codegen, &self.var_cache),
             Expression::List(_) => visitor.visit_list_expr(&input, codegen, self),
             Expression::ListIndex(_, _) => visitor.visit_list_index_expr(&input, codegen, self),
-            Expression::ListAssign(_, _, _) => {
-                visitor.visit_list_assign_expr(&input, codegen, self)
-            }
+            Expression::ListAssign(_, _, _) => visitor.visit_list_assign_expr(&input, codegen, self),
             Expression::Nil => visitor.visit_nil(),
             Expression::Binary(_, _, _) => visitor.visit_binary_stmt(&input, codegen, self),
             Expression::Grouping(_) => visitor.visit_grouping_stmt(input, codegen, self),
@@ -142,12 +138,8 @@ impl ASTContext {
             Expression::FuncStmt(_, _, _, _) => visitor.visit_func_stmt(&input, codegen, self),
             Expression::IfStmt(_, _, _) => visitor.visit_if_stmt(&input, codegen, self),
             Expression::WhileStmt(_, _) => visitor.visit_while_stmt(&input, codegen, self),
-            Expression::ForStmt(_, _, _, _, _) => visitor.visit_for_loop(&input, codegen, self),
-            Expression::Print(input) => {
-                let expression_value = self.match_ast(*input, visitor, codegen)?;
-                expression_value.print(self, codegen)?;
-                Ok(expression_value)
-            }
+            Expression::ForStmt(_, _, _, _, _) => visitor.visit_for_loop_stmt(&input, codegen, self),
+            Expression::Print(_) => visitor.visit_print_stmt(&input, codegen, self),
             Expression::ReturnStmt(input) => {
                 let expression_value = self.match_ast(*input, visitor, codegen)?;
                 codegen.build_ret(expression_value.get_value());
@@ -572,7 +564,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("unable to visit while stmt"))
     }
 
-    fn visit_for_loop(
+    fn visit_for_loop_stmt(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
@@ -593,5 +585,15 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             );
         }
         Err(anyhow!("unable to visit for loop"))
+    }
+
+    fn visit_print_stmt(&mut self, left: &Expression, codegen: &mut LLVMCodegenBuilder, context: &mut ASTContext) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::Print(input) = left {
+            let expression_value = context.match_ast(*input.clone(), &mut visitor, codegen)?;
+            expression_value.print(context, codegen)?;
+            return Ok(expression_value)
+        }
+        Err(anyhow!("unable to visit print stmt"))
     }
 }

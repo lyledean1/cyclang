@@ -98,7 +98,14 @@ pub trait Visitor<T> {
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>>;
 
-    fn visit_for_loop(
+    fn visit_for_loop_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_print_stmt(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
