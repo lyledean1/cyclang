@@ -1,7 +1,7 @@
 extern crate llvm_sys;
 
 use crate::compiler::context::ASTContext;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, Func, TypeBase};
 use llvm_sys::core::LLVMConstArray2;
 use llvm_sys::prelude::*;
 use std::any::Any;
@@ -11,15 +11,6 @@ pub struct ListType {
     pub llvm_value: LLVMValueRef,
     pub llvm_value_ptr: LLVMValueRef,
     pub llvm_type: LLVMTypeRef,
-}
-
-impl Base for ListType {
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::List(Box::new(BaseTypes::Number))
-    }
-    fn get_llvm_type(&self) -> LLVMTypeRef {
-        self.llvm_type
-    }
 }
 
 impl TypeBase for ListType {
@@ -50,9 +41,12 @@ impl TypeBase for ListType {
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         Some(self.llvm_value_ptr)
     }
+    fn get_type(&self) -> BaseTypes {
+        BaseTypes::List(Box::new(BaseTypes::Number))
+    }
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        self.llvm_type
+    }
 }
-impl Arithmetic for ListType {}
-
-impl Comparison for ListType {}
 
 impl Func for ListType {}

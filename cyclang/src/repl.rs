@@ -1,6 +1,6 @@
 use crate::compiler::{self, CompileOptions};
-use cyclang_parser::{Expression, parse_cyclo_program};
 use anyhow::Result;
+use cyclang_parser::{parse_cyclo_program, Expression};
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use rustyline::{Cmd, EventHandler, KeyCode, KeyEvent, Modifiers};

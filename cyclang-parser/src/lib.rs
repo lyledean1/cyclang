@@ -956,7 +956,7 @@ mod test {
                 FuncArg("x".into(), Type::i32),
                 FuncArg("y".into(), Type::i32),
             ]
-                .to_vec(),
+            .to_vec(),
             Type::i32,
             vec![Expression::ReturnStmt(Box::new(Expression::Binary(
                 Box::new(Variable("x".into())),
@@ -1037,7 +1037,7 @@ mod test {
                 FuncArg("x".into(), Type::i32),
                 FuncArg("y".into(), Type::i32),
             ]
-                .to_vec(),
+            .to_vec(),
             Type::i32,
             vec![Expression::ReturnStmt(Box::new(Expression::Binary(
                 Box::new(Expression::CallStmt(

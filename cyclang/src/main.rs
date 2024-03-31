@@ -1,13 +1,13 @@
 extern crate cyclang_macros;
 
 use clap::Parser;
+use cyclang_backend::compiler;
 use cyclang_backend::compiler::codegen::target::Target;
 use cyclang_backend::compiler::CompileOptions;
+use cyclang_parser::parse_cyclo_program;
 use std::fs;
 use std::process::exit;
 use text_colorizer::Colorize;
-use cyclang_backend::compiler;
-use cyclang_parser::{parse_cyclo_program};
 mod repl;
 
 #[derive(Parser, Debug)]

@@ -7,11 +7,13 @@ use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 
 extern crate llvm_sys;
-use crate::compiler::context::ASTContext;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
+use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
-use cyclang_parser::{Expression, Type};
+use crate::compiler::visitor::Visitor;
 use anyhow::Result;
+use cyclang_parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
@@ -46,9 +48,12 @@ impl LLVMFunction {
         return_type: Type,
         body: Expression,
         block: LLVMBasicBlockRef,
+        codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Self> {
         unsafe {
-            let param_types: &mut Vec<*mut LLVMType> = &mut LLVMFunction::get_arg_types(args.clone());
+            let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+            let param_types: &mut Vec<*mut LLVMType> =
+                &mut LLVMFunction::get_arg_types(args.clone());
 
             let mut function_type = LLVMFunctionType(
                 LLVMVoidType(),
@@ -59,16 +64,28 @@ impl LLVMFunction {
 
             match return_type {
                 Type::i32 => {
-                    function_type =
-                        LLVMFunctionType(int32_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
+                    function_type = LLVMFunctionType(
+                        int32_type(),
+                        param_types.as_mut_ptr(),
+                        args.len() as u32,
+                        0,
+                    );
                 }
                 Type::i64 => {
-                    function_type =
-                        LLVMFunctionType(int64_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
+                    function_type = LLVMFunctionType(
+                        int64_type(),
+                        param_types.as_mut_ptr(),
+                        args.len() as u32,
+                        0,
+                    );
                 }
                 Type::Bool => {
-                    function_type =
-                        LLVMFunctionType(int1_type(), param_types.as_mut_ptr(), args.len() as u32, 0);
+                    function_type = LLVMFunctionType(
+                        int1_type(),
+                        param_types.as_mut_ptr(),
+                        args.len() as u32,
+                        0,
+                    );
                 }
                 Type::None => {
                     // skip
@@ -79,7 +96,7 @@ impl LLVMFunction {
             }
             // get correct function return type
             let function = LLVMAddFunction(
-                context.codegen.module,
+                codegen.module,
                 cstr_from_string(&name).as_ptr(),
                 function_type,
             );
@@ -91,9 +108,9 @@ impl LLVMFunction {
             };
             context.func_cache.set(&name, Box::new(func), context.depth);
 
-            let function_entry_block = context.codegen.append_basic_block(function, "entry");
+            let function_entry_block = codegen.append_basic_block(function, "entry");
 
-            let previous_func = context.codegen.current_function.clone();
+            let previous_func = codegen.current_function.clone();
             let mut new_function = LLVMFunction {
                 function,
                 func_type: function_type,
@@ -129,7 +146,7 @@ impl LLVMFunction {
                         Type::Bool => {
                             let val = LLVMGetParam(function, i as u32);
                             let bool_type = BoolType {
-                                builder: context.codegen.builder,
+                                builder: codegen.builder,
                                 llvm_value: val,
                                 llvm_value_pointer: val,
                                 name: "bool_param".into(),
@@ -146,22 +163,20 @@ impl LLVMFunction {
                 }
             }
 
-            context.codegen.current_function = new_function.clone();
+            codegen.current_function = new_function.clone();
 
-            context
-                .codegen
-                .position_builder_at_end(function_entry_block);
+            codegen.position_builder_at_end(function_entry_block);
 
             // Set func args here
-            context.match_ast(body.clone())?;
+            context.match_ast(body.clone(), &mut visitor, codegen)?;
 
             // Delete func args here
             // // Check to see if there is a Return type
             if return_type == Type::None {
-                context.codegen.build_ret_void();
+                codegen.build_ret_void();
             }
 
-            context.codegen.set_current_block(block);
+            codegen.set_current_block(block);
             context.var_cache.set(
                 name.as_str(),
                 Box::new(FuncType {
@@ -172,7 +187,7 @@ impl LLVMFunction {
                 context.depth,
             );
             //reset previous function
-            context.codegen.current_function = previous_func;
+            codegen.current_function = previous_func;
             Ok(new_function)
         }
     }
