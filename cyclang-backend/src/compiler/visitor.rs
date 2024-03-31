@@ -18,15 +18,47 @@ pub trait Visitor<T> {
         var_cache: &VariableCache,
     ) -> Result<T>;
 
-    fn visit_binary(
-        &mut self,
-        left: &Expression,
-        codegen: &LLVMCodegenBuilder,
-    ) -> Result<Box<dyn TypeBase>>;
     fn visit_list(
         &mut self,
         left: &Expression,
-        _codegen: &mut LLVMCodegenBuilder,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_list_index(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_list_assign(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_nil(&mut self) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_grouping(
+        &mut self,
+        left: Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_let_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>>;
 }

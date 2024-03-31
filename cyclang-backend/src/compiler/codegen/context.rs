@@ -7,16 +7,16 @@ use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 
 extern crate llvm_sys;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::context::ASTContext;
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
+use crate::compiler::visitor::Visitor;
 use anyhow::Result;
 use cyclang_parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
-use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::visitor::Visitor;
 
 pub struct LLVMFunctionCache {
     map: HashMap<String, LLVMFunction>,
@@ -165,11 +165,10 @@ impl LLVMFunction {
 
             codegen.current_function = new_function.clone();
 
-            codegen
-                .position_builder_at_end(function_entry_block);
+            codegen.position_builder_at_end(function_entry_block);
 
             // Set func args here
-            context.match_ast(body.clone(),visitor, codegen)?;
+            context.match_ast(body.clone(), visitor, codegen)?;
 
             // Delete func args here
             // // Check to see if there is a Return type

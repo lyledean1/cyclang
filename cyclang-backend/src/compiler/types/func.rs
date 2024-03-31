@@ -1,16 +1,16 @@
 extern crate llvm_sys;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::codegen::{cstr_from_string, int1_ptr_type, int32_ptr_type, int64_ptr_type};
 use crate::compiler::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, Func, TypeBase};
+use crate::compiler::visitor::Visitor;
 use anyhow::Result;
 use cyclang_parser::{Expression, Type};
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
-use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::visitor::Visitor;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
 // So can provide the return type to be used after execution
@@ -21,7 +21,13 @@ pub struct FuncType {
     pub llvm_func: LLVMValueRef,
 }
 impl Func for FuncType {
-    fn call(&self, context: &mut ASTContext, args: Vec<Expression>, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>, codegen: &mut LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
+    fn call(
+        &self,
+        context: &mut ASTContext,
+        args: Vec<Expression>,
+        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
+        codegen: &mut LLVMCodegenBuilder,
+    ) -> Result<Box<dyn TypeBase>> {
         unsafe {
             // need to build up call with actual LLVMValue
 
@@ -31,8 +37,7 @@ impl Func for FuncType {
                 let ast_value = context.match_ast(arg.clone(), visitor, codegen)?;
                 if let Some(ptr) = ast_value.get_ptr() {
                     let loaded_value =
-                            codegen
-                            .build_load(ptr, ast_value.get_llvm_type(), "call_arg");
+                        codegen.build_load(ptr, ast_value.get_llvm_type(), "call_arg");
                     call_args.push(loaded_value);
                 } else {
                     call_args.push(ast_value.get_value());
@@ -74,11 +79,7 @@ impl Func for FuncType {
                     }))
                 }
                 Type::Bool => {
-                    let ptr = codegen.build_alloca_store(
-                        call_value,
-                        int1_ptr_type(),
-                        "bool_value",
-                    );
+                    let ptr = codegen.build_alloca_store(call_value, int1_ptr_type(), "bool_value");
                     Ok(Box::new(BoolType {
                         builder: codegen.builder,
                         llvm_value: call_value,

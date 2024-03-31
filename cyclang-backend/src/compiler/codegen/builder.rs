@@ -7,6 +7,7 @@ use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
+use crate::compiler::visitor::Visitor;
 use crate::compiler::CompileOptions;
 use anyhow::Result;
 use cyclang_parser::{Expression, Type};
@@ -39,7 +40,6 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
-use crate::compiler::visitor::Visitor;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -442,7 +442,7 @@ impl LLVMCodegenBuilder {
 
         codegen.set_current_block(then_block);
 
-        let stmt = context.match_ast(if_stmt,visitor, codegen)?;
+        let stmt = context.match_ast(if_stmt, visitor, codegen)?;
 
         match stmt.get_type() {
             BaseTypes::Return => {
@@ -461,7 +461,7 @@ impl LLVMCodegenBuilder {
 
         match else_stmt {
             Some(v_stmt) => {
-                let stmt = context.match_ast(v_stmt,visitor, codegen)?;
+                let stmt = context.match_ast(v_stmt, visitor, codegen)?;
                 match stmt.get_type() {
                     BaseTypes::Return => {
                         // if its a return type we will skip branching in the LLVM IR
@@ -483,8 +483,7 @@ impl LLVMCodegenBuilder {
 
         codegen.set_current_block(if_entry_block);
 
-        let cmp = codegen
-            .build_load(cond.get_ptr().unwrap(), int1_type(), "cmp");
+        let cmp = codegen.build_load(cond.get_ptr().unwrap(), int1_type(), "cmp");
         codegen.build_cond_br(cmp, then_block, else_block);
 
         codegen.set_current_block(merge_block);
@@ -504,13 +503,10 @@ impl LLVMCodegenBuilder {
         let loop_body_block = codegen.append_basic_block(function, "loop_body");
         let loop_exit_block = codegen.append_basic_block(function, "loop_exit");
 
-        let bool_type_ptr = codegen
-            .build_alloca(int1_type(), "while_value_bool_var");
+        let bool_type_ptr = codegen.build_alloca(int1_type(), "while_value_bool_var");
         let value_condition = context.match_ast(condition, visitor, codegen)?;
 
-        let cmp =
-            codegen
-                .build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
+        let cmp = codegen.build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
 
         codegen.build_store(cmp, bool_type_ptr);
 
@@ -531,8 +527,7 @@ impl LLVMCodegenBuilder {
             "while_value_bool_var",
         );
 
-        codegen
-            .build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
+        codegen.build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
 
         // Position builder at loop exit block
         codegen.set_current_block(loop_exit_block);
@@ -600,23 +595,16 @@ impl LLVMCodegenBuilder {
                 cstr_from_string("").as_ptr(),
             );
 
-            codegen
-                .build_cond_br(loop_condition, loop_body_block, loop_exit_block);
+            codegen.build_cond_br(loop_condition, loop_body_block, loop_exit_block);
 
             // Build loop body block
             codegen.set_current_block(loop_body_block);
             let for_block_cond = context.match_ast(for_block_expr, visitor, codegen)?;
-            let lhs_val = codegen.build_load(
-                ptr.unwrap(),
-                LLVMInt32TypeInContext(codegen.context),
-                "i",
-            );
+            let lhs_val =
+                codegen.build_load(ptr.unwrap(), LLVMInt32TypeInContext(codegen.context), "i");
 
-            let incr_val = codegen.const_int(
-                LLVMInt32TypeInContext(codegen.context),
-                increment as u64,
-                0,
-            );
+            let incr_val =
+                codegen.const_int(LLVMInt32TypeInContext(codegen.context), increment as u64, 0);
 
             let new_value = LLVMBuildAdd(
                 codegen.builder,

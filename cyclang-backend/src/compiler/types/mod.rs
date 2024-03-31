@@ -26,12 +26,12 @@ use crate::compiler::codegen::{
 };
 use crate::compiler::context::ASTContext;
 
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
+use crate::compiler::visitor::Visitor;
 use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Expression;
 use llvm_sys::prelude::*;
-use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::visitor::Visitor;
 
 #[derive(Debug, PartialEq)]
 pub enum BaseTypes {
@@ -139,7 +139,13 @@ pub trait TypeBase: DynClone + Func {
 }
 
 pub trait Func {
-    fn call(&self, context: &mut ASTContext, args: Vec<Expression>, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>, codegen: &mut LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
+    fn call(
+        &self,
+        context: &mut ASTContext,
+        args: Vec<Expression>,
+        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
+        codegen: &mut LLVMCodegenBuilder,
+    ) -> Result<Box<dyn TypeBase>> {
         unimplemented!("type does not implement call")
     }
 }

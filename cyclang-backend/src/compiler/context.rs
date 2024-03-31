@@ -13,7 +13,6 @@ use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
 use crate::compiler::visitor::Visitor;
-use crate::compiler::CompileOptions;
 use crate::compiler::Expression;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -104,7 +103,7 @@ impl VariableCache {
 }
 
 impl ASTContext {
-    pub fn init(compile_options: Option<CompileOptions>) -> anyhow::Result<ASTContext> {
+    pub fn init() -> Result<ASTContext> {
         let var_cache = VariableCache::new();
         let func_cache = VariableCache::new();
         //TODO: remove
@@ -115,122 +114,25 @@ impl ASTContext {
         })
     }
 
-    pub fn match_ast(&mut self, input: Expression, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>, codegen: &mut LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
+    pub fn match_ast(
+        &mut self,
+        input: Expression,
+        visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
+        codegen: &mut LLVMCodegenBuilder,
+    ) -> Result<Box<dyn TypeBase>> {
         match input {
             Expression::Number(_) => visitor.visit_number(&input, codegen),
             Expression::Number64(_) => visitor.visit_number(&input, codegen),
             Expression::String(_) => visitor.visit_string(&input, codegen),
             Expression::Bool(_) => visitor.visit_bool(&input, codegen),
             Expression::Variable(_) => visitor.visit_variable(&input, codegen, &self.var_cache),
-            // Expression::List(_) => visitor.visit_list(&input, codegen, self),
-            Expression::ListIndex(v, i) => {
-                let name = cstr_from_string("access_array").as_ptr();
-                let val = self.match_ast(*v, visitor, codegen)?;
-                let index = self.match_ast(*i, visitor, codegen)?;
-                let zero_index = codegen.const_int(int64_type(), 0, 0);
-                let build_load_index =
-                    codegen.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
-                let mut indices = [zero_index, build_load_index];
-                let val = codegen.build_gep(
-                    val.get_llvm_type(),
-                    val.get_ptr().unwrap(),
-                    indices.as_mut_ptr(),
-                    2_u32,
-                    name,
-                );
-                Ok(Box::new(NumberType {
-                    llvm_value: val,
-                    llvm_value_pointer: Some(val),
-                    name: "".to_string(),
-                }))
-            }
-            Expression::ListAssign(var, i, rhs) => match self.var_cache.get(&var) {
-                Some(val) => {
-                    let name = cstr_from_string("access_array").as_ptr();
-                    let lhs: Box<dyn TypeBase> = self.match_ast(*rhs, visitor, codegen)?;
-                    let index = self.match_ast(*i, visitor, codegen)?;
-                    let zero_index = codegen.const_int(int64_type(), 0, 0);
-                    let build_load_index =
-                        codegen.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
-                    let mut indices = [zero_index, build_load_index];
-                    let element_ptr = codegen.build_gep(
-                        val.get_llvm_type(),
-                        val.get_ptr().unwrap(),
-                        indices.as_mut_ptr(),
-                        2_u32,
-                        name,
-                    );
-                    codegen.build_store(lhs.get_value(), element_ptr);
-                    Ok(val)
-                }
-                _ => {
-                    unreachable!("can't assign as var doesn't exist")
-                }
-            },
-            Expression::Nil => {
-                unimplemented!()
-            }
-            Expression::Binary(lhs, op, rhs) => {
-                let lhs = self.match_ast(*lhs, visitor, codegen)?;
-                let rhs = self.match_ast(*rhs, visitor, codegen)?;
-                match op.as_str() {
-                    "+" => {
-                        codegen.arithmetic(lhs, rhs, op)
-                    }
-                    "-" => {
-                        codegen.arithmetic(lhs, rhs, op)
-                    }
-                    "/" => {
-                        codegen.arithmetic(lhs, rhs, op)
-                    }
-                    "*" => {
-                        codegen.arithmetic(lhs, rhs, op)
-                    }
-                    "^" => Err(anyhow!("^ is not implemented yet")),
-                    "==" => {
-                        codegen.cmp(lhs, rhs, op)
-                    }
-                    "!=" => {
-                        codegen.cmp(lhs, rhs, op)
-                    }
-                    "<" => {
-                        codegen.cmp(lhs, rhs, op)
-                    }
-                    "<=" => {
-                        codegen.cmp(lhs, rhs, op)
-                    }
-                    ">" => {
-                        codegen.cmp(lhs, rhs, op)
-                    }
-                    ">=" => {
-                        codegen.cmp(lhs, rhs, op)
-                    }
-                    _ => {
-                        Err(anyhow!("Operator: {} not implement", op.clone()))
-                    }
-                }
-            },
-            Expression::Grouping(_input) => self.match_ast(*_input,visitor, codegen),
-            Expression::LetStmt(var, _, lhs) => {
-                match self.var_cache.get(&var) {
-                    Some(mut val) => {
-                        // Check Variables are the same Type
-                        // Then Update the value of the old variable
-                        // reassign variable
-
-                        // Assign a temp variable to the stack
-                        let lhs: Box<dyn TypeBase> = self.match_ast(*lhs,visitor, codegen)?;
-                        // Assign this new value
-                        val.assign(codegen, lhs)?;
-                        Ok(val)
-                    }
-                    _ => {
-                        let lhs = self.match_ast( *lhs,visitor, codegen)?;
-                        self.var_cache.set(&var.clone(), lhs.clone(), self.depth);
-                        Ok(lhs)
-                    }
-                }
-            }
+            Expression::List(_) => visitor.visit_list(&input, codegen, self),
+            Expression::ListIndex(_, _) => visitor.visit_list_index(&input, codegen, self),
+            Expression::ListAssign(_, _, _) => visitor.visit_list_assign(&input, codegen, self),
+            Expression::Nil => visitor.visit_nil(),
+            Expression::Binary(_, _, _) => visitor.visit_binary(&input, codegen, self),
+            Expression::Grouping(_) => visitor.visit_grouping(input, codegen, self),
+            Expression::LetStmt(_, _, _) => visitor.visit_let_stmt(&input, codegen, self),
             Expression::BlockStmt(exprs) => {
                 // Set Variable Depth
                 // Each Block Stmt, Incr and Decr
@@ -425,14 +327,6 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("type is not an i32"))
     }
 
-    fn visit_binary(
-        &mut self,
-        _left: &Expression,
-        _codegen: &LLVMCodegenBuilder,
-    ) -> Result<Box<dyn TypeBase>> {
-        unimplemented!()
-    }
-
     fn visit_list(
         &mut self,
         left: &Expression,
@@ -441,7 +335,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         if let Expression::List(v) = left {
             let mut vec_expr = vec![];
-            let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor{});
+            let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
             for x in v {
                 let expr = context.match_ast(x.clone(), &mut visitor, codegen)?;
                 vec_expr.push(expr)
@@ -466,5 +360,145 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             }));
         }
         Err(anyhow!("unable to visit list"))
+    }
+
+    fn visit_list_index(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::ListIndex(v, i) = left {
+            let name = cstr_from_string("access_array").as_ptr();
+            let val = context.match_ast(*v.clone(), &mut visitor, codegen)?;
+            let index = context.match_ast(*i.clone(), &mut visitor, codegen)?;
+            let zero_index = codegen.const_int(int64_type(), 0, 0);
+            let build_load_index =
+                codegen.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
+            let mut indices = [zero_index, build_load_index];
+            let val = codegen.build_gep(
+                val.get_llvm_type(),
+                val.get_ptr().unwrap(),
+                indices.as_mut_ptr(),
+                2_u32,
+                name,
+            );
+            return Ok(Box::new(NumberType {
+                llvm_value: val,
+                llvm_value_pointer: Some(val),
+                name: "".to_string(),
+            }));
+        }
+        Err(anyhow!("not a list index"))
+    }
+
+    fn visit_list_assign(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::ListAssign(var, i, rhs) = left {
+            match context.var_cache.get(&var) {
+                Some(val) => {
+                    let name = cstr_from_string("access_array").as_ptr();
+                    let lhs: Box<dyn TypeBase> =
+                        context.match_ast(*rhs.clone(), &mut visitor, codegen)?;
+                    let index = context.match_ast(*i.clone(), &mut visitor, codegen)?;
+                    let zero_index = codegen.const_int(int64_type(), 0, 0);
+                    let build_load_index = codegen.build_load(
+                        index.get_ptr().unwrap(),
+                        index.get_llvm_type(),
+                        "example",
+                    );
+                    let mut indices = [zero_index, build_load_index];
+                    let element_ptr = codegen.build_gep(
+                        val.get_llvm_type(),
+                        val.get_ptr().unwrap(),
+                        indices.as_mut_ptr(),
+                        2_u32,
+                        name,
+                    );
+                    codegen.build_store(lhs.get_value(), element_ptr);
+                    return Ok(val);
+                }
+                _ => {
+                    unreachable!("can't assign as var doesn't exist")
+                }
+            }
+        }
+        Err(anyhow!("unable to assign variable for list"))
+    }
+
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::Binary(lhs, op, rhs) = left {
+            let lhs = context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
+            let rhs = context.match_ast(*rhs.clone(), &mut visitor, codegen)?;
+            return match op.as_str() {
+                "+" | "-" | "/" | "*" => codegen.arithmetic(lhs, rhs, op.to_string()),
+                "^" => Err(anyhow!("^ is not implemented yet")),
+                "==" | "!=" | "<" | "<=" | ">" | ">=" => codegen.cmp(lhs, rhs, op.to_string()),
+
+                _ => Err(anyhow!("Operator: {} not implement", op.clone())),
+            };
+        }
+        Err(anyhow!("unable to apply binary operation"))
+    }
+
+    fn visit_grouping(
+        &mut self,
+        left: Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::Grouping(val) = left {
+            return context.match_ast(*val, &mut visitor, codegen);
+        }
+        Err(anyhow!("unable to apply grouping"))
+    }
+
+    fn visit_nil(&mut self) -> Result<Box<dyn TypeBase>> {
+        todo!()
+    }
+
+    fn visit_let_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::LetStmt(var, _, lhs) = left {
+            match context.var_cache.get(&var) {
+                Some(mut val) => {
+                    // Check Variables are the same Type
+                    // Then Update the value of the old variable
+                    // reassign variable
+
+                    // Assign a temp variable to the stack
+                    let lhs: Box<dyn TypeBase> = context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
+                    // Assign this new value
+                    val.assign(codegen, lhs)?;
+                    return Ok(val)
+                }
+                _ => {
+                    let lhs: Box<dyn TypeBase> = context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
+                    context
+                        .var_cache
+                        .set(&var.clone(), lhs.clone(), context.depth);
+                    return Ok(lhs)
+                }
+            }
+        }
+        Err(anyhow!("unable to visit let statement"))
     }
 }

@@ -3,11 +3,11 @@ use crate::compiler::context::ASTContext;
 use std::any::Any;
 
 extern crate llvm_sys;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::types::{BaseTypes, Func, TypeBase};
 use anyhow::anyhow;
 use anyhow::Result;
 use llvm_sys::prelude::*;
-use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 
 #[derive(Clone)]
 pub struct BoolType {
@@ -38,12 +38,11 @@ impl TypeBase for BoolType {
     fn print(&self, astcontext: &mut ASTContext, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
         let bool_func_args = get_value_for_print_argument(codegen, "", self.clone());
 
-        let bool_to_string_func =codegen
+        let bool_to_string_func = codegen
             .llvm_func_cache
             .get("bool_to_str")
             .ok_or(anyhow!("unable to find bool_to_str function"))?;
-        let str_value = codegen
-            .build_call(bool_to_string_func, bool_func_args, 1, "");
+        let str_value = codegen.build_call(bool_to_string_func, bool_func_args, 1, "");
         let print_args: Vec<LLVMValueRef> = vec![str_value];
         let print_func = codegen
             .llvm_func_cache

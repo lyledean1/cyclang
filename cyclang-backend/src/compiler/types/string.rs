@@ -5,9 +5,9 @@ extern crate llvm_sys;
 use crate::compiler::codegen::cstr_from_string;
 use anyhow::Result;
 
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
-use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 
 #[derive(Debug, Clone)]
 pub struct StringType {
@@ -18,7 +18,11 @@ pub struct StringType {
     pub str_value: String,
 }
 impl TypeBase for StringType {
-    fn assign(&mut self, _ast_context: &mut LLVMCodegenBuilder, _rhs: Box<dyn TypeBase>) -> Result<()> {
+    fn assign(
+        &mut self,
+        _ast_context: &mut LLVMCodegenBuilder,
+        _rhs: Box<dyn TypeBase>,
+    ) -> Result<()> {
         // TODO - add string implementation for assigning variable
         unimplemented!()
     }
@@ -43,11 +47,8 @@ impl TypeBase for StringType {
             // This is the Main Print Func
             let llvm_value_to_cstr = LLVMGetAsString(self.llvm_value, self.length);
             // Load Value from Value Index Ptr
-            let val = LLVMBuildGlobalStringPtr(
-                codegen.builder,
-                llvm_value_to_cstr,
-                llvm_value_to_cstr,
-            );
+            let val =
+                LLVMBuildGlobalStringPtr(codegen.builder, llvm_value_to_cstr, llvm_value_to_cstr);
 
             // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
             let mut print_args: Vec<LLVMValueRef> = vec![codegen.printf_str_value, val];
