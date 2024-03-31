@@ -11,28 +11,28 @@ pub trait Visitor<T> {
 
     fn visit_bool(&mut self, expression: &Expression, codegen: &LLVMCodegenBuilder) -> Result<T>;
 
-    fn visit_variable(
+    fn visit_variable_expr(
         &mut self,
         expression: &Expression,
         codegen: &LLVMCodegenBuilder,
         var_cache: &VariableCache,
     ) -> Result<T>;
 
-    fn visit_list(
+    fn visit_list_expr(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>>;
 
-    fn visit_list_index(
+    fn visit_list_index_expr(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>>;
 
-    fn visit_list_assign(
+    fn visit_list_assign_expr(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
@@ -41,14 +41,14 @@ pub trait Visitor<T> {
 
     fn visit_nil(&mut self) -> Result<Box<dyn TypeBase>>;
 
-    fn visit_binary(
+    fn visit_binary_stmt(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>>;
 
-    fn visit_grouping(
+    fn visit_grouping_stmt(
         &mut self,
         left: Expression,
         codegen: &mut LLVMCodegenBuilder,
@@ -56,6 +56,13 @@ pub trait Visitor<T> {
     ) -> Result<Box<dyn TypeBase>>;
 
     fn visit_let_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_block_stmt(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,

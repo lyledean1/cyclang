@@ -125,28 +125,15 @@ impl ASTContext {
             Expression::Number64(_) => visitor.visit_number(&input, codegen),
             Expression::String(_) => visitor.visit_string(&input, codegen),
             Expression::Bool(_) => visitor.visit_bool(&input, codegen),
-            Expression::Variable(_) => visitor.visit_variable(&input, codegen, &self.var_cache),
-            Expression::List(_) => visitor.visit_list(&input, codegen, self),
-            Expression::ListIndex(_, _) => visitor.visit_list_index(&input, codegen, self),
-            Expression::ListAssign(_, _, _) => visitor.visit_list_assign(&input, codegen, self),
+            Expression::Variable(_) => visitor.visit_variable_expr(&input, codegen, &self.var_cache),
+            Expression::List(_) => visitor.visit_list_expr(&input, codegen, self),
+            Expression::ListIndex(_, _) => visitor.visit_list_index_expr(&input, codegen, self),
+            Expression::ListAssign(_, _, _) => visitor.visit_list_assign_expr(&input, codegen, self),
             Expression::Nil => visitor.visit_nil(),
-            Expression::Binary(_, _, _) => visitor.visit_binary(&input, codegen, self),
-            Expression::Grouping(_) => visitor.visit_grouping(input, codegen, self),
+            Expression::Binary(_, _, _) => visitor.visit_binary_stmt(&input, codegen, self),
+            Expression::Grouping(_) => visitor.visit_grouping_stmt(input, codegen, self),
             Expression::LetStmt(_, _, _) => visitor.visit_let_stmt(&input, codegen, self),
-            Expression::BlockStmt(exprs) => {
-                // Set Variable Depth
-                // Each Block Stmt, Incr and Decr
-                // Clearing all the "Local" Variables That Have Been Assigned
-                self.incr();
-                let mut val: Box<dyn TypeBase> = Box::new(VoidType {});
-                for expr in exprs {
-                    val = self.match_ast(expr, visitor, codegen)?;
-                }
-                // Delete Variables
-                self.var_cache.del_locals(self.get_depth());
-                self.decr();
-                Ok(val)
-            }
+            Expression::BlockStmt(_) => visitor.visit_block_stmt(&input, codegen, self),
             Expression::CallStmt(name, args) => match self.func_cache.get(&name) {
                 Some(val) => {
                     let call_val = val.call(self, args, visitor, codegen)?;
@@ -305,7 +292,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("type is not a bool"))
     }
 
-    fn visit_variable(
+    fn visit_variable_expr(
         &mut self,
         left: &Expression,
         codegen: &LLVMCodegenBuilder,
@@ -327,7 +314,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("type is not an i32"))
     }
 
-    fn visit_list(
+    fn visit_list_expr(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
@@ -362,7 +349,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("unable to visit list"))
     }
 
-    fn visit_list_index(
+    fn visit_list_index_expr(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
@@ -393,7 +380,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("not a list index"))
     }
 
-    fn visit_list_assign(
+    fn visit_list_assign_expr(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
@@ -432,7 +419,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("unable to assign variable for list"))
     }
 
-    fn visit_binary(
+    fn visit_binary_stmt(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
@@ -453,7 +440,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         Err(anyhow!("unable to apply binary operation"))
     }
 
-    fn visit_grouping(
+    fn visit_grouping_stmt(
         &mut self,
         left: Expression,
         codegen: &mut LLVMCodegenBuilder,
@@ -485,20 +472,46 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                     // reassign variable
 
                     // Assign a temp variable to the stack
-                    let lhs: Box<dyn TypeBase> = context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
+                    let lhs: Box<dyn TypeBase> =
+                        context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
                     // Assign this new value
                     val.assign(codegen, lhs)?;
-                    return Ok(val)
+                    return Ok(val);
                 }
                 _ => {
-                    let lhs: Box<dyn TypeBase> = context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
+                    let lhs: Box<dyn TypeBase> =
+                        context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
                     context
                         .var_cache
                         .set(&var.clone(), lhs.clone(), context.depth);
-                    return Ok(lhs)
+                    return Ok(lhs);
                 }
             }
         }
         Err(anyhow!("unable to visit let statement"))
+    }
+
+    fn visit_block_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::BlockStmt(exprs) = left {
+            // Set Variable Depth
+            // Each Block Stmt, Incr and Decr
+            // Clearing all the "Local" Variables That Have Been Assigned
+            context.incr();
+            let mut val: Box<dyn TypeBase> = Box::new(VoidType {});
+            for expr in exprs {
+                val = context.match_ast(expr.clone(), &mut visitor, codegen)?;
+            }
+            // Delete Variables
+            context.var_cache.del_locals(context.get_depth());
+            context.decr();
+            return Ok(val);
+        }
+        Err(anyhow!("unable to visit block stmt"))
     }
 }
