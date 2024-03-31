@@ -225,32 +225,32 @@ impl ASTContext {
                 "==" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.eqeq(self, rhs))
+                    self.codegen.cmp(lhs, rhs, op)
                 }
                 "!=" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.ne(self, rhs))
+                    self.codegen.cmp(lhs, rhs, op)
                 }
                 "<" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.lt(self, rhs))
+                    self.codegen.cmp(lhs, rhs, op)
                 }
                 "<=" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.lte(self, rhs))
+                    self.codegen.cmp(lhs, rhs, op)
                 }
                 ">" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.gt(self, rhs))
+                    self.codegen.cmp(lhs, rhs, op)
                 }
                 ">=" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.gte(self, rhs))
+                    self.codegen.cmp(lhs, rhs, op)
                 }
                 _ => {
                     Err(anyhow!("Invalid operator found for {:?} {} {:?}", lhs, op, rhs))

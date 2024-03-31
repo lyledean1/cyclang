@@ -6,7 +6,7 @@ use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::CompileOptions;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cyclang_parser::{Expression, Type};
 use libc::c_uint;
 use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildPointerCast, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSExt, LLVMBuildStore, LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetParam, LLVMInt32TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
-use llvm_sys::LLVMIntPredicate::LLVMIntEQ;
+use llvm_sys::LLVMIntPredicate::{LLVMIntEQ, LLVMIntNE, LLVMIntSGE, LLVMIntSGT, LLVMIntSLE, LLVMIntSLT};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::string::StringType;
 
@@ -734,6 +734,61 @@ impl LLVMCodegenBuilder {
         }
     }
 
+    pub fn icmp(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>, op: LLVMIntPredicate) -> Result<Box<dyn TypeBase>> {
+        unsafe {
+            match (lhs.get_ptr(), lhs.get_type()) {
+                (Some(lhs_ptr), BaseTypes::Number) => {
+                    let mut lhs_val = self.build_load(
+                        lhs_ptr,
+                        lhs.get_llvm_type(),
+                        lhs.get_name_as_str(),
+                    );
+                    let mut rhs_val = self.build_load(
+                        rhs.get_ptr().unwrap(),
+                        rhs.get_llvm_type(),
+                        rhs.get_name_as_str(),
+                    );
+                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
+                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
+                    let cmp = LLVMBuildICmp(
+                        self.builder,
+                        op,
+                        lhs_val,
+                        rhs_val,
+                        cstr_from_string("result").as_ptr(),
+                    );
+                    let alloca = self
+                        .build_alloca_store(cmp, int1_type(), "bool_cmp");
+                    Ok(Box::new(BoolType {
+                        name: lhs.get_name_as_str().to_string(),
+                        builder: self.builder,
+                        llvm_value: cmp,
+                        llvm_value_pointer: alloca,
+                    }))
+                }
+                _ => {
+                    let mut lhs_val = lhs.get_value();
+                    let mut rhs_val = rhs.get_value();
+                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
+                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
+                    let cmp = LLVMBuildICmp(
+                        self.builder,
+                        op,
+                        lhs_val,
+                        rhs_val,
+                        cstr_from_string("result").as_ptr(),
+                    );
+                    let alloca = self.build_alloca_store(cmp, int1_type(), "bool_cmp");
+                    Ok(Box::new(BoolType {
+                        name: lhs.get_name_as_str().to_string(),
+                        builder: self.builder,
+                        llvm_value: cmp,
+                        llvm_value_pointer: alloca,
+                    }))
+                }
+            }
+        }
+    }
     pub fn add(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
             BaseTypes::String => match self.llvm_func_cache.get("sprintf") {
@@ -834,8 +889,20 @@ impl LLVMCodegenBuilder {
         }
     }
 
-    pub fn eqeq_primitive(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>) -> Result<Box<dyn TypeBase>> {
+    pub fn cmp(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>, op: String) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
+            BaseTypes::String => {
+                let value = lhs.get_str() == rhs.get_str();
+                let name = "bool_value";
+                let bool_value = self.const_int(int1_type(), value.into(), 0);
+                let alloca = self.build_alloca_store(bool_value, int1_type(), name);
+                return Ok(Box::new(BoolType {
+                    name: name.parse()?,
+                    builder: self.builder,
+                    llvm_value: bool_value,
+                    llvm_value_pointer: alloca,
+                }));
+            }
             BaseTypes::Number | BaseTypes::Bool => {}
             _ => {
                 unreachable!(
@@ -845,57 +912,33 @@ impl LLVMCodegenBuilder {
                 )
             }
         }
-        unsafe {
-            match (lhs.get_ptr(), lhs.get_type()) {
-                (Some(lhs_ptr), BaseTypes::Number) => {
-                    let mut lhs_val = self.build_load(
-                        lhs_ptr,
-                        lhs.get_llvm_type(),
-                        lhs.get_name_as_str(),
-                    );
-                    let mut rhs_val = self.build_load(
-                        rhs.get_ptr().unwrap(),
-                        rhs.get_llvm_type(),
-                        rhs.get_name_as_str(),
-                    );
-                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
-                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
-                    let cmp = LLVMBuildICmp(
-                        self.builder,
-                        LLVMIntEQ,
-                        lhs_val,
-                        rhs_val,
-                        cstr_from_string("result").as_ptr(),
-                    );
-                    let alloca = self
-                        .build_alloca_store(cmp, int1_type(), "bool_cmp");
-                    Ok(Box::new(BoolType {
-                        name: lhs.get_name_as_str().to_string(),
-                        builder: self.builder,
-                        llvm_value: cmp,
-                        llvm_value_pointer: alloca,
-                    }))
-                }
-                _ => {
-                    let mut lhs_val = lhs.get_value();
-                    let mut rhs_val = rhs.get_value();
-                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
-                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
-                    let cmp = LLVMBuildICmp(
-                        self.builder,
-                        LLVMIntEQ,
-                        lhs_val,
-                        rhs_val,
-                        cstr_from_string("result").as_ptr(),
-                    );
-                    let alloca = self.build_alloca_store(cmp, int1_type(), "bool_cmp");
-                    Ok(Box::new(BoolType {
-                        name: lhs.get_name_as_str().to_string(),
-                        builder: self.builder,
-                        llvm_value: cmp,
-                        llvm_value_pointer: alloca,
-                    }))
-                }
+        match op.as_str() {
+            "==" => {
+                self.icmp(lhs, rhs, LLVMIntEQ)
+
+            }
+            "!=" => {
+                self.icmp(lhs, rhs, LLVMIntNE)
+
+            }
+            "<" => {
+                self.icmp(lhs, rhs, LLVMIntSLT)
+
+            }
+            "<=" => {
+                self.icmp(lhs, rhs, LLVMIntSLE)
+
+            }
+            ">" => {
+                self.icmp(lhs, rhs, LLVMIntSGT)
+
+            }
+            ">=" => {
+                self.icmp(lhs, rhs, LLVMIntSGE)
+
+            }
+            _ => {
+                unimplemented!()
             }
         }
     }

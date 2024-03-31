@@ -22,40 +22,6 @@ impl Base for StringType
 { fn get_type(& self) -> BaseTypes { BaseTypes :: String } }
 
 
-impl Comparison for StringType {
-    fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::String => {
-                let value = self.get_str() == _rhs.get_str();
-                BoolType::new(Box::new(value), self.name.clone(), _context)
-            }
-            _ => {
-                unreachable!(
-                    "Can't compare == on dtype {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-
-    fn ne(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        match _rhs.get_type() {
-            BaseTypes::String => {
-                let value = self.get_str() != _rhs.get_str();
-                BoolType::new(Box::new(value), self.name.clone(), _context)
-            }
-            _ => {
-                unreachable!(
-                    "Can't compare != on type {:?} and type {:?}",
-                    self.get_type(),
-                    _rhs.get_type()
-                )
-            }
-        }
-    }
-}
-
 impl Arithmetic for StringType {}
 
 impl TypeBase for StringType {

@@ -75,7 +75,7 @@ type LLVMArithmeticFn = unsafe extern "C" fn(
     Name: *const c_char,
 ) -> LLVMValueRef;
 
-pub trait TypeBase: DynClone + Base + Arithmetic + Comparison + Func {
+pub trait TypeBase: DynClone + Base + Arithmetic + Func {
     // TODO: remove on implementation
     #[allow(clippy::all)]
     fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
