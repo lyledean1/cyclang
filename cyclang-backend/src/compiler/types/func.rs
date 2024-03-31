@@ -4,7 +4,7 @@ use crate::compiler::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
-use crate::compiler::types::{Base, BaseTypes, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, Func, TypeBase};
 use anyhow::Result;
 use cyclang_parser::{Expression, Type};
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
@@ -18,16 +18,6 @@ pub struct FuncType {
     pub llvm_type: LLVMTypeRef,
     pub llvm_func: LLVMValueRef,
 }
-
-impl Base for FuncType {
-    fn get_llvm_type(&self) -> LLVMTypeRef {
-        self.llvm_type
-    }
-    fn get_type(&self) -> BaseTypes {
-        BaseTypes::Func
-    }
-}
-
 impl Func for FuncType {
     fn call(&self, context: &mut ASTContext, args: Vec<Expression>) -> Result<Box<dyn TypeBase>> {
         unsafe {
@@ -47,12 +37,14 @@ impl Func for FuncType {
                     call_args.push(ast_value.get_value());
                 }
             }
+            let llvm_type = self.get_llvm_type();
+            let value = self.get_value();
             let call_value = LLVMBuildCall2(
                 context.codegen.builder,
-                self.get_llvm_type(),
-                self.get_value(),
+                llvm_type,
+                value,
                 call_args.as_mut_ptr(),
-                LLVMCountParamTypes(self.get_llvm_type()),
+                LLVMCountParamTypes(llvm_type),
                 cstr_from_string("").as_ptr(),
             );
             match self.return_type {
@@ -106,10 +98,12 @@ impl Func for FuncType {
             }
         }
     }
+
 }
 
 impl TypeBase for FuncType {
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_func
     }
+    fn get_type(& self) -> BaseTypes { BaseTypes :: Bool }
 }

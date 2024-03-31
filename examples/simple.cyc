@@ -1,3 +1,4 @@
-let number = 2;
-number = number + 1;
-print(number);
+fn compare_ints() {
+    print(1);
+}
+compare_ints();

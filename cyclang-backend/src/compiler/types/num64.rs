@@ -1,4 +1,4 @@
-use crate::compiler::types::{Base, BaseTypes, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, Func, TypeBase};
 
 extern crate llvm_sys;
 use llvm_sys::prelude::*;
@@ -19,10 +19,8 @@ impl TypeBase for NumberType64 {
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         self.llvm_value_pointer
     }
+    fn get_type(& self) -> BaseTypes { BaseTypes :: Number64 }
 }
-
-impl Base for NumberType64
-{ fn get_type(& self) -> BaseTypes { BaseTypes :: Number64 } }
 
 impl Func for NumberType64 {}
 

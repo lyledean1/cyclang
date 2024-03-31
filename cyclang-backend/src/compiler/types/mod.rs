@@ -20,9 +20,7 @@ extern crate libc;
 use libc::c_char;
 
 extern crate llvm_sys;
-use crate::compiler::codegen::{
-    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type, int8_type,
-};
+use crate::compiler::codegen::{int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type, int8_ptr_type, int8_type};
 use crate::compiler::context::ASTContext;
 
 use anyhow::anyhow;
@@ -41,40 +39,9 @@ pub enum BaseTypes {
     Void,
     Return,
 }
-pub trait Base: DynClone {
-    fn get_type(&self) -> BaseTypes;
-    fn get_llvm_type(&self) -> LLVMTypeRef {
-        match self.get_type() {
-            BaseTypes::String => int8_type(),
-            BaseTypes::Bool => int1_type(),
-            BaseTypes::Number => int32_type(),
-            BaseTypes::Number64 => int64_type(),
-            _ => {
-                unreachable!("LLVMType for Type {:?} not found", self.get_type())
-            }
-        }
-    }
-    fn get_llvm_ptr_type(&self) -> LLVMTypeRef {
-        match self.get_type() {
-            BaseTypes::String => int8_ptr_type(),
-            BaseTypes::Bool => int1_ptr_type(),
-            BaseTypes::Number => int32_ptr_type(),
-            BaseTypes::Number64 => int64_type(),
-            _ => {
-                unreachable!("LLVMType for Type {:?} not found", self.get_type())
-            }
-        }
-    }
-}
 
-type LLVMArithmeticFn = unsafe extern "C" fn(
-    arg1: LLVMBuilderRef,
-    LHS: LLVMValueRef,
-    RHS: LLVMValueRef,
-    Name: *const c_char,
-) -> LLVMValueRef;
 
-pub trait TypeBase: DynClone + Base + Func {
+pub trait TypeBase: DynClone + Func {
     // TODO: remove on implementation
     #[allow(clippy::all)]
     fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
@@ -142,15 +109,39 @@ pub trait TypeBase: DynClone + Base + Func {
         context.codegen.build_call(print_func, print_args, 2, "");
         Ok(())
     }
+
+    fn get_type(&self) -> BaseTypes;
+    fn get_llvm_type(&self) -> LLVMTypeRef {
+        match self.get_type() {
+            BaseTypes::String => int8_type(),
+            BaseTypes::Bool => int1_type(),
+            BaseTypes::Number => int32_type(),
+            BaseTypes::Number64 => int64_type(),
+            _ => {
+                unreachable!("LLVMType for Type {:?} not found", self.get_type())
+            }
+        }
+    }
+    fn get_llvm_ptr_type(&self) -> LLVMTypeRef {
+        match self.get_type() {
+            BaseTypes::String => int8_ptr_type(),
+            BaseTypes::Bool => int1_ptr_type(),
+            BaseTypes::Number => int32_ptr_type(),
+            BaseTypes::Number64 => int64_type(),
+            _ => {
+                unreachable!("LLVMType for Type {:?} not found", self.get_type())
+            }
+        }
+    }
 }
 
-pub trait Func: Base {
+pub trait Func {
     fn call(
         &self,
         _context: &mut ASTContext,
         _call_arguments: Vec<Expression>,
     ) -> Result<Box<dyn TypeBase>> {
-        unimplemented!("{:?} type does not implement call", self.get_type())
+        unimplemented!("type does not implement call")
     }
 }
 

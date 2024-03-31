@@ -1,6 +1,6 @@
 use crate::compiler::codegen::*;
 use crate::compiler::context::ASTContext;
-use crate::compiler::types::{Base, BaseTypes, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, Func, TypeBase};
 use std::any::Any;
 
 extern crate llvm_sys;
@@ -13,9 +13,6 @@ pub struct NumberType {
     pub llvm_value_pointer: Option<LLVMValueRef>,
     pub name: String,
 }
-
-impl Base for NumberType
-{ fn get_type(& self) -> BaseTypes { BaseTypes :: Number } }
 
 impl TypeBase for NumberType {
     fn new(_value: Box<dyn Any>, name: String, context: &mut ASTContext) -> Box<dyn TypeBase> {
@@ -41,7 +38,9 @@ impl TypeBase for NumberType {
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         self.llvm_value_pointer
     }
+    fn get_type(& self) -> BaseTypes { BaseTypes :: Number }
 }
+
 
 impl Func for NumberType {}
 

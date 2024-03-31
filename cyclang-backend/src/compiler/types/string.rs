@@ -1,5 +1,5 @@
 use crate::compiler::context::ASTContext;
-use crate::compiler::types::{Base, BaseTypes, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, Func, TypeBase};
 
 extern crate llvm_sys;
 use crate::compiler::codegen::cstr_from_string;
@@ -16,10 +16,6 @@ pub struct StringType {
     pub llvm_value_pointer: Option<LLVMValueRef>,
     pub str_value: String,
 }
-
-impl Base for StringType
-{ fn get_type(& self) -> BaseTypes { BaseTypes :: String } }
-
 impl TypeBase for StringType {
     fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Result<()> {
         // TODO - add string implementation for assigning variable
@@ -72,6 +68,7 @@ impl TypeBase for StringType {
         }
         Ok(())
     }
+    fn get_type(& self) -> BaseTypes { BaseTypes :: String }
 }
 
 impl Func for StringType {}

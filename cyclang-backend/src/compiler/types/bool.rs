@@ -3,7 +3,7 @@ use crate::compiler::context::ASTContext;
 use std::any::Any;
 
 extern crate llvm_sys;
-use crate::compiler::types::{Base, BaseTypes, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, Func, TypeBase};
 use anyhow::anyhow;
 use anyhow::Result;
 use llvm_sys::prelude::*;
@@ -16,8 +16,6 @@ pub struct BoolType {
     pub name: String,
 }
 
-impl Base for BoolType
-{ fn get_type(& self) -> BaseTypes { BaseTypes :: Bool } }
 
 fn get_value_for_print_argument(
     context: &mut ASTContext,
@@ -78,6 +76,7 @@ impl TypeBase for BoolType {
         astcontext.codegen.build_call(print_func, print_args, 1, "");
         Ok(())
     }
-}
+    fn get_type(& self) -> BaseTypes { BaseTypes :: Bool }
 
+}
 impl Func for BoolType {}
