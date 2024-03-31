@@ -30,6 +30,7 @@ use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Expression;
 use llvm_sys::prelude::*;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::visitor::Visitor;
 
 #[derive(Debug, PartialEq)]
@@ -53,7 +54,7 @@ pub trait TypeBase: DynClone + Func {
     {
         unimplemented!("new has not been implemented for this type");
     }
-    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Result<()> {
+    fn assign(&mut self, codegen: &mut LLVMCodegenBuilder, _rhs: Box<dyn TypeBase>) -> Result<()> {
         if _rhs.get_type() != self.get_type() {
             return Err(anyhow!(
                 "Can't reassign variable {:?} that has type {:?} to type {:?}",
@@ -62,7 +63,7 @@ pub trait TypeBase: DynClone + Func {
                 _rhs.get_type()
             ));
         }
-        _ast_context.codegen.build_load_store(
+        codegen.build_load_store(
             _rhs.get_ptr().unwrap(),
             self.get_ptr().unwrap(),
             self.get_llvm_type(),
@@ -92,24 +93,23 @@ pub trait TypeBase: DynClone + Func {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
     }
 
-    fn get_value_for_printf(&self, context: &mut ASTContext) -> LLVMValueRef {
+    fn get_value_for_printf(&self, codegen: &mut LLVMCodegenBuilder) -> LLVMValueRef {
         match self.get_ptr() {
-            Some(v) => context.codegen.build_load(v, self.get_llvm_type(), "debug"),
+            Some(v) => codegen.build_load(v, self.get_llvm_type(), "debug"),
             None => self.get_value(),
         }
     }
 
-    fn print(&self, context: &mut ASTContext) -> Result<()> {
+    fn print(&self, context: &mut ASTContext, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
         let print_args: Vec<LLVMValueRef> = vec![
-            context.codegen.get_printf_str(self.get_type()),
-            self.get_value_for_printf(context),
+            codegen.get_printf_str(self.get_type()),
+            self.get_value_for_printf(codegen),
         ];
-        let print_func = context
-            .codegen
+        let print_func = codegen
             .llvm_func_cache
             .get("printf")
             .ok_or(anyhow!("unable to call print function"))?;
-        context.codegen.build_call(print_func, print_args, 2, "");
+        codegen.build_call(print_func, print_args, 2, "");
         Ok(())
     }
 
@@ -139,7 +139,7 @@ pub trait TypeBase: DynClone + Func {
 }
 
 pub trait Func {
-    fn call(&self, context: &mut ASTContext, args: Vec<Expression>, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>) -> Result<Box<dyn TypeBase>> {
+    fn call(&self, context: &mut ASTContext, args: Vec<Expression>, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>, codegen: &mut LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
         unimplemented!("type does not implement call")
     }
 }

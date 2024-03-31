@@ -26,7 +26,7 @@ pub trait Visitor<T> {
     fn visit_list(
         &mut self,
         left: &Expression,
-        _codegen: &LLVMCodegenBuilder,
+        _codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>>;
 }

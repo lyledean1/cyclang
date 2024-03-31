@@ -7,6 +7,7 @@ use anyhow::Result;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 
 #[derive(Debug, Clone)]
 pub struct StringType {
@@ -17,7 +18,7 @@ pub struct StringType {
     pub str_value: String,
 }
 impl TypeBase for StringType {
-    fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Result<()> {
+    fn assign(&mut self, _ast_context: &mut LLVMCodegenBuilder, _rhs: Box<dyn TypeBase>) -> Result<()> {
         // TODO - add string implementation for assigning variable
         unimplemented!()
     }
@@ -35,7 +36,7 @@ impl TypeBase for StringType {
     fn get_str(&self) -> String {
         self.str_value.clone()
     }
-    fn print(&self, ast_context: &mut ASTContext) -> Result<()> {
+    fn print(&self, context: &mut ASTContext, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
         unsafe {
             // Set Value
             // create string vairables and then function
@@ -43,17 +44,17 @@ impl TypeBase for StringType {
             let llvm_value_to_cstr = LLVMGetAsString(self.llvm_value, self.length);
             // Load Value from Value Index Ptr
             let val = LLVMBuildGlobalStringPtr(
-                ast_context.codegen.builder,
+                codegen.builder,
                 llvm_value_to_cstr,
                 llvm_value_to_cstr,
             );
 
             // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
-            let mut print_args: Vec<LLVMValueRef> = vec![ast_context.codegen.printf_str_value, val];
-            match ast_context.codegen.llvm_func_cache.get("printf") {
+            let mut print_args: Vec<LLVMValueRef> = vec![codegen.printf_str_value, val];
+            match codegen.llvm_func_cache.get("printf") {
                 Some(print_func) => {
                     LLVMBuildCall2(
-                        ast_context.codegen.builder,
+                        codegen.builder,
                         print_func.func_type,
                         print_func.function,
                         print_args.as_mut_ptr(),

@@ -15,23 +15,6 @@ pub struct NumberType {
 }
 
 impl TypeBase for NumberType {
-    fn new(_value: Box<dyn Any>, name: String, context: &mut ASTContext) -> Box<dyn TypeBase> {
-        let value_as_i32 = match _value.downcast_ref::<i32>() {
-            Some(val) => *val,
-            None => panic!("The input value must be an i32"),
-        };
-        let value = context
-            .codegen
-            .const_int(int32_type(), value_as_i32.try_into().unwrap(), 0);
-        let ptr = context
-            .codegen
-            .build_alloca_store(value, int32_ptr_type(), &name);
-        Box::new(NumberType {
-            name,
-            llvm_value: value,
-            llvm_value_pointer: Some(ptr),
-        })
-    }
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_value
     }

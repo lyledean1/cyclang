@@ -2,6 +2,7 @@ use crate::compiler::codegen::target::Target;
 use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use anyhow::Result;
 use cyclang_parser::Expression;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::types::TypeBase;
 use crate::compiler::visitor::Visitor;
 
@@ -23,9 +24,10 @@ pub fn compile(exprs: Vec<Expression>, compile_options: Option<CompileOptions>) 
     // output LLVM IR
     let mut ast_ctx = ASTContext::init(compile_options)?;
     let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor{});
+    let mut codegen = LLVMCodegenBuilder::init(compile_options)?;
     for expr in exprs {
-        ast_ctx.match_ast(expr, &mut visitor)?;
+        ast_ctx.match_ast(expr, &mut visitor, &mut codegen)?;
     }
-    ast_ctx.dispose_and_get_module_str()
+    codegen.dispose_and_get_module_str()
 }
 

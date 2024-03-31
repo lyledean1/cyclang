@@ -9,6 +9,7 @@ use anyhow::Result;
 use cyclang_parser::{Expression, Type};
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
 use llvm_sys::prelude::*;
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::visitor::Visitor;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)
@@ -20,18 +21,17 @@ pub struct FuncType {
     pub llvm_func: LLVMValueRef,
 }
 impl Func for FuncType {
-    fn call(&self, context: &mut ASTContext, args: Vec<Expression>, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>) -> Result<Box<dyn TypeBase>> {
+    fn call(&self, context: &mut ASTContext, args: Vec<Expression>, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>, codegen: &mut LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
         unsafe {
             // need to build up call with actual LLVMValue
 
             let call_args = &mut vec![];
             for arg in args.iter() {
                 // build load args i.e if variable
-                let ast_value = context.match_ast(arg.clone(), visitor)?;
+                let ast_value = context.match_ast(arg.clone(), visitor, codegen)?;
                 if let Some(ptr) = ast_value.get_ptr() {
                     let loaded_value =
-                        context
-                            .codegen
+                            codegen
                             .build_load(ptr, ast_value.get_llvm_type(), "call_arg");
                     call_args.push(loaded_value);
                 } else {
@@ -41,7 +41,7 @@ impl Func for FuncType {
             let llvm_type = self.get_llvm_type();
             let value = self.get_value();
             let call_value = LLVMBuildCall2(
-                context.codegen.builder,
+                codegen.builder,
                 llvm_type,
                 value,
                 call_args.as_mut_ptr(),
@@ -50,7 +50,7 @@ impl Func for FuncType {
             );
             match self.return_type {
                 Type::i32 => {
-                    let _ptr = context.codegen.build_alloca_store(
+                    let _ptr = codegen.build_alloca_store(
                         call_value,
                         int32_ptr_type(),
                         "call_value_int32",
@@ -62,7 +62,7 @@ impl Func for FuncType {
                     }))
                 }
                 Type::i64 => {
-                    let _ptr = context.codegen.build_alloca_store(
+                    let _ptr = codegen.build_alloca_store(
                         call_value,
                         int64_ptr_type(),
                         "call_value_int64",
@@ -74,13 +74,13 @@ impl Func for FuncType {
                     }))
                 }
                 Type::Bool => {
-                    let ptr = context.codegen.build_alloca_store(
+                    let ptr = codegen.build_alloca_store(
                         call_value,
                         int1_ptr_type(),
                         "bool_value",
                     );
                     Ok(Box::new(BoolType {
-                        builder: context.codegen.builder,
+                        builder: codegen.builder,
                         llvm_value: call_value,
                         llvm_value_pointer: ptr,
                         name: "call_value".into(),

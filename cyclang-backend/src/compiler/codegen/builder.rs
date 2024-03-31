@@ -427,21 +427,22 @@ impl LLVMCodegenBuilder {
         if_stmt: Expression,
         else_stmt: Option<Expression>,
         visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
+        codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
         let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
-        let function = context.codegen.current_function.function;
-        let if_entry_block: *mut llvm_sys::LLVMBasicBlock = context.codegen.current_function.block;
+        let function = codegen.current_function.function;
+        let if_entry_block: *mut llvm_sys::LLVMBasicBlock = codegen.current_function.block;
 
-        context.codegen.position_builder_at_end(if_entry_block);
+        codegen.position_builder_at_end(if_entry_block);
 
-        let cond: Box<dyn TypeBase> = context.match_ast(condition, visitor)?;
+        let cond: Box<dyn TypeBase> = context.match_ast(condition, visitor, codegen)?;
         // Build If Block
-        let then_block = context.codegen.append_basic_block(function, "then_block");
-        let merge_block = context.codegen.append_basic_block(function, "merge_block");
+        let then_block = codegen.append_basic_block(function, "then_block");
+        let merge_block = codegen.append_basic_block(function, "merge_block");
 
-        context.codegen.set_current_block(then_block);
+        codegen.set_current_block(then_block);
 
-        let stmt = context.match_ast(if_stmt,visitor)?;
+        let stmt = context.match_ast(if_stmt,visitor, codegen)?;
 
         match stmt.get_type() {
             BaseTypes::Return => {
@@ -449,45 +450,44 @@ impl LLVMCodegenBuilder {
                 return_type = Box::new(ReturnType {});
             }
             _ => {
-                context.codegen.build_br(merge_block); // Branch to merge_block
+                codegen.build_br(merge_block); // Branch to merge_block
             }
         }
         // Each
 
         // Build Else Block
-        let else_block = context.codegen.append_basic_block(function, "else_block");
-        context.codegen.set_current_block(else_block);
+        let else_block = codegen.append_basic_block(function, "else_block");
+        codegen.set_current_block(else_block);
 
         match else_stmt {
             Some(v_stmt) => {
-                let stmt = context.match_ast(v_stmt,visitor)?;
+                let stmt = context.match_ast(v_stmt,visitor, codegen)?;
                 match stmt.get_type() {
                     BaseTypes::Return => {
                         // if its a return type we will skip branching in the LLVM IR
                         return_type = Box::new(ReturnType {});
                     }
                     _ => {
-                        context.codegen.build_br(merge_block);
+                        codegen.build_br(merge_block);
                     }
                 }
             }
             _ => {
-                context.codegen.position_builder_at_end(else_block);
-                context.codegen.build_br(merge_block);
+                codegen.position_builder_at_end(else_block);
+                codegen.build_br(merge_block);
             }
         }
 
-        context.codegen.position_builder_at_end(merge_block);
-        context.codegen.set_current_block(merge_block);
+        codegen.position_builder_at_end(merge_block);
+        codegen.set_current_block(merge_block);
 
-        context.codegen.set_current_block(if_entry_block);
+        codegen.set_current_block(if_entry_block);
 
-        let cmp = context
-            .codegen
+        let cmp = codegen
             .build_load(cond.get_ptr().unwrap(), int1_type(), "cmp");
-        context.codegen.build_cond_br(cmp, then_block, else_block);
+        codegen.build_cond_br(cmp, then_block, else_block);
 
-        context.codegen.set_current_block(merge_block);
+        codegen.set_current_block(merge_block);
         Ok(return_type)
     }
 
@@ -496,48 +496,46 @@ impl LLVMCodegenBuilder {
         condition: Expression,
         while_block_stmt: Expression,
         visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
+        codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
-        let function = context.codegen.current_function.function;
+        let function = codegen.current_function.function;
 
-        let loop_cond_block = context.codegen.append_basic_block(function, "loop_cond");
-        let loop_body_block = context.codegen.append_basic_block(function, "loop_body");
-        let loop_exit_block = context.codegen.append_basic_block(function, "loop_exit");
+        let loop_cond_block = codegen.append_basic_block(function, "loop_cond");
+        let loop_body_block = codegen.append_basic_block(function, "loop_body");
+        let loop_exit_block = codegen.append_basic_block(function, "loop_exit");
 
-        let bool_type_ptr = context
-            .codegen
+        let bool_type_ptr = codegen
             .build_alloca(int1_type(), "while_value_bool_var");
-        let value_condition = context.match_ast(condition, visitor)?;
+        let value_condition = context.match_ast(condition, visitor, codegen)?;
 
         let cmp =
-            context
-                .codegen
+            codegen
                 .build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
 
-        context.codegen.build_store(cmp, bool_type_ptr);
+        codegen.build_store(cmp, bool_type_ptr);
 
-        context.codegen.build_br(loop_cond_block);
+        codegen.build_br(loop_cond_block);
 
-        context.codegen.set_current_block(loop_body_block);
+        codegen.set_current_block(loop_body_block);
         // Check if the global variable already exists
 
-        context.match_ast(while_block_stmt, visitor)?;
+        context.match_ast(while_block_stmt, visitor, codegen)?;
 
-        context.codegen.build_br(loop_cond_block); // Jump back to loop condition
+        codegen.build_br(loop_cond_block); // Jump back to loop condition
 
-        context.codegen.set_current_block(loop_cond_block);
+        codegen.set_current_block(loop_cond_block);
         // Build loop condition block
-        let value_cond_load = context.codegen.build_load(
+        let value_cond_load = codegen.build_load(
             value_condition.get_ptr().unwrap(),
             int1_type(),
             "while_value_bool_var",
         );
 
-        context
-            .codegen
+        codegen
             .build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
 
         // Position builder at loop exit block
-        context.codegen.set_current_block(loop_exit_block);
+        codegen.set_current_block(loop_exit_block);
         Ok(value_condition)
     }
 
@@ -549,15 +547,16 @@ impl LLVMCodegenBuilder {
         increment: i32,
         for_block_expr: Expression,
         visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
+        codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
         unsafe {
-            let for_block = context.codegen.current_function.block;
-            let function = context.codegen.current_function.function;
-            context.codegen.set_current_block(for_block);
+            let for_block = codegen.current_function.block;
+            let function = codegen.current_function.function;
+            codegen.set_current_block(for_block);
 
-            let loop_cond_block = context.codegen.append_basic_block(function, "loop_cond");
-            let loop_body_block = context.codegen.append_basic_block(function, "loop_body");
-            let loop_exit_block = context.codegen.append_basic_block(function, "loop_exit");
+            let loop_cond_block = codegen.append_basic_block(function, "loop_cond");
+            let loop_body_block = codegen.append_basic_block(function, "loop_body");
+            let loop_exit_block = codegen.append_basic_block(function, "loop_exit");
 
             let i: Box<dyn TypeBase> = NumberType::new(Box::new(init), "i".to_string(), context);
 
@@ -565,12 +564,12 @@ impl LLVMCodegenBuilder {
             let ptr = i.get_ptr();
             context.var_cache.set(&var_name, i, context.depth);
 
-            context.codegen.build_store(value, ptr.unwrap());
+            codegen.build_store(value, ptr.unwrap());
             // Branch to loop condition block
-            context.codegen.build_br(loop_cond_block);
+            codegen.build_br(loop_cond_block);
 
             // Build loop condition block
-            context.codegen.set_current_block(loop_cond_block);
+            codegen.set_current_block(loop_cond_block);
 
             // TODO: improve this logic for identifying for and reverse fors
             let mut op = LLVMIntPredicate::LLVMIntSLT;
@@ -582,55 +581,54 @@ impl LLVMCodegenBuilder {
             let op_rhs = length;
 
             // Not sure why LLVMInt32TypeIntInContex
-            let lhs_val = context.codegen.build_load(
+            let lhs_val = codegen.build_load(
                 op_lhs.unwrap(),
-                LLVMInt32TypeInContext(context.codegen.context),
+                LLVMInt32TypeInContext(codegen.context),
                 "i",
             );
 
-            let icmp_val = context.codegen.const_int(
-                LLVMInt32TypeInContext(context.codegen.context),
+            let icmp_val = codegen.const_int(
+                LLVMInt32TypeInContext(codegen.context),
                 op_rhs.try_into().unwrap(),
                 0,
             );
             let loop_condition = LLVMBuildICmp(
-                context.codegen.builder,
+                codegen.builder,
                 op,
                 lhs_val,
                 icmp_val,
                 cstr_from_string("").as_ptr(),
             );
 
-            context
-                .codegen
+            codegen
                 .build_cond_br(loop_condition, loop_body_block, loop_exit_block);
 
             // Build loop body block
-            context.codegen.set_current_block(loop_body_block);
-            let for_block_cond = context.match_ast(for_block_expr, visitor)?;
-            let lhs_val = context.codegen.build_load(
+            codegen.set_current_block(loop_body_block);
+            let for_block_cond = context.match_ast(for_block_expr, visitor, codegen)?;
+            let lhs_val = codegen.build_load(
                 ptr.unwrap(),
-                LLVMInt32TypeInContext(context.codegen.context),
+                LLVMInt32TypeInContext(codegen.context),
                 "i",
             );
 
-            let incr_val = context.codegen.const_int(
-                LLVMInt32TypeInContext(context.codegen.context),
+            let incr_val = codegen.const_int(
+                LLVMInt32TypeInContext(codegen.context),
                 increment as u64,
                 0,
             );
 
             let new_value = LLVMBuildAdd(
-                context.codegen.builder,
+                codegen.builder,
                 lhs_val,
                 incr_val,
                 cstr_from_string("i").as_ptr(),
             );
-            context.codegen.build_store(new_value, ptr.unwrap());
-            context.codegen.build_br(loop_cond_block); // Jump back to loop condition
+            codegen.build_store(new_value, ptr.unwrap());
+            codegen.build_br(loop_cond_block); // Jump back to loop condition
 
             // Position builder at loop exit block
-            context.codegen.set_current_block(loop_exit_block);
+            codegen.set_current_block(loop_exit_block);
 
             Ok(for_block_cond)
         }
