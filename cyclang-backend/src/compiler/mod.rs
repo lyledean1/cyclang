@@ -12,6 +12,7 @@ pub mod codegen;
 pub mod context;
 pub mod types;
 pub mod visitor;
+pub mod cache;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CompileOptions {

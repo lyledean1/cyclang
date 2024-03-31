@@ -20,8 +20,8 @@ use libc::c_ulonglong;
 use llvm_sys::core::{
     LLVMBuildPointerCast, LLVMConstStringInContext, LLVMInt8Type, LLVMPointerType,
 };
-use std::collections::HashMap;
 use std::ffi::CString;
+use crate::compiler::cache::VariableCache;
 
 pub struct ASTContext {
     pub var_cache: VariableCache,
@@ -30,83 +30,9 @@ pub struct ASTContext {
 }
 
 impl ASTContext {
-    pub fn get_depth(&self) -> i32 {
-        self.depth
-    }
-    pub fn incr(&mut self) {
-        self.depth += 1;
-    }
-    pub fn decr(&mut self) {
-        self.depth -= 1;
-    }
-}
-
-#[derive(Clone)]
-struct Container {
-    pub trait_object: Box<dyn TypeBase>,
-}
-pub struct VariableCache {
-    map: HashMap<String, Container>,
-    local: HashMap<i32, Vec<String>>,
-}
-
-impl Default for VariableCache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl VariableCache {
-    pub fn new() -> Self {
-        VariableCache {
-            map: HashMap::new(),
-            local: HashMap::new(),
-        }
-    }
-
-    pub fn set(&mut self, key: &str, trait_object: Box<dyn TypeBase>, depth: i32) {
-        let mut locals: HashMap<i32, bool> = HashMap::new();
-        locals.insert(depth, true);
-        self.map.insert(key.to_string(), Container { trait_object });
-        match self.local.get(&depth) {
-            Some(val) => {
-                let mut val_clone = val.clone();
-                val_clone.push(key.to_string());
-                self.local.insert(depth, val_clone);
-            }
-            None => {
-                self.local.insert(depth, vec![key.to_string()]);
-            }
-        }
-    }
-
-    pub fn get(&self, key: &str) -> Option<Box<dyn TypeBase>> {
-        match self.map.get(key) {
-            Some(v) => Some(dyn_clone::clone_box(&*v.trait_object)),
-            None => None,
-        }
-    }
-
-    #[allow(dead_code)]
-    fn del(&mut self, key: &str) {
-        self.map.remove(key);
-    }
-
-    pub fn del_locals(&mut self, depth: i32) {
-        if let Some(v) = self.local.get(&depth) {
-            for local in v.iter() {
-                self.map.remove(&local.to_string());
-            }
-            self.local.remove(&depth);
-        }
-    }
-}
-
-impl ASTContext {
     pub fn init() -> Result<ASTContext> {
         let var_cache = VariableCache::new();
         let func_cache = VariableCache::new();
-        //TODO: remove
         Ok(ASTContext {
             var_cache,
             func_cache,
@@ -126,7 +52,7 @@ impl ASTContext {
             Expression::String(_) => visitor.visit_string(&input, codegen),
             Expression::Bool(_) => visitor.visit_bool(&input, codegen),
             Expression::Variable(_) => {
-                visitor.visit_variable_expr(&input, codegen, &self.var_cache)
+                visitor.visit_variable_expr(&input, codegen, self)
             }
             Expression::List(_) => visitor.visit_list_expr(&input, codegen, self),
             Expression::ListIndex(_, _) => visitor.visit_list_index_expr(&input, codegen, self),
@@ -150,8 +76,17 @@ impl ASTContext {
             _ => Err(anyhow!("this should be unreachable code, for {:?}", input)),
         }
     }
-}
 
+    pub fn get_depth(&self) -> i32 {
+        self.depth
+    }
+    pub fn incr(&mut self) {
+        self.depth += 1;
+    }
+    pub fn decr(&mut self) {
+        self.depth -= 1;
+    }
+}
 pub struct LLVMCodegenVisitor {}
 
 impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
@@ -246,7 +181,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         &mut self,
         left: &Expression,
         codegen: &LLVMCodegenBuilder,
-        var_cache: &VariableCache,
+        context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>> {
         if let Expression::Variable(input) = left {
             return match codegen.current_function.symbol_table.get(input) {
@@ -254,7 +189,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 None => {
                     // check if variable is in function
                     // TODO: should this be reversed i.e check func var first then global
-                    match var_cache.get(input) {
+                    match context.var_cache.get(input) {
                         Some(val) => Ok(val),
                         None => Err(anyhow!(format!("Unknown variable {}", input))),
                     }
