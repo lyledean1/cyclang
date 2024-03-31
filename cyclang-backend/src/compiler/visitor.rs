@@ -3,6 +3,7 @@ use crate::compiler::context::{ASTContext, VariableCache};
 use crate::compiler::types::TypeBase;
 use anyhow::Result;
 use cyclang_parser::Expression;
+use std::task::Context;
 
 pub trait Visitor<T> {
     fn visit_number(&mut self, expression: &Expression, codegen: &LLVMCodegenBuilder) -> Result<T>;
@@ -63,6 +64,41 @@ pub trait Visitor<T> {
     ) -> Result<Box<dyn TypeBase>>;
 
     fn visit_block_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_call_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_func_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_if_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_while_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_for_loop(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,

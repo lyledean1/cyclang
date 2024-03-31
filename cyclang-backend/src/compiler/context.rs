@@ -125,76 +125,35 @@ impl ASTContext {
             Expression::Number64(_) => visitor.visit_number(&input, codegen),
             Expression::String(_) => visitor.visit_string(&input, codegen),
             Expression::Bool(_) => visitor.visit_bool(&input, codegen),
-            Expression::Variable(_) => visitor.visit_variable_expr(&input, codegen, &self.var_cache),
+            Expression::Variable(_) => {
+                visitor.visit_variable_expr(&input, codegen, &self.var_cache)
+            }
             Expression::List(_) => visitor.visit_list_expr(&input, codegen, self),
             Expression::ListIndex(_, _) => visitor.visit_list_index_expr(&input, codegen, self),
-            Expression::ListAssign(_, _, _) => visitor.visit_list_assign_expr(&input, codegen, self),
+            Expression::ListAssign(_, _, _) => {
+                visitor.visit_list_assign_expr(&input, codegen, self)
+            }
             Expression::Nil => visitor.visit_nil(),
             Expression::Binary(_, _, _) => visitor.visit_binary_stmt(&input, codegen, self),
             Expression::Grouping(_) => visitor.visit_grouping_stmt(input, codegen, self),
             Expression::LetStmt(_, _, _) => visitor.visit_let_stmt(&input, codegen, self),
             Expression::BlockStmt(_) => visitor.visit_block_stmt(&input, codegen, self),
-            Expression::CallStmt(name, args) => match self.func_cache.get(&name) {
-                Some(val) => {
-                    let call_val = val.call(self, args, visitor, codegen)?;
-                    self.var_cache
-                        .set(name.as_str(), call_val.clone(), self.depth);
-                    Ok(call_val)
-                }
-                _ => {
-                    Err(anyhow!("call does not exist for function {:?}", name))
-                }
-            },
-            Expression::FuncStmt(name, args, _return_type, body) => {
-                let llvm_func = LLVMFunction::new(
-                    self,
-                    name.clone(),
-                    args.clone(),
-                    _return_type.clone(),
-                    *body.clone(),
-                    codegen.current_function.block,
-                    visitor,
-                    codegen,
-                )?;
-
-                let func = FuncType {
-                    llvm_type: llvm_func.func_type,
-                    llvm_func: llvm_func.function,
-                    return_type: _return_type,
-                };
-                // Set Func as a variable
-                self.func_cache
-                    .set(&name, Box::new(func.clone()), self.depth);
-                Ok(Box::new(func))
-            },
-            Expression::FuncArg(arg_name, arg_type) => {
-                Err(anyhow!("this should be unreachable code, for Expression::FuncArg arg_name:{} arg_type:{:?}", arg_name, arg_type))
-            }
-            Expression::IfStmt(condition, if_stmt, else_stmt) => {
-                //TODO: fix this so its an associated function
-                LLVMCodegenBuilder::new_if_stmt(self, *condition, *if_stmt, *else_stmt,visitor, codegen)
-            }
-            Expression::WhileStmt(condition, while_block_stmt) => {
-                //TODO: fix this so its an associated function
-                LLVMCodegenBuilder::new_while_stmt(self, *condition, *while_block_stmt,visitor, codegen)
-            }
-            Expression::ForStmt(var_name, init, length, increment, for_block_expr) => {
-                //TODO: fix this so its an associated function
-                LLVMCodegenBuilder::new_for_loop(self, var_name, init, length, increment, *for_block_expr,visitor, codegen)
-            }
+            Expression::CallStmt(_, _) => visitor.visit_call_stmt(&input, codegen, self),
+            Expression::FuncStmt(_, _, _, _) => visitor.visit_func_stmt(&input, codegen, self),
+            Expression::IfStmt(_, _, _) => visitor.visit_if_stmt(&input, codegen, self),
+            Expression::WhileStmt(_, _) => visitor.visit_while_stmt(&input, codegen, self),
+            Expression::ForStmt(_, _, _, _, _) => visitor.visit_for_loop(&input, codegen, self),
             Expression::Print(input) => {
                 let expression_value = self.match_ast(*input, visitor, codegen)?;
                 expression_value.print(self, codegen)?;
                 Ok(expression_value)
             }
             Expression::ReturnStmt(input) => {
-                let expression_value = self.match_ast(*input,visitor, codegen)?;
+                let expression_value = self.match_ast(*input, visitor, codegen)?;
                 codegen.build_ret(expression_value.get_value());
                 Ok(Box::new(ReturnType {}))
             }
-            _ => {
-                unimplemented!()
-            }
+            _ => Err(anyhow!("this should be unreachable code, for {:?}", input)),
         }
     }
 }
@@ -513,5 +472,126 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             return Ok(val);
         }
         Err(anyhow!("unable to visit block stmt"))
+    }
+
+    fn visit_call_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::CallStmt(name, args) = left {
+            return match context.func_cache.get(&name) {
+                Some(val) => {
+                    let call_val = val.call(context, args.clone(), &mut visitor, codegen)?;
+                    context
+                        .var_cache
+                        .set(name.as_str(), call_val.clone(), context.depth);
+                    Ok(call_val)
+                }
+                _ => Err(anyhow!("call does not exist for function {:?}", name)),
+            };
+        }
+        Err(anyhow!("unable to visit call stmt"))
+    }
+
+    fn visit_func_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::FuncStmt(name, args, _return_type, body) = left {
+            let llvm_func = LLVMFunction::new(
+                context,
+                name.clone(),
+                args.clone(),
+                _return_type.clone(),
+                *body.clone(),
+                codegen.current_function.block,
+                &mut visitor,
+                codegen,
+            )?;
+
+            let func = FuncType {
+                llvm_type: llvm_func.func_type,
+                llvm_func: llvm_func.function,
+                return_type: _return_type.clone(),
+            };
+            // Set Func as a variable
+            context
+                .func_cache
+                .set(&name, Box::new(func.clone()), context.depth);
+            return Ok(Box::new(func));
+        }
+        Err(anyhow!("unable to visit func stmt"))
+    }
+
+    fn visit_if_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::IfStmt(condition, if_stmt, else_stmt) = left {
+            //TODO: fix this so its an associated function
+            let cond = *condition.clone();
+            return LLVMCodegenBuilder::new_if_stmt(
+                context,
+                cond,
+                *if_stmt.clone(),
+                *else_stmt.clone(),
+                &mut visitor,
+                codegen,
+            );
+        }
+        Err(anyhow!("unable to visit if stmt"))
+    }
+
+    fn visit_while_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::WhileStmt(condition, while_block_stmt) = left {
+            //TODO: fix this so its an associated function
+            let cond = *condition.clone();
+            return LLVMCodegenBuilder::new_while_stmt(
+                context,
+                cond,
+                *while_block_stmt.clone(),
+                &mut visitor,
+                codegen,
+            );
+        }
+        Err(anyhow!("unable to visit while stmt"))
+    }
+
+    fn visit_for_loop(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::ForStmt(var_name, init, length, increment, for_block_expr) = left {
+            //TODO: fix this so its an associated function
+            return LLVMCodegenBuilder::new_for_loop(
+                context,
+                var_name.to_string(),
+                *init,
+                *length,
+                *increment,
+                *for_block_expr.clone(),
+                &mut visitor,
+                codegen,
+            );
+        }
+        Err(anyhow!("unable to visit for loop"))
     }
 }
