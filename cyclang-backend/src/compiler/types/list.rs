@@ -1,7 +1,7 @@
 extern crate llvm_sys;
 
 use crate::compiler::context::ASTContext;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
+use crate::compiler::types::{Base, BaseTypes, Func, TypeBase};
 use llvm_sys::core::LLVMConstArray2;
 use llvm_sys::prelude::*;
 use std::any::Any;
@@ -51,8 +51,4 @@ impl TypeBase for ListType {
         Some(self.llvm_value_ptr)
     }
 }
-impl Arithmetic for ListType {}
-
-impl Comparison for ListType {}
-
 impl Func for ListType {}

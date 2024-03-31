@@ -29,7 +29,6 @@ use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Expression;
 use llvm_sys::prelude::*;
-use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 
 #[derive(Debug, PartialEq)]
 pub enum BaseTypes {
@@ -75,7 +74,7 @@ type LLVMArithmeticFn = unsafe extern "C" fn(
     Name: *const c_char,
 ) -> LLVMValueRef;
 
-pub trait TypeBase: DynClone + Base + Arithmetic + Func {
+pub trait TypeBase: DynClone + Base + Func {
     // TODO: remove on implementation
     #[allow(clippy::all)]
     fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
@@ -142,42 +141,6 @@ pub trait TypeBase: DynClone + Base + Arithmetic + Func {
             .ok_or(anyhow!("unable to call print function"))?;
         context.codegen.build_call(print_func, print_args, 2, "");
         Ok(())
-    }
-}
-
-pub trait Arithmetic: Base {
-    fn add(&self, _codegen: &LLVMCodegenBuilder, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement add", self.get_type())
-    }
-    fn sub(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement sub", self.get_type())
-    }
-    fn mul(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement mul", self.get_type())
-    }
-    fn div(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement div", self.get_type())
-    }
-}
-
-pub trait Comparison: Base {
-    fn eqeq(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement eqeq", self.get_type())
-    }
-    fn ne(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement eqeq", self.get_type())
-    }
-    fn gt(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement gt", self.get_type())
-    }
-    fn gte(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement gte", self.get_type())
-    }
-    fn lt(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement lt", self.get_type())
-    }
-    fn lte(&self, _context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Box<dyn TypeBase> {
-        unimplemented!("{:?} type does not implement lte", self.get_type())
     }
 }
 

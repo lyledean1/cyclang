@@ -4,7 +4,7 @@ use crate::compiler::context::ASTContext;
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::void::VoidType;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
+use crate::compiler::types::{Base, BaseTypes, Func, TypeBase};
 use anyhow::Result;
 use cyclang_parser::{Expression, Type};
 use llvm_sys::core::{LLVMBuildCall2, LLVMCountParamTypes};
@@ -27,10 +27,6 @@ impl Base for FuncType {
         BaseTypes::Func
     }
 }
-
-impl Arithmetic for FuncType {}
-
-impl Comparison for FuncType {}
 
 impl Func for FuncType {
     fn call(&self, context: &mut ASTContext, args: Vec<Expression>) -> Result<Box<dyn TypeBase>> {

@@ -1,6 +1,5 @@
 use crate::compiler::context::ASTContext;
-use crate::compiler::types::bool::BoolType;
-use crate::compiler::types::{Arithmetic, Base, BaseTypes, Comparison, Func, TypeBase};
+use crate::compiler::types::{Base, BaseTypes, Func, TypeBase};
 
 extern crate llvm_sys;
 use crate::compiler::codegen::cstr_from_string;
@@ -20,9 +19,6 @@ pub struct StringType {
 
 impl Base for StringType
 { fn get_type(& self) -> BaseTypes { BaseTypes :: String } }
-
-
-impl Arithmetic for StringType {}
 
 impl TypeBase for StringType {
     fn assign(&mut self, _ast_context: &mut ASTContext, _rhs: Box<dyn TypeBase>) -> Result<()> {

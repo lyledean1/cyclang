@@ -6,10 +6,10 @@ use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::CompileOptions;
-use anyhow::{anyhow, Result};
+use anyhow::{Result};
 use cyclang_parser::{Expression, Type};
 use libc::c_uint;
-use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildPointerCast, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSExt, LLVMBuildStore, LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetParam, LLVMInt32TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
+use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildPointerCast, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetParam, LLVMInt32TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
 use llvm_sys::execution_engine::{
     LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
     LLVMLinkInMCJIT,
@@ -38,6 +38,12 @@ pub struct LLVMCodegenBuilder {
     pub printf_str_num_value: LLVMValueRef,
     pub printf_str_num64_value: LLVMValueRef,
     is_execution_engine: bool,
+}
+
+macro_rules! llvm_build_fn {
+    ($fn_name:ident, $builder:expr, $lhs:expr, $rhs:expr, $name:expr) => {{
+        $fn_name($builder,$lhs,$rhs,$name)
+    }};
 }
 
 impl LLVMCodegenBuilder {
@@ -789,7 +795,50 @@ impl LLVMCodegenBuilder {
             }
         }
     }
-    pub fn add(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>) -> Result<Box<dyn TypeBase>> {
+
+    pub fn llvm_build_fn(&self, lhs: LLVMValueRef, rhs: LLVMValueRef, op: String) -> LLVMValueRef {
+        unsafe {
+            match op.as_str() {
+                "+" => {
+                    llvm_build_fn!(LLVMBuildAdd,
+                            self.builder,
+                            lhs,
+                            rhs,
+                            cstr_from_string("addNumberType").as_ptr()
+                    )
+                }
+                "-" => {
+                    llvm_build_fn!(LLVMBuildSub,
+                            self.builder,
+                            lhs,
+                            rhs,
+                            cstr_from_string("subNumberType").as_ptr()
+                    )
+                }
+                "*" => {
+                    llvm_build_fn!(LLVMBuildMul,
+                            self.builder,
+                            lhs,
+                            rhs,
+                            cstr_from_string("mulNumberType").as_ptr()
+                    )
+                }
+                "/" => {
+                    llvm_build_fn!(LLVMBuildSDiv,
+                            self.builder,
+                            lhs,
+                            rhs,
+                            cstr_from_string("mulNumberType").as_ptr()
+                    )
+                }
+                _ => {
+                    unreachable!()
+                }
+            }
+        }
+    }
+
+    pub fn arithmetic(&self, lhs: Box<dyn TypeBase>, rhs: Box<dyn TypeBase>, op: String) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
             BaseTypes::String => match self.llvm_func_cache.get("sprintf") {
                 Some(_sprintf_func) => unsafe {
@@ -825,7 +874,7 @@ impl LLVMCodegenBuilder {
                     unreachable!()
                 }
             }
-            BaseTypes::Number | BaseTypes::Number64 => unsafe {
+            BaseTypes::Number | BaseTypes::Number64 => {
                 match (lhs.get_ptr(), rhs.get_ptr()) {
                     (Some(ptr), Some(rhs_ptr)) => {
                         let mut lhs_val =
@@ -835,11 +884,10 @@ impl LLVMCodegenBuilder {
                                 .build_load(rhs_ptr, rhs.get_llvm_type(), "rhs");
                         lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
                         rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
-                        let result = LLVMBuildAdd(
-                            self.builder,
+                        let result = self.llvm_build_fn(
                             lhs_val,
                             rhs_val,
-                            cstr_from_string("addNumberType").as_ptr(),
+                            op,
                         );
                         let alloca = self.build_alloca_store(
                             result,
@@ -858,11 +906,10 @@ impl LLVMCodegenBuilder {
                         let mut rhs_val = rhs.get_value();
                         lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
                         rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
-                        let result = LLVMBuildAdd(
-                            self.builder,
+                        let result = self.llvm_build_fn(
                             lhs_val,
                             rhs_val,
-                            cstr_from_string("add").as_ptr(),
+                            op,
                         );
                         let alloca = self.build_alloca_store(
                             result,

@@ -204,22 +204,22 @@ impl ASTContext {
                 "+" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    self.codegen.add(lhs, rhs)
+                    self.codegen.arithmetic(lhs, rhs, op)
                 }
                 "-" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.sub(self, rhs))
+                    self.codegen.arithmetic(lhs, rhs, op)
                 }
                 "/" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.div(self, rhs))
+                    self.codegen.arithmetic(lhs, rhs, op)
                 }
                 "*" => {
                     let lhs = self.match_ast(*lhs)?;
                     let rhs = self.match_ast(*rhs)?;
-                    Ok(lhs.mul(self, rhs))
+                    self.codegen.arithmetic(lhs, rhs, op)
                 }
                 "^" => Err(anyhow!("^ is not implemented yet")),
                 "==" => {
