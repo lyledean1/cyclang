@@ -1,2 +1,0 @@
-0
-35154 6721572 1691086923000000000 d5bfdda44216aa5c504c9e54af3b567b 1 libc/mingw/lib-common/kernel32.def.in
