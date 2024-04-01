@@ -10,7 +10,7 @@ build-ir:
 	clang ./bin/main.ll -o ./bin/main
 
 install-local:
-	cargo install --path=./cyclang
+	cargo install --path=./crates/cyclang
 
 test-local: 
 	cargo test -- --test-threads=1
