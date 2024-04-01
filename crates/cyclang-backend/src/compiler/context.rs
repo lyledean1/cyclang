@@ -353,8 +353,8 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         if let Expression::LetStmt(var, _, lhs) = left {
             let lhs: Box<dyn TypeBase> = context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
             match context.var_cache.get(var) {
-                Some(mut val) => {
-                    return Ok(codegen.assign(val.clone(), lhs)?);
+                Some(val) => {
+                    return codegen.assign(val.clone(), lhs);
                 }
                 _ => {
                     context
