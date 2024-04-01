@@ -351,22 +351,12 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::LetStmt(var, _, lhs) = left {
+            let lhs: Box<dyn TypeBase> = context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
             match context.var_cache.get(var) {
                 Some(mut val) => {
-                    // Check Variables are the same Type
-                    // Then Update the value of the old variable
-                    // reassign variable
-
-                    // Assign a temp variable to the stack
-                    let lhs: Box<dyn TypeBase> =
-                        context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
-                    // Assign this new value
-                    val.assign(codegen, lhs)?;
-                    return Ok(val);
+                    return Ok(codegen.assign(val.clone(), lhs)?);
                 }
                 _ => {
-                    let lhs: Box<dyn TypeBase> =
-                        context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
                     context
                         .var_cache
                         .set(&var.clone(), lhs.clone(), context.depth);
@@ -563,13 +553,12 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         if let Expression::IfStmt(condition, if_stmt, else_stmt) = left {
             //TODO: fix this so its an associated function
             let cond = *condition.clone();
-            return LLVMCodegenBuilder::new_if_stmt(
+            return codegen.new_if_stmt(
                 context,
                 cond,
                 *if_stmt.clone(),
                 *else_stmt.clone(),
                 &mut visitor,
-                codegen,
             );
         }
         Err(anyhow!("unable to visit if stmt"))
@@ -585,13 +574,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         if let Expression::WhileStmt(condition, while_block_stmt) = left {
             //TODO: fix this so its an associated function
             let cond = *condition.clone();
-            return LLVMCodegenBuilder::new_while_stmt(
-                context,
-                cond,
-                *while_block_stmt.clone(),
-                &mut visitor,
-                codegen,
-            );
+            return codegen.new_while_stmt(context, cond, *while_block_stmt.clone(), &mut visitor);
         }
         Err(anyhow!("unable to visit while stmt"))
     }
@@ -604,14 +587,13 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         if let Expression::ForStmt(var_name, init, length, increment, for_block_expr) = left {
             //TODO: fix this so its an associated function
-            return LLVMCodegenBuilder::new_for_loop(
+            return codegen.new_for_loop(
                 context,
                 var_name.to_string(),
                 *init,
                 *length,
                 *increment,
                 *for_block_expr.clone(),
-                codegen,
             );
         }
         Err(anyhow!("unable to visit for loop"))
