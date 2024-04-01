@@ -31,21 +31,14 @@ pub fn build(b: *Build) void {
     const linux32_target = makeLinux32Target();
     const linux_x64_target = makeLinuxX64Target();
     const linux_aarch64_target = makeLinuxAarch64Target();
-    const windows64_target = makeWindows64Target();
-    const wasm32_target = makeWasm32Target();
+
 
     // LLVM IR
     // generateLlvmIrFile(b, mode, host_target, main_path, "ir", "builtins-host");
     generateLlvmIrFile(b, mode, linux32_target, main_path, "ir-x86", "builtins-x86");
     generateLlvmIrFile(b, mode, linux_x64_target, main_path, "ir-x86_64", "builtins-x86_64");
     generateLlvmIrFile(b, mode, linux_aarch64_target, main_path, "ir-aarch64", "builtins-aarch64");
-    generateLlvmIrFile(b, mode, windows64_target, main_path, "ir-windows-x86_64", "builtins-windows-x86_64");
-    generateLlvmIrFile(b, mode, wasm32_target, main_path, "ir-wasm32", "builtins-wasm32");
 
-    // Generate Object Files
-    // generateObjectFile(b, mode, host_target, main_path, "object", "builtins-host");
-    generateObjectFile(b, mode, windows64_target, main_path, "windows-x86_64-object", "builtins-windows-x86_64");
-    generateObjectFile(b, mode, wasm32_target, main_path, "wasm32-object", "builtins-wasm32");
 }
 
 // TODO zig 0.9 can generate .bc directly, switch to that when it is released!

@@ -1,1 +1,1 @@
-print(true);
+boolToStrZig(true);

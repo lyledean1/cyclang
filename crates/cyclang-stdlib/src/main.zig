@@ -9,11 +9,11 @@ comptime {
     exportBuiltinFn(boolToStrZig, "boolToStr");
 }
 
-export fn boolToStrZig(value: bool) [*:0]const u8 {
+export fn boolToStrZig(value: bool) void {
     if (value) {
-        return "true";
+        std.debug.print("this is zig {s}", .{"true"});
     } else {
-        return "false";
+        std.debug.print("this is zig {s}", .{"false"});
     }
 }
 

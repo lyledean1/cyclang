@@ -68251,18 +68251,15 @@ define weak_odr dso_local i32 @bcmp(ptr readonly align 1 %0, ptr readonly align 
 
 define void @main() {
 main:
-  %num32 = alloca ptr, align 8
-  store i32 4, ptr %num32, align 4
-  %num321 = alloca ptr, align 8
-  store i32 4, ptr %num321, align 4
-  %0 = load i32, ptr %num32, align 4
-  %1 = load i32, ptr %num321, align 4
-  %result = icmp eq i32 %0, %1
+  %bool_value = alloca i1, align 1
+  store i1 true, ptr %bool_value, align 1
+  %bool_value1 = alloca i1, align 1
+  store i1 true, ptr %bool_value1, align 1
   %bool_cmp = alloca i1, align 1
-  store i1 %result, ptr %bool_cmp, align 1
-  %2 = load i1, ptr %bool_cmp, align 1
-  %3 = call ptr @bool_to_str(i1 %2)
-  call void (ptr, ...) @printf(ptr %3)
+  store i1 true, ptr %bool_cmp, align 1
+  %0 = load i1, ptr %bool_cmp, align 1
+  %1 = call ptr @bool_to_str(i1 %0)
+  call void (ptr, ...) @printf(ptr %1)
   ret void
 }
 

@@ -703,12 +703,11 @@ impl LLVMCodegenBuilder {
                 let alias = unsafe { LLVMAddAlias2(self.module, LLVMTypeOf(original_function), 0, original_function as LLVMValueRef, alias_name.as_ptr()) };
             }
 
-            let ret_type = LLVMPointerType(LLVMInt8TypeInContext(self.context), 0);
             let mut zig_args = [
                 LLVMPointerType(LLVMInt8TypeInContext(self.context), 0),
             ];
             let func_type =
-                LLVMFunctionType(ret_type, zig_args.as_mut_ptr(), zig_args.len() as u32, 1);
+                LLVMFunctionType(void_type, zig_args.as_mut_ptr(), zig_args.len() as u32, 1);
             self.llvm_func_cache.set(
                 "boolToStrZig",
                 LLVMFunction {
@@ -718,7 +717,7 @@ impl LLVMCodegenBuilder {
                     entry_block: main_block,
                     symbol_table: HashMap::new(),
                     args: vec![],
-                    return_type: Type::String,
+                    return_type: Type::None,
                 },
             );
         }
