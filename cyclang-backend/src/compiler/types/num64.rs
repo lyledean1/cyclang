@@ -1,4 +1,4 @@
-use crate::compiler::types::{BaseTypes, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, TypeBase};
 
 extern crate llvm_sys;
 use llvm_sys::prelude::*;
@@ -22,5 +22,3 @@ impl TypeBase for NumberType64 {
         BaseTypes::Number64
     }
 }
-
-impl Func for NumberType64 {}

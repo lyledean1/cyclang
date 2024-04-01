@@ -1,5 +1,7 @@
 use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
-use crate::compiler::codegen::{cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type};
+use crate::compiler::codegen::{
+    cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type,
+};
 use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
@@ -544,7 +546,7 @@ impl LLVMCodegenBuilder {
         codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
         unsafe {
-            let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor{});
+            let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
             let for_block = codegen.current_function.block;
             let function = codegen.current_function.function;
             codegen.set_current_block(for_block);

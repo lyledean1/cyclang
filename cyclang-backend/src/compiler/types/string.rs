@@ -1,4 +1,4 @@
-use crate::compiler::types::{BaseTypes, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, TypeBase};
 
 extern crate llvm_sys;
 use crate::compiler::codegen::cstr_from_string;
@@ -73,5 +73,3 @@ impl TypeBase for StringType {
         BaseTypes::String
     }
 }
-
-impl Func for StringType {}

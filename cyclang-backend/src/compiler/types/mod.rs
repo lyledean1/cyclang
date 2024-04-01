@@ -12,7 +12,6 @@ pub mod string;
 pub mod void;
 
 use llvm_sys::core::LLVMGetValueName;
-use std::any::Any;
 use std::ffi::CStr;
 
 use dyn_clone::DynClone;
@@ -20,14 +19,14 @@ extern crate libc;
 use libc::c_char;
 
 extern crate llvm_sys;
-use crate::compiler::codegen::{int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type, int8_ptr_type, int8_type};
-use crate::compiler::context::ASTContext;
-
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::visitor::Visitor;
+use crate::compiler::codegen::{
+    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type,
+    int8_ptr_type, int8_type,
+};
 use anyhow::anyhow;
 use anyhow::Result;
-use cyclang_parser::Expression;
+use cyclang_parser::Type;
 use llvm_sys::prelude::*;
 
 #[derive(Debug, PartialEq)]
@@ -42,15 +41,7 @@ pub enum BaseTypes {
     Return,
 }
 
-pub trait TypeBase: DynClone + Func {
-    // TODO: remove on implementation
-    #[allow(clippy::all)]
-    fn new(_value: Box<dyn Any>, _name: String, _context: &mut ASTContext) -> Box<dyn TypeBase>
-    where
-        Self: Sized,
-    {
-        unimplemented!("new has not been implemented for this type");
-    }
+pub trait TypeBase: DynClone {
     fn assign(&mut self, codegen: &mut LLVMCodegenBuilder, _rhs: Box<dyn TypeBase>) -> Result<()> {
         if _rhs.get_type() != self.get_type() {
             return Err(anyhow!(
@@ -78,14 +69,16 @@ pub trait TypeBase: DynClone + Func {
             c_str_ref.to_str().unwrap()
         }
     }
-    fn get_value(&self) -> LLVMValueRef;
+    fn get_value(&self) -> LLVMValueRef {
+        unimplemented!("No value ref for return type")
+    }
     fn get_ptr(&self) -> Option<LLVMValueRef> {
         unimplemented!(
             "get_ptr is not implemented for this type {:?}",
             self.get_type()
         )
     }
-    // TODO: make this a raw value
+
     fn get_str(&self) -> String {
         unimplemented!("{:?} type does not implement get_cstr", self.get_type())
     }
@@ -133,17 +126,9 @@ pub trait TypeBase: DynClone + Func {
             }
         }
     }
-}
 
-pub trait Func {
-    fn call(
-        &self,
-        _context: &mut ASTContext,
-        _args: Vec<Expression>,
-        _visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
-        _codegen: &mut LLVMCodegenBuilder,
-    ) -> Result<Box<dyn TypeBase>> {
-        unimplemented!("type does not implement call")
+    fn get_return_type(&self) -> Type {
+        unimplemented!()
     }
 }
 

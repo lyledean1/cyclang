@@ -2,7 +2,7 @@ use crate::compiler::codegen::*;
 
 extern crate llvm_sys;
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::types::{BaseTypes, Func, TypeBase};
+use crate::compiler::types::{BaseTypes, TypeBase};
 use anyhow::anyhow;
 use anyhow::Result;
 use llvm_sys::prelude::*;
@@ -53,4 +53,3 @@ impl TypeBase for BoolType {
         BaseTypes::Bool
     }
 }
-impl Func for BoolType {}
