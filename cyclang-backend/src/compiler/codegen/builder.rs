@@ -423,28 +423,27 @@ impl LLVMCodegenBuilder {
         unsafe { LLVMBuildGEP2(self.builder, llvm_type, ptr, indices, num_indices, name) }
     }
 
-    pub fn new_if_stmt(
+    pub fn new_if_stmt(&mut self,
         context: &mut ASTContext,
         condition: Expression,
         if_stmt: Expression,
         else_stmt: Option<Expression>,
         visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
-        codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
         let mut return_type: Box<dyn TypeBase> = Box::new(VoidType {});
-        let function = codegen.current_function.function;
-        let if_entry_block: *mut llvm_sys::LLVMBasicBlock = codegen.current_function.block;
+        let function = self.current_function.function;
+        let if_entry_block: *mut llvm_sys::LLVMBasicBlock = self.current_function.block;
 
-        codegen.position_builder_at_end(if_entry_block);
+        self.position_builder_at_end(if_entry_block);
 
-        let cond: Box<dyn TypeBase> = context.match_ast(condition, visitor, codegen)?;
+        let cond: Box<dyn TypeBase> = context.match_ast(condition, visitor, self)?;
         // Build If Block
-        let then_block = codegen.append_basic_block(function, "then_block");
-        let merge_block = codegen.append_basic_block(function, "merge_block");
+        let then_block = self.append_basic_block(function, "then_block");
+        let merge_block = self.append_basic_block(function, "merge_block");
 
-        codegen.set_current_block(then_block);
+        self.set_current_block(then_block);
 
-        let stmt = context.match_ast(if_stmt, visitor, codegen)?;
+        let stmt = context.match_ast(if_stmt, visitor, self)?;
 
         match stmt.get_type() {
             BaseTypes::Return => {
@@ -452,114 +451,112 @@ impl LLVMCodegenBuilder {
                 return_type = Box::new(ReturnType {});
             }
             _ => {
-                codegen.build_br(merge_block); // Branch to merge_block
+                self.build_br(merge_block); // Branch to merge_block
             }
         }
         // Each
 
         // Build Else Block
-        let else_block = codegen.append_basic_block(function, "else_block");
-        codegen.set_current_block(else_block);
+        let else_block = self.append_basic_block(function, "else_block");
+        self.set_current_block(else_block);
 
         match else_stmt {
             Some(v_stmt) => {
-                let stmt = context.match_ast(v_stmt, visitor, codegen)?;
+                let stmt = context.match_ast(v_stmt, visitor, self)?;
                 match stmt.get_type() {
                     BaseTypes::Return => {
                         // if its a return type we will skip branching in the LLVM IR
                         return_type = Box::new(ReturnType {});
                     }
                     _ => {
-                        codegen.build_br(merge_block);
+                        self.build_br(merge_block);
                     }
                 }
             }
             _ => {
-                codegen.position_builder_at_end(else_block);
-                codegen.build_br(merge_block);
+                self.position_builder_at_end(else_block);
+                self.build_br(merge_block);
             }
         }
 
-        codegen.position_builder_at_end(merge_block);
-        codegen.set_current_block(merge_block);
+        self.position_builder_at_end(merge_block);
+        self.set_current_block(merge_block);
 
-        codegen.set_current_block(if_entry_block);
+        self.set_current_block(if_entry_block);
 
-        let cmp = codegen.build_load(cond.get_ptr().unwrap(), int1_type(), "cmp");
-        codegen.build_cond_br(cmp, then_block, else_block);
+        let cmp = self.build_load(cond.get_ptr().unwrap(), int1_type(), "cmp");
+        self.build_cond_br(cmp, then_block, else_block);
 
-        codegen.set_current_block(merge_block);
+        self.set_current_block(merge_block);
         Ok(return_type)
     }
 
-    pub fn new_while_stmt(
+    pub fn new_while_stmt(&mut self,
         context: &mut ASTContext,
         condition: Expression,
         while_block_stmt: Expression,
         visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>,
-        codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
-        let function = codegen.current_function.function;
+        let function = self.current_function.function;
 
-        let loop_cond_block = codegen.append_basic_block(function, "loop_cond");
-        let loop_body_block = codegen.append_basic_block(function, "loop_body");
-        let loop_exit_block = codegen.append_basic_block(function, "loop_exit");
+        let loop_cond_block = self.append_basic_block(function, "loop_cond");
+        let loop_body_block = self.append_basic_block(function, "loop_body");
+        let loop_exit_block = self.append_basic_block(function, "loop_exit");
 
-        let bool_type_ptr = codegen.build_alloca(int1_type(), "while_value_bool_var");
-        let value_condition = context.match_ast(condition, visitor, codegen)?;
+        let bool_type_ptr = self.build_alloca(int1_type(), "while_value_bool_var");
+        let value_condition = context.match_ast(condition, visitor, self)?;
 
-        let cmp = codegen.build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
+        let cmp = self.build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
 
-        codegen.build_store(cmp, bool_type_ptr);
+        self.build_store(cmp, bool_type_ptr);
 
-        codegen.build_br(loop_cond_block);
+        self.build_br(loop_cond_block);
 
-        codegen.set_current_block(loop_body_block);
+        self.set_current_block(loop_body_block);
         // Check if the global variable already exists
 
-        context.match_ast(while_block_stmt, visitor, codegen)?;
+        context.match_ast(while_block_stmt, visitor, self)?;
 
-        codegen.build_br(loop_cond_block); // Jump back to loop condition
+        self.build_br(loop_cond_block); // Jump back to loop condition
 
-        codegen.set_current_block(loop_cond_block);
+        self.set_current_block(loop_cond_block);
         // Build loop condition block
-        let value_cond_load = codegen.build_load(
+        let value_cond_load = self.build_load(
             value_condition.get_ptr().unwrap(),
             int1_type(),
             "while_value_bool_var",
         );
 
-        codegen.build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
+        self.build_cond_br(value_cond_load, loop_body_block, loop_exit_block);
 
         // Position builder at loop exit block
-        codegen.set_current_block(loop_exit_block);
+        self.set_current_block(loop_exit_block);
         Ok(value_condition)
     }
 
-    pub fn new_for_loop(
+    pub fn new_for_loop(&mut self,
         context: &mut ASTContext,
         var_name: String,
         init: i32,
         length: i32,
         increment: i32,
         for_block_expr: Expression,
-        codegen: &mut LLVMCodegenBuilder,
     ) -> Result<Box<dyn TypeBase>> {
         unsafe {
             let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
-            let for_block = codegen.current_function.block;
-            let function = codegen.current_function.function;
-            codegen.set_current_block(for_block);
+            let for_block = self.current_function.block;
+            let function = self.current_function.function;
+            self.set_current_block(for_block);
 
-            let loop_cond_block = codegen.append_basic_block(function, "loop_cond");
-            let loop_body_block = codegen.append_basic_block(function, "loop_body");
-            let loop_exit_block = codegen.append_basic_block(function, "loop_exit");
+            let loop_cond_block = self.append_basic_block(function, "loop_cond");
+            let loop_body_block = self.append_basic_block(function, "loop_body");
+            let loop_exit_block = self.append_basic_block(function, "loop_exit");
 
             // todo: REMOVE duplicated code for init variable
             let name = "num32";
             let c_val = init as c_ulonglong;
-            let value = codegen.const_int(int32_type(), c_val, 0);
-            let ptr = codegen.build_alloca_store(value, int32_ptr_type(), name);
+            let value = self.const_int(int32_type(), c_val, 0);
+            let ptr = self.build_alloca_store(value, int32_ptr_type(), name);
             let i = Box::new(NumberType {
                 name: name.to_string(),
                 llvm_value: value,
@@ -570,64 +567,64 @@ impl LLVMCodegenBuilder {
             let ptr = i.get_ptr();
             context.var_cache.set(&var_name, i, context.depth);
 
-            codegen.build_store(value, ptr.unwrap());
+            self.build_store(value, ptr.unwrap());
             // Branch to loop condition block
-            codegen.build_br(loop_cond_block);
+            self.build_br(loop_cond_block);
 
             // Build loop condition block
-            codegen.set_current_block(loop_cond_block);
+            self.set_current_block(loop_cond_block);
 
             // TODO: improve this logic for identifying for and reverse fors
-            let mut op = LLVMIntPredicate::LLVMIntSLT;
+            let mut op = LLVMIntSLT;
             if increment < 0 {
-                op = LLVMIntPredicate::LLVMIntSGT;
+                op = LLVMIntSGT;
             }
 
             let op_lhs = ptr;
             let op_rhs = length;
 
             // Not sure why LLVMInt32TypeIntInContex
-            let lhs_val = codegen.build_load(
+            let lhs_val = self.build_load(
                 op_lhs.unwrap(),
-                LLVMInt32TypeInContext(codegen.context),
+                LLVMInt32TypeInContext(self.context),
                 "i",
             );
 
-            let icmp_val = codegen.const_int(
-                LLVMInt32TypeInContext(codegen.context),
+            let icmp_val = self.const_int(
+                LLVMInt32TypeInContext(self.context),
                 op_rhs.try_into().unwrap(),
                 0,
             );
             let loop_condition = LLVMBuildICmp(
-                codegen.builder,
+                self.builder,
                 op,
                 lhs_val,
                 icmp_val,
                 cstr_from_string("").as_ptr(),
             );
 
-            codegen.build_cond_br(loop_condition, loop_body_block, loop_exit_block);
+            self.build_cond_br(loop_condition, loop_body_block, loop_exit_block);
 
             // Build loop body block
-            codegen.set_current_block(loop_body_block);
-            let for_block_cond = context.match_ast(for_block_expr, &mut visitor, codegen)?;
+            self.set_current_block(loop_body_block);
+            let for_block_cond = context.match_ast(for_block_expr, &mut visitor, self)?;
             let lhs_val =
-                codegen.build_load(ptr.unwrap(), LLVMInt32TypeInContext(codegen.context), "i");
+                self.build_load(ptr.unwrap(), LLVMInt32TypeInContext(self.context), "i");
 
             let incr_val =
-                codegen.const_int(LLVMInt32TypeInContext(codegen.context), increment as u64, 0);
+                self.const_int(LLVMInt32TypeInContext(self.context), increment as u64, 0);
 
             let new_value = LLVMBuildAdd(
-                codegen.builder,
+                self.builder,
                 lhs_val,
                 incr_val,
                 cstr_from_string("i").as_ptr(),
             );
-            codegen.build_store(new_value, ptr.unwrap());
-            codegen.build_br(loop_cond_block); // Jump back to loop condition
+            self.build_store(new_value, ptr.unwrap());
+            self.build_br(loop_cond_block); // Jump back to loop condition
 
             // Position builder at loop exit block
-            codegen.set_current_block(loop_exit_block);
+            self.set_current_block(loop_exit_block);
 
             Ok(for_block_cond)
         }
