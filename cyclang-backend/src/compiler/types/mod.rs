@@ -42,23 +42,6 @@ pub enum BaseTypes {
 }
 
 pub trait TypeBase: DynClone {
-    fn assign(&mut self, codegen: &mut LLVMCodegenBuilder, _rhs: Box<dyn TypeBase>) -> Result<()> {
-        if _rhs.get_type() != self.get_type() {
-            return Err(anyhow!(
-                "Can't reassign variable {:?} that has type {:?} to type {:?}",
-                self.get_name_as_str(),
-                self.get_type(),
-                _rhs.get_type()
-            ));
-        }
-        codegen.build_load_store(
-            _rhs.get_ptr().unwrap(),
-            self.get_ptr().unwrap(),
-            self.get_llvm_type(),
-            self.get_name_as_str(),
-        );
-        Ok(())
-    }
     fn get_name(&self) -> *const c_char {
         unsafe { LLVMGetValueName(self.get_value()) }
     }

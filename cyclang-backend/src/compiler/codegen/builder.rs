@@ -11,7 +11,7 @@ use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::visitor::Visitor;
 use crate::compiler::CompileOptions;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cyclang_parser::{Expression, Type};
 use libc::{c_uint, c_ulonglong};
 use llvm_sys::core::{
@@ -423,7 +423,8 @@ impl LLVMCodegenBuilder {
         unsafe { LLVMBuildGEP2(self.builder, llvm_type, ptr, indices, num_indices, name) }
     }
 
-    pub fn new_if_stmt(&mut self,
+    pub fn new_if_stmt(
+        &mut self,
         context: &mut ASTContext,
         condition: Expression,
         if_stmt: Expression,
@@ -491,7 +492,8 @@ impl LLVMCodegenBuilder {
         Ok(return_type)
     }
 
-    pub fn new_while_stmt(&mut self,
+    pub fn new_while_stmt(
+        &mut self,
         context: &mut ASTContext,
         condition: Expression,
         while_block_stmt: Expression,
@@ -534,7 +536,8 @@ impl LLVMCodegenBuilder {
         Ok(value_condition)
     }
 
-    pub fn new_for_loop(&mut self,
+    pub fn new_for_loop(
+        &mut self,
         context: &mut ASTContext,
         var_name: String,
         init: i32,
@@ -584,11 +587,8 @@ impl LLVMCodegenBuilder {
             let op_rhs = length;
 
             // Not sure why LLVMInt32TypeIntInContex
-            let lhs_val = self.build_load(
-                op_lhs.unwrap(),
-                LLVMInt32TypeInContext(self.context),
-                "i",
-            );
+            let lhs_val =
+                self.build_load(op_lhs.unwrap(), LLVMInt32TypeInContext(self.context), "i");
 
             let icmp_val = self.const_int(
                 LLVMInt32TypeInContext(self.context),
@@ -608,8 +608,7 @@ impl LLVMCodegenBuilder {
             // Build loop body block
             self.set_current_block(loop_body_block);
             let for_block_cond = context.match_ast(for_block_expr, &mut visitor, self)?;
-            let lhs_val =
-                self.build_load(ptr.unwrap(), LLVMInt32TypeInContext(self.context), "i");
+            let lhs_val = self.build_load(ptr.unwrap(), LLVMInt32TypeInContext(self.context), "i");
 
             let incr_val =
                 self.const_int(LLVMInt32TypeInContext(self.context), increment as u64, 0);
@@ -976,5 +975,27 @@ impl LLVMCodegenBuilder {
                 unimplemented!()
             }
         }
+    }
+
+    pub fn assign(
+        &self,
+        lhs: Box<dyn TypeBase>,
+        rhs: Box<dyn TypeBase>,
+    ) -> Result<Box<dyn TypeBase>> {
+        if rhs.get_type() != lhs.get_type() {
+            return Err(anyhow!(
+                "Can't reassign variable {:?} that has type {:?} to type {:?}",
+                lhs.get_name_as_str(),
+                lhs.get_type(),
+                rhs.get_type()
+            ));
+        }
+        self.build_load_store(
+            rhs.get_ptr().unwrap(),
+            lhs.get_ptr().unwrap(),
+            lhs.get_llvm_type(),
+            lhs.get_name_as_str(),
+        );
+        Ok(lhs)
     }
 }

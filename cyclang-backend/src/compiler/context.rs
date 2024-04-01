@@ -15,7 +15,7 @@ use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::TypeBase;
 use crate::compiler::visitor::Visitor;
-use crate::compiler::{Expression};
+use crate::compiler::Expression;
 use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Type;
@@ -351,12 +351,10 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::LetStmt(var, _, lhs) = left {
-            let lhs: Box<dyn TypeBase> =
-                context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
+            let lhs: Box<dyn TypeBase> = context.match_ast(*lhs.clone(), &mut visitor, codegen)?;
             match context.var_cache.get(var) {
                 Some(mut val) => {
-                    val.assign(codegen, lhs)?;
-                    return Ok(val);
+                    return Ok(codegen.assign(val.clone(), lhs)?);
                 }
                 _ => {
                     context
@@ -576,12 +574,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         if let Expression::WhileStmt(condition, while_block_stmt) = left {
             //TODO: fix this so its an associated function
             let cond = *condition.clone();
-            return codegen.new_while_stmt(
-                context,
-                cond,
-                *while_block_stmt.clone(),
-                &mut visitor,
-            );
+            return codegen.new_while_stmt(context, cond, *while_block_stmt.clone(), &mut visitor);
         }
         Err(anyhow!("unable to visit while stmt"))
     }

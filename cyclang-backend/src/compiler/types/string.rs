@@ -17,14 +17,6 @@ pub struct StringType {
     pub str_value: String,
 }
 impl TypeBase for StringType {
-    fn assign(
-        &mut self,
-        _ast_context: &mut LLVMCodegenBuilder,
-        _rhs: Box<dyn TypeBase>,
-    ) -> Result<()> {
-        // TODO - add string implementation for assigning variable
-        unimplemented!()
-    }
     fn get_value(&self) -> LLVMValueRef {
         self.llvm_value
     }
