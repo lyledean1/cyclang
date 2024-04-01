@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::compiler::types::TypeBase;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 struct Container {

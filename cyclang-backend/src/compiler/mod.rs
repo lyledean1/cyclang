@@ -8,11 +8,11 @@ use cyclang_parser::Expression;
 
 extern crate llvm_sys;
 
+pub mod cache;
 pub mod codegen;
 pub mod context;
 pub mod types;
 pub mod visitor;
-pub mod cache;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CompileOptions {

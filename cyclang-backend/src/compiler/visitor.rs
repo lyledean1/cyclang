@@ -1,5 +1,5 @@
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::context::{ASTContext};
+use crate::compiler::context::ASTContext;
 use crate::compiler::types::TypeBase;
 use anyhow::Result;
 use cyclang_parser::Expression;
