@@ -21,24 +21,17 @@ pub fn build(b: *Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&b.addRunArtifact(main_tests).step);
 
-    // Targets
-    // const host_target = b.standardTargetOptions(.{
-    //     .default_target = CrossTarget{
-    //         .cpu_model = .baseline,
-    //         .os_tag = std.Target.Os.aarch64-macos,
-    //         },
-    //     });
     const linux32_target = makeLinux32Target();
     const linux_x64_target = makeLinuxX64Target();
     const linux_aarch64_target = makeLinuxAarch64Target();
+    const macos_aarch64_target = makeMacOsAarch64Target();
 
 
     // LLVM IR
-    // generateLlvmIrFile(b, mode, host_target, main_path, "ir", "builtins-host");
-    generateLlvmIrFile(b, mode, linux32_target, main_path, "ir-x86", "builtins-x86");
-    generateLlvmIrFile(b, mode, linux_x64_target, main_path, "ir-x86_64", "builtins-x86_64");
-    generateLlvmIrFile(b, mode, linux_aarch64_target, main_path, "ir-aarch64", "builtins-aarch64");
-
+    generateLlvmIrFile(b, mode, linux32_target, main_path, "linux-ir-x86", "builtins-linux-x86");
+    generateLlvmIrFile(b, mode, linux_x64_target, main_path, "linux-ir-x86_64", "builtins-linux-x86_64");
+    generateLlvmIrFile(b, mode, linux_aarch64_target, main_path, "linux-ir-aarch64", "builtins-linux-aarch64");
+    generateLlvmIrFile(b, mode, macos_aarch64_target, main_path, "macos-ir-aarch64", "builtins-macos-aarch64");
 }
 
 // TODO zig 0.9 can generate .bc directly, switch to that when it is released!
@@ -124,6 +117,16 @@ fn makeLinuxAarch64Target() CrossTarget {
 
     return target;
 }
+
+fn makeMacOsAarch64Target() CrossTarget {
+    var target = CrossTarget.parse(.{}) catch unreachable;
+
+    target.cpu_arch = std.Target.Cpu.Arch.aarch64;
+    target.os_tag = std.Target.Os.Tag.macos;
+    target.abi = std.Target.Abi.none;
+
+    return target;
+    }
 
 fn makeLinuxX64Target() CrossTarget {
     var target = CrossTarget.parse(.{}) catch unreachable;

@@ -31,6 +31,7 @@ use std::process::Command;
 use std::ptr;
 use llvm_sys::bit_reader::LLVMParseBitcodeInContext;
 use llvm_sys::linker::LLVMLinkModules2;
+use llvm_sys::support::LLVMAddSymbol;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -89,7 +90,7 @@ impl LLVMCodegenBuilder {
             let mut error: *mut i8 = ptr::null_mut();
 
             // Load the bitcode file
-            let path = CString::new("/Users/lyledean/compilers/cyclang/crates/cyclang-stdlib/zig-out/builtins-aarch64.bc").unwrap();
+            let path = CString::new("/Users/lyledean/compilers/cyclang/crates/cyclang-stdlib/zig-out/builtins-macos-aarch64.bc").unwrap();
             let fail = LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr(), &mut buffer, &mut error);
             if fail != 0 {
                 panic!("error loading memory")
@@ -186,6 +187,7 @@ impl LLVMCodegenBuilder {
                 main_func();
             }
 
+
             if !self.is_execution_engine {
                 LLVMPrintModuleToFile(
                     self.module,
@@ -196,6 +198,7 @@ impl LLVMCodegenBuilder {
             // clean up
             LLVMDisposeBuilder(self.builder);
             if self.is_execution_engine {
+                println!("here");
                 LLVMDisposeExecutionEngine(engine);
             }
             if !self.is_execution_engine {
@@ -695,16 +698,11 @@ impl LLVMCodegenBuilder {
                 },
             );
 
-            let original_function_name = CString::new("cyclang_stdlib.boolToStrZig").expect("CString::new failed");
+            let original_function_name = CString::new("boolToStrZig").expect("CString::new failed");
             let original_function = LLVMGetNamedFunction(self.module, original_function_name.as_ptr());
-            if !original_function.is_null() {
-                let alias_name = CString::new("boolToStrZig").expect("CString::new failed");
-                // Create the alias; the specifics of this call might vary based on llvm-sys version and LLVM version
-                let alias = unsafe { LLVMAddAlias2(self.module, LLVMTypeOf(original_function), 0, original_function as LLVMValueRef, alias_name.as_ptr()) };
-            }
 
             let mut zig_args = [
-                LLVMPointerType(LLVMInt8TypeInContext(self.context), 0),
+                int1_type(),
             ];
             let func_type =
                 LLVMFunctionType(void_type, zig_args.as_mut_ptr(), zig_args.len() as u32, 1);
