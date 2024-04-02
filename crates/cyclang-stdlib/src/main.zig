@@ -1,7 +1,7 @@
 const std = @import("std");
 
 fn exportBuiltinFn(comptime func: anytype, comptime func_name: []const u8) void {
-    @export(func, .{ .name = func_name, .linkage = .Strong });
+    @export(func, .{ .name = "cyclang_stdlib." ++ func_name, .linkage = .Strong });
 }
 
 comptime {

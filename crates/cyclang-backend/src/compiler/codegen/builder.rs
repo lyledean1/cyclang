@@ -20,7 +20,7 @@ use llvm_sys::execution_engine::{
     LLVMLinkInMCJIT,
 };
 use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMBool, LLVMBuilderRef, LLVMContextRef, LLVMMemoryBufferRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef};
-use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget};
+use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget, LLVMInitializeAArch64Target};
 use llvm_sys::LLVMIntPredicate;
 use llvm_sys::LLVMIntPredicate::{
     LLVMIntEQ, LLVMIntNE, LLVMIntSGE, LLVMIntSGT, LLVMIntSLE, LLVMIntSLT,
@@ -198,7 +198,6 @@ impl LLVMCodegenBuilder {
             // clean up
             LLVMDisposeBuilder(self.builder);
             if self.is_execution_engine {
-                println!("here");
                 LLVMDisposeExecutionEngine(engine);
             }
             if !self.is_execution_engine {
