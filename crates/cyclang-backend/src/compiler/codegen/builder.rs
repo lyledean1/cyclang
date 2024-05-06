@@ -54,12 +54,11 @@ impl LLVMCodegenBuilder {
     // Initialise execution engine and LLVM IR constructs
     pub fn init(compile_options: Option<CompileOptions>) -> Result<LLVMCodegenBuilder> {
         unsafe {
-            let is_execution_engine = false;
+            let mut is_execution_engine = false;
             let mut is_default_target: bool = true;
 
             if let Some(compile_options) = compile_options {
-                // default to emit llvm ir until fix bug with Rust + Zig Bitcode when initiating ExecutionEngine
-                // is_execution_engine = compile_options.is_execution_engine;
+                is_execution_engine = compile_options.is_execution_engine;
                 is_default_target = compile_options.target.is_none();
             }
 
@@ -90,7 +89,7 @@ impl LLVMCodegenBuilder {
             let mut error: *mut i8 = ptr::null_mut();
 
             // Load the bitcode file
-            let path = CString::new("/Users/lyledean/compilers/cyclang/crates/cyclang-stdlib/zig-out/builtins-macos-aarch64.bc").unwrap();
+            let path = CString::new("/Users/lyledean/compilers/cyclang/crates/cyclang-stdlib/src/export.bc").unwrap();
             let fail = LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr(), &mut buffer, &mut error);
             if fail != 0 {
                 return Err(anyhow!("error loading memory"))
@@ -650,25 +649,6 @@ impl LLVMCodegenBuilder {
             self.llvm_func_cache.set("bool_to_str", bool_to_str_func);
             let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(self.context);
 
-            //printf
-            let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
-            let print_func = LLVMAddFunction(
-                self.module,
-                cstr_from_string("printf").as_ptr(),
-                print_func_type,
-            );
-            self.llvm_func_cache.set(
-                "printf",
-                LLVMFunction {
-                    function: print_func,
-                    func_type: print_func_type,
-                    block: main_block,
-                    entry_block: main_block,
-                    symbol_table: HashMap::new(),
-                    args: vec![],
-                    return_type: Type::None,
-                },
-            );
             //sprintf
             let mut arg_types = [
                 LLVMPointerType(LLVMInt8TypeInContext(self.context), 0),
@@ -697,16 +677,52 @@ impl LLVMCodegenBuilder {
                 },
             );
 
-            let original_function_name = CString::new("boolToStrZig").expect("CString::new failed");
+
+            let printf_original_function_name = CString::new("printf").expect("CString::new failed");
+            let printf_original_function = LLVMGetNamedFunction(self.module, printf_original_function_name.as_ptr());
+            let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
+
+            self.llvm_func_cache.set(
+                "printf",
+                LLVMFunction {
+                    function: printf_original_function,
+                    func_type: print_func_type,
+                    block: main_block,
+                    entry_block: main_block,
+                    symbol_table: HashMap::new(),
+                    args: vec![],
+                    return_type: Type::None,
+                },
+            );
+            //printf
+            // let print_func_type = LLVMFunctionType(void_type, [int8_ptr_type()].as_mut_ptr(), 1, 1);
+            // let print_func = LLVMAddFunction(
+            //     self.module,
+            //     cstr_from_string("printf").as_ptr(),
+            //     print_func_type,
+            // );
+            // self.llvm_func_cache.set(
+            //     "printf",
+            //     LLVMFunction {
+            //         function: print_func,
+            //         func_type: print_func_type,
+            //         block: main_block,
+            //         entry_block: main_block,
+            //         symbol_table: HashMap::new(),
+            //         args: vec![],
+            //         return_type: Type::None,
+            //     },
+            // );
+
+            let original_function_name = CString::new("boolToStrC").expect("CString::new failed");
             let original_function = LLVMGetNamedFunction(self.module, original_function_name.as_ptr());
 
             let mut zig_args = [
-                int1_type(),
             ];
             let func_type =
                 LLVMFunctionType(void_type, zig_args.as_mut_ptr(), zig_args.len() as u32, 1);
             self.llvm_func_cache.set(
-                "boolToStrZig",
+                "boolToStrC",
                 LLVMFunction {
                     function: original_function,
                     func_type,

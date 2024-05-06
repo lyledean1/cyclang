@@ -27,9 +27,9 @@ pub fn compile(exprs: Vec<Expression>, compile_options: Option<CompileOptions>) 
     let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
     let mut codegen = LLVMCodegenBuilder::init(compile_options)?;
 
-    let bool_to_str_func = codegen.llvm_func_cache.get("boolToStrZig").unwrap();
+    let bool_to_str_func = codegen.llvm_func_cache.get("boolToStrC").unwrap();
 
-    ast_ctx.func_cache.set("boolToStrZig", Box::new(FuncType{
+    ast_ctx.func_cache.set("boolToStrC", Box::new(FuncType{
         return_type: bool_to_str_func.return_type,
         llvm_type: bool_to_str_func.func_type,
         llvm_func: bool_to_str_func.function,
