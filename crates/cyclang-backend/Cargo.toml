@@ -14,7 +14,7 @@ categories.workspace = true
 [dependencies]
 dyn-clone = "1.0.11"
 libc = "0.2.149"
-llvm-sys = "170.0.0"
+llvm-sys = "181.0.0"
 cyclang-macros = { workspace = true}
 cyclang-parser = { workspace = true}
 anyhow = "1.0.81"

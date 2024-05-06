@@ -29,9 +29,9 @@ fn main() {
 
     println!("Found LLVM version: {}", version_str);
 
-    if !version_str.starts_with("17.0") {
+    if !version_str.starts_with("18") {
         panic!(
-            "Unsupported LLVM version: {}. LLVM 17.0.x is required.",
+            "Unsupported LLVM version: {}. LLVM 18.x.x is required.",
             version_str
         );
     }
