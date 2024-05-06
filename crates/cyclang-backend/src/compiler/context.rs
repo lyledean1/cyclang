@@ -1,6 +1,6 @@
 use crate::compiler::cache::VariableCache;
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::codegen::context::LLVMFunction;
+use crate::compiler::codegen::context::{LLVMFunction};
 use crate::compiler::codegen::{
     cstr_from_string, int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type,
     int64_type,
@@ -20,10 +20,7 @@ use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Type;
 use libc::c_ulonglong;
-use llvm_sys::core::{
-    LLVMBuildCall2, LLVMBuildPointerCast, LLVMConstStringInContext, LLVMCountParamTypes,
-    LLVMInt8Type, LLVMPointerType,
-};
+use llvm_sys::core::{LLVMBuildCall2, LLVMBuildPointerCast, LLVMConstStringInContext, LLVMCountParamTypes, LLVMGetTypeByName2, LLVMInt8Type, LLVMPointerType};
 use std::ffi::CString;
 
 pub struct ASTContext {
@@ -132,6 +129,8 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             let name = "str_val";
             let string: CString = CString::new(val.clone()).unwrap();
             unsafe {
+
+                LLVMGetTypeByName2(codegen.context, )
                 let value = LLVMConstStringInContext(
                     codegen.context,
                     string.as_ptr(),
