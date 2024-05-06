@@ -54,11 +54,12 @@ impl LLVMCodegenBuilder {
     // Initialise execution engine and LLVM IR constructs
     pub fn init(compile_options: Option<CompileOptions>) -> Result<LLVMCodegenBuilder> {
         unsafe {
-            let mut is_execution_engine = false;
+            let is_execution_engine = false;
             let mut is_default_target: bool = true;
 
             if let Some(compile_options) = compile_options {
-                is_execution_engine = compile_options.is_execution_engine;
+                // default to emit llvm ir until fix bug with Rust + Zig Bitcode when initiating ExecutionEngine
+                // is_execution_engine = compile_options.is_execution_engine;
                 is_default_target = compile_options.target.is_none();
             }
 
