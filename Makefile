@@ -8,6 +8,9 @@ run:
 build-stdlib:
 	cd crates/cyclang-stdlib/src && clang -c -emit-llvm export.c -o export.bc
 
+build-stdlib-ir:
+	cd crates/cyclang-stdlib/src && clang -S -emit-llvm export.c -o export.ll
+
 #run clang on the llvm ir to generate a binary 
 build-ir:
 	clang ./bin/main.ll -o ./bin/main
