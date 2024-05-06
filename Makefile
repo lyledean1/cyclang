@@ -5,9 +5,8 @@ all: hooks install build
 run:
 	./bin/main
 
-## using zig 0.11.0
-build-zig:
-	cd crates/cyclang-stdlib && zig build
+build-stdlib:
+	cd crates/cyclang-stdlib/src && clang -c -emit-llvm export.c -o export.bc
 
 #run clang on the llvm ir to generate a binary 
 build-ir:
