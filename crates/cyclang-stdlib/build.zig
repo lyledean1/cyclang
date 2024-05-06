@@ -8,7 +8,6 @@ const CrossTarget = std.zig.CrossTarget;
 const Arch = std.Target.Cpu.Arch;
 
 pub fn build(b: *Build) void {
-    // const mode = b.standardOptimizeOption(.{ .preferred_optimize_mode = .Debug });
     const mode = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseFast });
 
     // Options
@@ -25,7 +24,6 @@ pub fn build(b: *Build) void {
     const linux_x64_target = makeLinuxX64Target();
     const linux_aarch64_target = makeLinuxAarch64Target();
     const macos_aarch64_target = makeMacOsAarch64Target();
-
 
     // LLVM IR
     generateLlvmIrFile(b, mode, linux32_target, main_path, "linux-ir-x86", "builtins-linux-x86");
@@ -126,7 +124,7 @@ fn makeMacOsAarch64Target() CrossTarget {
     target.abi = std.Target.Abi.none;
 
     return target;
-    }
+}
 
 fn makeLinuxX64Target() CrossTarget {
     var target = CrossTarget.parse(.{}) catch unreachable;

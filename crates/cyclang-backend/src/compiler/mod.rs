@@ -5,7 +5,6 @@ use crate::compiler::types::TypeBase;
 use crate::compiler::visitor::Visitor;
 use anyhow::Result;
 use cyclang_parser::Expression;
-use crate::compiler::types::BaseTypes::Func;
 use crate::compiler::types::func::FuncType;
 
 extern crate llvm_sys;
@@ -28,12 +27,12 @@ pub fn compile(exprs: Vec<Expression>, compile_options: Option<CompileOptions>) 
     let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
     let mut codegen = LLVMCodegenBuilder::init(compile_options)?;
 
-    let boolToStrFunc = codegen.llvm_func_cache.get("boolToStrZig").unwrap();
+    let bool_to_str_func = codegen.llvm_func_cache.get("boolToStrZig").unwrap();
 
     ast_ctx.func_cache.set("boolToStrZig", Box::new(FuncType{
-        return_type: boolToStrFunc.return_type,
-        llvm_type: boolToStrFunc.func_type,
-        llvm_func: boolToStrFunc.function,
+        return_type: bool_to_str_func.return_type,
+        llvm_type: bool_to_str_func.func_type,
+        llvm_func: bool_to_str_func.function,
     }), 0);
 
     for expr in exprs {

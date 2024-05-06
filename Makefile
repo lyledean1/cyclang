@@ -23,7 +23,7 @@ test-local-release:
 	cargo test --release -- --test-threads=1
 
 test-local-parser:
-	cargo test -- parser
+	cargo test -- cyclang-parser
 
 clean:
 	rm -rf ./bin/main*
