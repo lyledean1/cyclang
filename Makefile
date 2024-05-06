@@ -5,6 +5,10 @@ all: hooks install build
 run:
 	./bin/main
 
+## using zig 0.11.0
+build-zig:
+	cd crates/cyclang-stdlib && zig build
+
 #run clang on the llvm ir to generate a binary 
 build-ir:
 	clang ./bin/main.ll -o ./bin/main
@@ -19,7 +23,7 @@ test-local-release:
 	cargo test --release -- --test-threads=1
 
 test-local-parser:
-	cargo test -- parser
+	cargo test -- cyclang-parser
 
 clean:
 	rm -rf ./bin/main*

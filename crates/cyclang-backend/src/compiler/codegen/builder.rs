@@ -14,25 +14,12 @@ use crate::compiler::CompileOptions;
 use anyhow::{anyhow, Result};
 use cyclang_parser::{Expression, Type};
 use libc::{c_uint, c_ulonglong};
-use llvm_sys::core::{
-    LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
-    LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
-    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildPointerCast,
-    LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub,
-    LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose,
-    LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule,
-    LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetParam, LLVMInt32TypeInContext, LLVMInt8Type,
-    LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd,
-    LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext,
-};
+use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildPointerCast, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMCreateMemoryBufferWithContentsOfFile, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMInt32TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
 use llvm_sys::execution_engine::{
     LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
     LLVMLinkInMCJIT,
 };
-use llvm_sys::prelude::{
-    LLVMBasicBlockRef, LLVMBool, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef,
-    LLVMValueRef,
-};
+use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMBool, LLVMBuilderRef, LLVMContextRef, LLVMMemoryBufferRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef};
 use llvm_sys::target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget};
 use llvm_sys::LLVMIntPredicate;
 use llvm_sys::LLVMIntPredicate::{
@@ -42,6 +29,8 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
+use llvm_sys::bit_reader::LLVMParseBitcodeInContext2;
+use llvm_sys::linker::LLVMLinkModules2;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -65,11 +54,12 @@ impl LLVMCodegenBuilder {
     // Initialise execution engine and LLVM IR constructs
     pub fn init(compile_options: Option<CompileOptions>) -> Result<LLVMCodegenBuilder> {
         unsafe {
-            let mut is_execution_engine = false;
+            let is_execution_engine = false;
             let mut is_default_target: bool = true;
 
             if let Some(compile_options) = compile_options {
-                is_execution_engine = compile_options.is_execution_engine;
+                // default to emit llvm ir until fix bug with Rust + Zig Bitcode when initiating ExecutionEngine
+                // is_execution_engine = compile_options.is_execution_engine;
                 is_default_target = compile_options.target.is_none();
             }
 
@@ -94,6 +84,29 @@ impl LLVMCodegenBuilder {
                     cstr_from_string("wasm32-unknown-unknown-wasm").as_ptr(),
                 );
             }
+
+            let mut module_std: LLVMModuleRef = ptr::null_mut();
+            let mut buffer: LLVMMemoryBufferRef = ptr::null_mut();
+            let mut error: *mut i8 = ptr::null_mut();
+
+            // Load the bitcode file
+            let path = CString::new("/Users/lyledean/compilers/cyclang/crates/cyclang-stdlib/zig-out/builtins-macos-aarch64.bc").unwrap();
+            let fail = LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr(), &mut buffer, &mut error);
+            if fail != 0 {
+                return Err(anyhow!("error loading memory"))
+            }
+
+            // Parse the bitcode file
+            let fail = LLVMParseBitcodeInContext2(context, buffer, &mut module_std);
+            if fail != 0 {
+                return Err(anyhow!("error loading bitcode"))
+            }
+
+            let result = LLVMLinkModules2(module, module_std);
+            if result != 0 {
+                panic!("error loading bitcode")
+            }
+
             // common void type
             let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
 
@@ -173,6 +186,7 @@ impl LLVMCodegenBuilder {
                 ));
                 main_func();
             }
+
 
             if !self.is_execution_engine {
                 LLVMPrintModuleToFile(
@@ -675,6 +689,27 @@ impl LLVMCodegenBuilder {
                 LLVMFunction {
                     function: sprintf,
                     func_type: sprintf_type,
+                    block: main_block,
+                    entry_block: main_block,
+                    symbol_table: HashMap::new(),
+                    args: vec![],
+                    return_type: Type::None,
+                },
+            );
+
+            let original_function_name = CString::new("boolToStrZig").expect("CString::new failed");
+            let original_function = LLVMGetNamedFunction(self.module, original_function_name.as_ptr());
+
+            let mut zig_args = [
+                int1_type(),
+            ];
+            let func_type =
+                LLVMFunctionType(void_type, zig_args.as_mut_ptr(), zig_args.len() as u32, 1);
+            self.llvm_func_cache.set(
+                "boolToStrZig",
+                LLVMFunction {
+                    function: original_function,
+                    func_type,
                     block: main_block,
                     entry_block: main_block,
                     symbol_table: HashMap::new(),

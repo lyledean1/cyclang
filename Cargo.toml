@@ -1,6 +1,6 @@
 [workspace]
 members = [
-"crates/cyclang-macros", "crates/cyclang", "crates/cyclang-backend", "crates/cyclang-parser"]
+"crates/cyclang-macros", "crates/cyclang", "crates/cyclang-backend", "crates/cyclang-parser", "crates/cyclang-stdlib"]
 resolver = "2"
 
 [workspace.package]

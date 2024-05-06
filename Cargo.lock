@@ -230,6 +230,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "cyclang-stdlib"
+version = "0.1.18"
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
