@@ -1,11 +1,9 @@
 use crate::compiler::types::{BaseTypes, TypeBase};
 
 extern crate llvm_sys;
-use crate::compiler::codegen::cstr_from_string;
 use anyhow::Result;
 
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 
 #[derive(Debug, Clone)]

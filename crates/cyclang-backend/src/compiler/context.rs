@@ -21,8 +21,7 @@ use anyhow::Result;
 use cyclang_parser::Type;
 use libc::c_ulonglong;
 use llvm_sys::core::{
-    LLVMBuildCall2, LLVMBuildPointerCast, LLVMConstStringInContext, LLVMCountParamTypes,
-    LLVMGetTypeByName2, LLVMInt8Type, LLVMPointerType,
+    LLVMBuildCall2, LLVMConstStringInContext, LLVMCountParamTypes,
 };
 use std::ffi::CString;
 

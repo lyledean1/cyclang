@@ -1,7 +1,6 @@
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::codegen::target::Target;
 use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
-use crate::compiler::types::func::FuncType;
 use crate::compiler::types::TypeBase;
 use crate::compiler::visitor::Visitor;
 use anyhow::Result;

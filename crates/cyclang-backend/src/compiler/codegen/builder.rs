@@ -7,7 +7,6 @@ use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::return_type::ReturnType;
-use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
 use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::visitor::Visitor;
@@ -18,12 +17,12 @@ use libc::{c_uint, c_ulonglong};
 use llvm_sys::core::{
     LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
     LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
-    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildPointerCast,
+    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul,
     LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub,
-    LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose,
+    LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose,
     LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule,
-    LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2,
-    LLVMInt32TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMModuleCreateWithName,
+    LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam,
+    LLVMInt32TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithName,
     LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf,
     LLVMVoidTypeInContext,
 };
@@ -839,7 +838,7 @@ impl LLVMCodegenBuilder {
         op: String,
     ) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
-            BaseTypes::String => unsafe {
+            BaseTypes::String => {
                 let add_string_func = self.llvm_func_cache.get("stringAdd").unwrap();
                 let lhs_value = lhs.get_value();
                 let rhs_value = rhs.get_value();
