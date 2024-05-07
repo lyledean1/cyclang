@@ -13,16 +13,14 @@ use crate::compiler::types::num64::NumberType64;
 use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
-use crate::compiler::types::{BaseTypes, TypeBase};
+use crate::compiler::types::TypeBase;
 use crate::compiler::visitor::Visitor;
 use crate::compiler::Expression;
 use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Type;
 use libc::c_ulonglong;
-use llvm_sys::core::{
-    LLVMBuildCall2, LLVMConstStringInContext, LLVMCountParamTypes,
-};
+use llvm_sys::core::{LLVMBuildCall2, LLVMConstStringInContext, LLVMCountParamTypes};
 use std::ffi::CString;
 
 pub struct ASTContext {
@@ -415,19 +413,9 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                                 context.match_ast(arg.clone(), &mut visitor, codegen)?;
 
                             if let Some(ptr) = ast_value.get_ptr() {
-                                match ast_value.get_type() {
-                                    BaseTypes::String => {
-                                        call_args.push(ptr);
-                                    }
-                                    _ => {
-                                        let loaded_value = codegen.build_load(
-                                            ptr,
-                                            ast_value.get_llvm_type(),
-                                            "call_arg",
-                                        );
-                                        call_args.push(loaded_value);
-                                    }
-                                }
+                                let loaded_value =
+                                    codegen.build_load(ptr, ast_value.get_llvm_type(), "call_arg");
+                                call_args.push(loaded_value);
                             } else {
                                 call_args.push(ast_value.get_value());
                             }

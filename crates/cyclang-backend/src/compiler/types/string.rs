@@ -33,7 +33,7 @@ impl TypeBase for StringType {
         let string_print_func = codegen.llvm_func_cache.get("stringPrint").unwrap();
         let lhs_value = self.get_value();
         let args = vec![lhs_value];
-        codegen.build_call(string_print_func, args, 1, "stringPrint");
+        codegen.build_call(string_print_func, args, 1, "");
         Ok(())
     }
     fn get_type(&self) -> BaseTypes {

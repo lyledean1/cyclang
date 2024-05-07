@@ -1,5 +1,6 @@
 use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
 use crate::compiler::codegen::stdlib::load_bitcode_and_set_stdlib_funcs;
+use crate::compiler::codegen::stdlib::string::load_string_helper_funcs;
 use crate::compiler::codegen::{
     cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type,
 };
@@ -17,14 +18,13 @@ use libc::{c_uint, c_ulonglong};
 use llvm_sys::core::{
     LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
     LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
-    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul,
-    LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub,
-    LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose,
-    LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule,
-    LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam,
-    LLVMInt32TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithName,
-    LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf,
-    LLVMVoidTypeInContext,
+    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet,
+    LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2,
+    LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
+    LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType,
+    LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMInt32TypeInContext,
+    LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd,
+    LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext,
 };
 use llvm_sys::execution_engine::{
     LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
@@ -43,7 +43,6 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
-use crate::compiler::codegen::stdlib::string::load_string_helper_funcs;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -659,8 +658,12 @@ impl LLVMCodegenBuilder {
                     return_type: Type::None,
                 },
             );
-            load_string_helper_funcs(self.context, self.module, &mut self.llvm_func_cache, main_block);
-
+            load_string_helper_funcs(
+                self.context,
+                self.module,
+                &mut self.llvm_func_cache,
+                main_block,
+            );
         }
     }
 
@@ -843,9 +846,9 @@ impl LLVMCodegenBuilder {
                 let lhs_value = lhs.get_value();
                 let rhs_value = rhs.get_value();
                 let args = vec![lhs_value, rhs_value];
-                self.build_call(add_string_func, args, 2, "exampleStringAdd");
+                self.build_call(add_string_func, args, 2, "");
                 Ok(lhs)
-            },
+            }
             BaseTypes::Number | BaseTypes::Number64 => match (lhs.get_ptr(), rhs.get_ptr()) {
                 (Some(ptr), Some(rhs_ptr)) => {
                     let mut lhs_val = self.build_load(ptr, lhs.get_llvm_type(), "lhs");

@@ -21,8 +21,7 @@ use libc::c_char;
 extern crate llvm_sys;
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::codegen::{
-    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type,
-    int8_ptr_type,
+    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type, int8_ptr_type,
 };
 use anyhow::anyhow;
 use anyhow::Result;
