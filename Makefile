@@ -6,10 +6,10 @@ run:
 	./bin/main
 
 build-stdlib:
-	cd crates/cyclang-stdlib/src && clang -c -emit-llvm export.c -o export.bc
+	cd crates/cyclang-backend/src/compiler/codegen/stdlib && clang -c -emit-llvm -O0 string.c -o string.bc
 
 build-stdlib-ir:
-	cd crates/cyclang-stdlib/src && clang -S -emit-llvm export.c -o export.ll
+	cd crates/cyclang-backend/src/compiler/codegen/stdlib && clang -S -emit-llvm -O0 string.c -o string.ll
 
 #run clang on the llvm ir to generate a binary 
 build-ir:

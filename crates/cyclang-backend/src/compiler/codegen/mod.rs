@@ -6,6 +6,7 @@ use std::ffi::CString;
 
 pub(crate) mod builder;
 pub mod context;
+pub mod stdlib;
 pub mod target;
 
 pub fn cstr_from_string(name: &str) -> CString {

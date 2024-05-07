@@ -3,7 +3,7 @@ use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::codegen::context::LLVMFunction;
 use crate::compiler::codegen::{
     cstr_from_string, int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type,
-    int64_type,
+    int64_type, int8_ptr_type,
 };
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::func::FuncType;
@@ -20,10 +20,7 @@ use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Type;
 use libc::c_ulonglong;
-use llvm_sys::core::{
-    LLVMBuildCall2, LLVMBuildPointerCast, LLVMConstStringInContext, LLVMCountParamTypes,
-    LLVMInt8Type, LLVMPointerType,
-};
+use llvm_sys::core::{LLVMBuildCall2, LLVMConstStringInContext, LLVMCountParamTypes};
 use std::ffi::CString;
 
 pub struct ASTContext {
@@ -130,6 +127,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         if let Expression::String(val) = left {
             let name = "str_val";
+            let val = val.replace('"', "");
             let string: CString = CString::new(val.clone()).unwrap();
             unsafe {
                 let value = LLVMConstStringInContext(
@@ -138,19 +136,24 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                     string.as_bytes().len() as u32,
                     0,
                 );
+                let string_init_func_llvm = codegen.llvm_func_cache.get("stringInit").unwrap();
+                let string_ptr =
+                    codegen.build_alloca_store(value, int8_ptr_type(), "stringPtrExample");
+
+                let return_value = codegen.build_call(
+                    string_init_func_llvm.clone(),
+                    vec![string_ptr],
+                    1,
+                    "stringInitExample",
+                );
+
                 let mut len_value: usize = string.as_bytes().len();
                 let ptr: *mut usize = (&mut len_value) as *mut usize;
-                let buffer_ptr = LLVMBuildPointerCast(
-                    codegen.builder,
-                    value,
-                    LLVMPointerType(LLVMInt8Type(), 0),
-                    cstr_from_string(name).as_ptr(),
-                );
                 return Ok(Box::new(StringType {
                     name: name.to_string(),
                     length: ptr,
-                    llvm_value: value,
-                    llvm_value_pointer: Some(buffer_ptr),
+                    llvm_value: return_value,
+                    llvm_value_pointer: Some(return_value),
                     str_value: val.to_string(), // fix
                 }));
             }
@@ -403,12 +406,12 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 Some(val) => {
                     unsafe {
                         // need to build up call with actual LLVMValue
-
                         let call_args = &mut vec![];
                         for arg in args.iter() {
                             // build load args i.e if variable
                             let ast_value =
                                 context.match_ast(arg.clone(), &mut visitor, codegen)?;
+
                             if let Some(ptr) = ast_value.get_ptr() {
                                 let loaded_value =
                                     codegen.build_load(ptr, ast_value.get_llvm_type(), "call_arg");

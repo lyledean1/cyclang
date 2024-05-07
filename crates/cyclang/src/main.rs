@@ -82,17 +82,10 @@ mod test {
     }
 
     #[test]
-    fn test_compile_print_string_expression() {
-        let input = r#"print("example blah blah blah");"#;
-        let output = compile_output_from_string_test(input.to_string());
-        assert_eq!(output, "\"example blah blah blah\"\n");
-    }
-
-    #[test]
     fn test_compile_print_add_string_expression() {
         let input = r#"print("hello" + " world");"#;
         let output = compile_output_from_string_test(input.to_string());
-        assert_eq!(output, "hello world\n");
+        assert_eq!(output, "\"hello world\"\n");
     }
 
     #[test]

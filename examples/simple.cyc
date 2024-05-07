@@ -1,2 +1,4 @@
-print(true);
-boolToStrC();
+let first = "hello";
+let second = ", world!";
+let third = first + second;
+print(third);

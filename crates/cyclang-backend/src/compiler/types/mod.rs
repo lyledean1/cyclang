@@ -21,8 +21,7 @@ use libc::c_char;
 extern crate llvm_sys;
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::codegen::{
-    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type,
-    int8_ptr_type, int8_type,
+    int1_ptr_type, int1_type, int32_ptr_type, int32_type, int64_ptr_type, int64_type, int8_ptr_type,
 };
 use anyhow::anyhow;
 use anyhow::Result;
@@ -89,7 +88,7 @@ pub trait TypeBase: DynClone {
     fn get_type(&self) -> BaseTypes;
     fn get_llvm_type(&self) -> LLVMTypeRef {
         match self.get_type() {
-            BaseTypes::String => int8_type(),
+            BaseTypes::String => int8_ptr_type(),
             BaseTypes::Bool => int1_type(),
             BaseTypes::Number => int32_type(),
             BaseTypes::Number64 => int64_type(),
