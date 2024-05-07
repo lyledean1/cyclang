@@ -32,33 +32,10 @@ impl TypeBase for StringType {
         self.str_value.clone()
     }
     fn print(&self, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
-        unsafe {
-            // Set Value
-            // create string vairables and then function
-            // This is the Main Print Func
-            let llvm_value_to_cstr = LLVMGetAsString(self.llvm_value, self.length);
-            // Load Value from Value Index Ptr
-            let val =
-                LLVMBuildGlobalStringPtr(codegen.builder, llvm_value_to_cstr, llvm_value_to_cstr);
-
-            // let mut print_args = [ast_context.printf_str_value, val].as_mut_ptr();
-            let mut print_args: Vec<LLVMValueRef> = vec![codegen.printf_str_value, val];
-            match codegen.llvm_func_cache.get("printf") {
-                Some(print_func) => {
-                    LLVMBuildCall2(
-                        codegen.builder,
-                        print_func.func_type,
-                        print_func.function,
-                        print_args.as_mut_ptr(),
-                        2,
-                        cstr_from_string("").as_ptr(),
-                    );
-                }
-                _ => {
-                    unreachable!()
-                }
-            }
-        }
+        let string_print_func = codegen.llvm_func_cache.get("stringPrint").unwrap();
+        let lhs_value = self.get_value();
+        let args = vec![lhs_value];
+        codegen.build_call(string_print_func, args, 1, "stringPrint");
         Ok(())
     }
     fn get_type(&self) -> BaseTypes {

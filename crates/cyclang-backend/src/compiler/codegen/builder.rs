@@ -22,7 +22,7 @@ use llvm_sys::core::{
     LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub,
     LLVMConstArray2, LLVMConstInt, LLVMConstStringInContext, LLVMContextCreate, LLVMContextDispose,
     LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule,
-    LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam,
+    LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2,
     LLVMInt32TypeInContext, LLVMInt8Type, LLVMInt8TypeInContext, LLVMModuleCreateWithName,
     LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf,
     LLVMVoidTypeInContext,
@@ -44,6 +44,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
+use crate::compiler::codegen::stdlib::string::load_string_helper_funcs;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -659,26 +660,8 @@ impl LLVMCodegenBuilder {
                     return_type: Type::None,
                 },
             );
+            load_string_helper_funcs(self.context, self.module, &mut self.llvm_func_cache, main_block);
 
-            let original_function_name = CString::new("boolToStrC").expect("CString::new failed");
-            let original_function =
-                LLVMGetNamedFunction(self.module, original_function_name.as_ptr());
-
-            let mut zig_args = [];
-            let func_type =
-                LLVMFunctionType(void_type, zig_args.as_mut_ptr(), zig_args.len() as u32, 1);
-            self.llvm_func_cache.set(
-                "boolToStrC",
-                LLVMFunction {
-                    function: original_function,
-                    func_type,
-                    block: main_block,
-                    entry_block: main_block,
-                    symbol_table: HashMap::new(),
-                    args: vec![],
-                    return_type: Type::None,
-                },
-            );
         }
     }
 
@@ -857,32 +840,12 @@ impl LLVMCodegenBuilder {
     ) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
             BaseTypes::String => unsafe {
-                // TODO: Use sprintf to concatenate two strings
-                // Remove extra quotes
-                let new_string = format!("{}{}", lhs.get_str(), rhs.get_str()).replace('\"', "");
-
-                let string = CString::new(new_string.clone()).unwrap();
-                let value = LLVMConstStringInContext(
-                    self.context,
-                    string.as_ptr(),
-                    string.as_bytes().len() as u32,
-                    0,
-                );
-                let mut len_value: usize = string.as_bytes().len();
-                let ptr: *mut usize = (&mut len_value) as *mut usize;
-                let buffer_ptr = LLVMBuildPointerCast(
-                    self.builder,
-                    value,
-                    LLVMPointerType(LLVMInt8Type(), 0),
-                    cstr_from_string("buffer_ptr").as_ptr(),
-                );
-                Ok(Box::new(StringType {
-                    name: lhs.get_name_as_str().to_string(),
-                    length: ptr,
-                    llvm_value: value,
-                    llvm_value_pointer: Some(buffer_ptr),
-                    str_value: new_string,
-                }))
+                let add_string_func = self.llvm_func_cache.get("stringAdd").unwrap();
+                let lhs_value = lhs.get_value();
+                let rhs_value = rhs.get_value();
+                let args = vec![lhs_value, rhs_value];
+                self.build_call(add_string_func, args, 2, "exampleStringAdd");
+                Ok(lhs)
             },
             BaseTypes::Number | BaseTypes::Number64 => match (lhs.get_ptr(), rhs.get_ptr()) {
                 (Some(ptr), Some(rhs_ptr)) => {

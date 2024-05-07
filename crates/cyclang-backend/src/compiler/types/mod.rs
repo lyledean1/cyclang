@@ -89,7 +89,7 @@ pub trait TypeBase: DynClone {
     fn get_type(&self) -> BaseTypes;
     fn get_llvm_type(&self) -> LLVMTypeRef {
         match self.get_type() {
-            BaseTypes::String => int8_type(),
+            BaseTypes::String => int8_ptr_type(),
             BaseTypes::Bool => int1_type(),
             BaseTypes::Number => int32_type(),
             BaseTypes::Number64 => int64_type(),

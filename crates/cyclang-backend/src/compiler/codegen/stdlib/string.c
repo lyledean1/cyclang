@@ -7,23 +7,27 @@ typedef struct {
     int32_t length;
     int32_t maxlen;
     int32_t factor;
-} String;
+} StringType;
 
-void stringCreateDefault(String *this) {
+void stringPrint(StringType *this) {
+    printf("\"%s\"\n", this->buffer);
+}
+
+void stringCreateDefault(StringType *this) {
     this->buffer = NULL;
     this->length = 0;
     this->maxlen = 0;
     this->factor = 16;  // Default preallocation factor
 }
 
-void stringDelete(String *this) {
+void stringDelete(StringType *this) {
     if (this->buffer != NULL) {
         free(this->buffer);
         this->buffer = NULL; // Ensure the pointer is set to NULL after freeing
     }
 }
 
-void stringResize(String *this, int new_size) {
+void stringResize(StringType *this, int new_size) {
     char *new_buffer = (char *)malloc(new_size);
     if (new_buffer) {
         if (this->buffer) {
@@ -37,7 +41,7 @@ void stringResize(String *this, int new_size) {
     }
 }
 
-void stringAddChar(String *this, char value) {
+void stringAddChar(StringType *this, char value) {
     if (this->length == this->maxlen) {
         int new_size = this->maxlen + this->factor;
         stringResize(this, new_size);
@@ -46,17 +50,22 @@ void stringAddChar(String *this, char value) {
     this->length++;                     // Increment the length
 }
 
-void stringPrint(String *this) {
-    printf("String: %s\n", this->buffer);
+void stringAdd(StringType *this, const StringType *other) {
+    for (int i = 0; i < other->length; i++) {
+        stringAddChar(this, other->buffer[i]);
+    }
 }
 
-void boolToStrC() {
-    String myString;
-    stringCreateDefault(&myString);
-    stringAddChar(&myString, 'A');
-    stringAddChar(&myString, 'B');
-    stringAddChar(&myString, 'C');
-    stringPrint(&myString);
-    stringDelete(&myString);
+StringType* stringInit(const char *data) {
+    StringType *this = malloc(sizeof(StringType));
+    int len = strlen(data);
+    stringCreateDefault(this);
+    this->buffer = (char *)malloc(len + 1);
+    if (this->buffer) {
+        memcpy(this->buffer, data, len);
+        this->buffer[len] = '\0';
+        this->length = len;
+        this->maxlen = len;
+    }
+    return this;
 }
-

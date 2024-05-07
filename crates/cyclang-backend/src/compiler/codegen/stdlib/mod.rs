@@ -1,3 +1,5 @@
+pub mod string;
+
 use crate::compiler::codegen::context::LLVMFunctionCache;
 use anyhow::{anyhow, Result};
 use llvm_sys::bit_reader::LLVMParseBitcodeInContext2;
@@ -9,7 +11,7 @@ use std::ptr;
 
 /// # Safety
 ///
-/// Loads the bitcode file generated from export.c
+/// Loads the bitcode file generated from string.c
 pub unsafe fn load_bitcode_and_set_stdlib_funcs(
     context: LLVMContextRef,
     module: LLVMModuleRef,
@@ -20,7 +22,7 @@ pub unsafe fn load_bitcode_and_set_stdlib_funcs(
     let mut error: *mut i8 = ptr::null_mut();
 
     let path =
-        CString::new("/Users/lyledean/compilers/cyclang/crates/cyclang-backend/src/compiler/codegen/stdlib/export.bc").unwrap();
+        CString::new("/Users/lyledean/compilers/cyclang/crates/cyclang-backend/src/compiler/codegen/stdlib/string.bc").unwrap();
     let fail = LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr(), &mut buffer, &mut error);
     if fail != 0 {
         return Err(anyhow!("error loading memory"));
