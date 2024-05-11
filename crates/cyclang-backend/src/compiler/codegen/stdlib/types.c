@@ -11,7 +11,7 @@ typedef struct {
 } StringType;
 
 void stringPrint(StringType *this) {
-    printf("\"%s\"", this->buffer);
+    printf("\"%s\"\n", this->buffer);
 }
 
 void stringCreateDefault(StringType *this) {
