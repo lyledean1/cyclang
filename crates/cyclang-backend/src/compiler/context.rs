@@ -210,6 +210,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>> {
         if let Expression::List(v) = left {
+            // get elements
             let mut vec_expr = vec![];
             let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
             for x in v {
@@ -227,6 +228,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             let llvm_array_value =
                 codegen.const_array(array_type, elements.as_mut_ptr(), array_len);
 
+            // initiate array
             let llvm_array_type = codegen.array_type(array_type, array_len);
             let array_ptr = codegen.build_alloca_store(llvm_array_value, llvm_array_type, "array");
             return Ok(Box::new(ListType {

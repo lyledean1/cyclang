@@ -43,6 +43,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
+use crate::compiler::codegen::stdlib::list::load_list_helper_funcs;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -659,6 +660,12 @@ impl LLVMCodegenBuilder {
                 },
             );
             load_string_helper_funcs(
+                self.context,
+                self.module,
+                &mut self.llvm_func_cache,
+                main_block,
+            );
+            load_list_helper_funcs(
                 self.context,
                 self.module,
                 &mut self.llvm_func_cache,
