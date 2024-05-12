@@ -58,6 +58,16 @@ pub unsafe fn load_list_helper_funcs(
         void_type,
     );
 
+    let mut concat_int_32_args = vec![int32_ptr_type(), int32_ptr_type()];
+    create_and_set_llvm_function(
+        module,
+        llvm_func_cache,
+        block,
+        "concatInt32List",
+        &mut concat_int_32_args,
+        int32_ptr_type(),
+    );
+
     // * String * //
     let string_struct_name = CString::new("struct.StringType").expect("CString::new failed");
     let string_type = LLVMGetTypeByName2(context, string_struct_name.as_ptr());
@@ -102,6 +112,16 @@ pub unsafe fn load_list_helper_funcs(
         "printStringList",
         &mut print_list_string_args,
         void_type,
+    );
+    // concatStringList
+    let mut concat_string_list_args = vec![string_ptr_ptr_type, string_ptr_ptr_type];
+    create_and_set_llvm_function(
+        module,
+        llvm_func_cache,
+        block,
+        "concatStringList",
+        &mut concat_string_list_args,
+        string_ptr_ptr_type,
     );
 }
 

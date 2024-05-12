@@ -104,6 +104,37 @@ void printInt32List(int32_t* arr) {
     printf("]");
 }
 
+int32_t lenInt32List(int32_t* arr) {
+    int i = 0;
+    while (arr[i] != -1) {
+        i++;
+    }
+    return i;
+}
+
+int32_t* concatInt32List(int32_t* arrOne, int32_t* arrTwo) {
+    int sizeOne = lenInt32List(arrOne);
+    int sizeTwo = lenInt32List(arrTwo);
+    // add a -1 terminator
+    int *result = (int32_t*)malloc((sizeOne + sizeTwo + 1) * sizeof(int32_t));
+    result[sizeOne + sizeTwo] = -1;
+    if (result == NULL) {
+        printf("Memory allocation failed\n");
+        exit(1);
+    }
+
+    // Copy over first elements
+    for (int i = 0; i < sizeOne; i++) {
+        result[i] = arrOne[i];
+    }
+
+    // Copy over second elements
+    for (int i = 0; i < sizeTwo; i++) {
+        result[sizeOne + i] = arrTwo[i];
+    }
+    return result;
+}
+
 int64_t* createInt64List(int size) {
     // set sentinel value of -1 hence size + 1
     int64_t* arr = (int64_t*)malloc((size + 1) * sizeof(int64_t));
@@ -158,4 +189,36 @@ void printStringList(StringType** arr) {
         i++;
     }
     printf("]");
+}
+
+int32_t lenStringList(StringType** arr) {
+    int i = 0;
+    while (arr[i] != NULL) {
+        i++;
+    }
+    return i;
+}
+
+StringType** concatStringList(StringType** arrOne, StringType** arrTwo) {
+    int sizeOne = lenStringList(arrOne);
+    int sizeTwo = lenStringList(arrTwo);
+
+    // add a NULL terminator
+    StringType** stringArray = malloc((sizeOne + sizeTwo + 1) * sizeof(StringType *));
+    stringArray[sizeOne + sizeTwo] = NULL;
+    if (stringArray == NULL) {
+        printf("Memory allocation failed\n");
+        exit(1);
+    }
+
+    // Copy over first elements
+    for (int i = 0; i < sizeOne; i++) {
+        stringArray[i] = arrOne[i];
+    }
+
+    // Copy over second elements
+    for (int i = 0; i < sizeTwo; i++) {
+        stringArray[sizeOne + i] = arrTwo[i];
+    }
+    return stringArray;
 }
