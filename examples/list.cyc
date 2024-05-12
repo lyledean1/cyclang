@@ -4,3 +4,6 @@ let valueTwo = listExample[4];
 listExample[3] = valueTwo;
 print(valueOne * valueTwo);
 print(listExample);
+
+let listExampleTwo: List<string> = ["one", "two", "three", "four"];
+print(listExampleTwo);

@@ -28,7 +28,7 @@ use anyhow::Result;
 use cyclang_parser::Type;
 use llvm_sys::prelude::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BaseTypes {
     String,
     Number,
