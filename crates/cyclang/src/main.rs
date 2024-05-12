@@ -270,7 +270,7 @@ mod test {
     #[test]
     fn test_compile_list_i32() {
         let input = r#"
-        let listExample: List<i32> = [1, 2, 3, 4];
+        let listExample: List<i32> = [1, 2] + [3, 4];
         print(listExample);
         "#;
         let output = compile_output_from_string_test(input.to_string());
@@ -280,7 +280,7 @@ mod test {
     #[test]
     fn test_compile_list_string() {
         let input = r#"
-        let listExample: List<string> = ["one", "two", "three", "four"];
+        let listExample: List<string> = ["one", "two"] + ["three", "four"];
         print(listExample);
         "#;
         let output = compile_output_from_string_test(input.to_string());
