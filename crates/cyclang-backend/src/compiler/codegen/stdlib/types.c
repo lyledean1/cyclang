@@ -132,3 +132,30 @@ void printInt64List(int64_t* arr) {
     printf("]");
 }
 
+StringType** createStringList(int size) {
+    // set sentinel value of NULL hence size + 1
+    StringType **stringArray = malloc((size + 1) * sizeof(StringType *));
+    stringArray[size] = NULL;
+    return stringArray;
+}
+
+StringType* getStringValue(StringType** arr, int index) {
+    return arr[index];
+}
+
+void setStringValue(StringType** arr, StringType* value, int index) {
+    arr[index] = value;
+}
+
+void printStringList(StringType** arr) {
+    int i = 0;
+    printf("[");
+    while (arr[i] != NULL) {
+        if (i != 0) {
+            printf(",");
+        }
+        printf("\"%s\"", arr[i]->buffer);
+        i++;
+    }
+    printf("]");
+}

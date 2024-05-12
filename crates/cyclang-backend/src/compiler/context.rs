@@ -218,18 +218,29 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 vec_expr.push(expr)
             }
 
-            let list_init_func = codegen.llvm_func_cache.get("createInt32List").unwrap();
+            let first_type = vec_expr.first().unwrap().get_type();
+
+            // todo: refactor this
+            let list_init_func_name = Self::get_list_init_func_name(&first_type);
+
+            let list_init_func = codegen.llvm_func_cache.get(list_init_func_name).unwrap();
+
+
             let length = self.visit_number(&Expression::Number(vec_expr.len() as i32), codegen);
             let list = codegen.build_call(list_init_func, vec![length.unwrap().get_value()], 1, "");
 
-            let set_int32 = codegen.llvm_func_cache.get("setInt32Value").unwrap();
+            let set_int32_func = codegen.llvm_func_cache.get("setInt32Value").unwrap();
+            let set_string_func = codegen.llvm_func_cache.get("setStringValue").unwrap();
 
             for (i, x) in vec_expr.iter().enumerate() {
                 let index = self.visit_number(&Expression::Number(i as i32), codegen);
                 let func_args = vec![list, x.get_value(), index.unwrap().get_value()];
                 match x.get_type() {
                     BaseTypes::Number => {
-                        codegen.build_call(set_int32.clone(), func_args, 3, "");
+                        codegen.build_call(set_int32_func.clone(), func_args, 3, "");
+                    }
+                    BaseTypes::String => {
+                        codegen.build_call(set_string_func.clone(), func_args, 3, "");
                     }
                     _ => {
                         unimplemented!("type {:?} is unimplemented", x.get_type())
@@ -241,6 +252,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 llvm_value: list,
                 llvm_value_ptr: list_ptr_value,
                 llvm_type: int32_ptr_type(),
+                inner_type: first_type,
             }));
         }
         Err(anyhow!("unable to visit list"))
@@ -632,5 +644,21 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             return Ok(Box::new(ReturnType {}));
         }
         Err(anyhow!("unable to visit print stmt"))
+    }
+}
+
+impl LLVMCodegenVisitor {
+    fn get_list_init_func_name(first_type: &BaseTypes) -> &str {
+        match first_type {
+            BaseTypes::String => {
+                "createStringList"
+            }
+            BaseTypes::Number => {
+                "createInt32List"
+            }
+            _ => {
+                unimplemented!("type {:?} is unimplemented", first_type)
+            }
+        }
     }
 }
