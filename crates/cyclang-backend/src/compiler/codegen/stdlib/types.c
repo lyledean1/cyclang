@@ -14,6 +14,10 @@ void stringPrint(StringType *this) {
     printf("\"%s\"\n", this->buffer);
 }
 
+void stringPrintList(StringType *this) {
+    printf("\"%s\"", this->buffer);
+}
+
 void stringCreateDefault(StringType *this) {
     this->buffer = NULL;
     this->length = 0;
@@ -71,140 +75,60 @@ StringType* stringInit(const char *data) {
     return this;
 }
 
-// * LIST IMPLEMENTATION * // 
-typedef struct Node Node;
-
-typedef enum { INT32, INT64, FLOAT, STRING, LIST } Type;
-
-typedef struct {
-    Type type;
-    union {
-        int32_t i32;
-        int64_t i64;
-        float f;
-        StringType *stringType;
-        Node *listType;
-    } data;
-} Data;
-
-typedef struct Node {
-    Data data;
-    struct Node *next;
-} Node;
-
-Node* createNode(Data data) {
-    Node *newNode = (Node*)malloc(sizeof(Node));
-    if (!newNode) {
-        fprintf(stderr, "Memory allocation failed\n");
-        exit(EXIT_FAILURE);
-    }
-    newNode->data = data;
-    newNode->next = NULL;
-    return newNode;
+// * LIST IMPLEMENTATION * //
+int32_t* createInt32List(int size) {
+    // set sentinel value of -1 hence size + 1
+    int32_t* arr = (int32_t*)malloc((size + 1) * sizeof(int32_t));
+    arr[size] = -1;
+    return arr;
 }
 
-void push(Node **head, Data data) {
-    Node *newNode = createNode(data);
-    newNode->next = *head;
-    *head = newNode;
+int32_t getInt32Value(int32_t* arr, int index) {
+    return arr[index];
 }
 
-Data pop(Node **head) {
-    if (*head == NULL) {
-        fprintf(stderr, "Attempt to pop from an empty list\n");
-        exit(EXIT_FAILURE);  // or return a special Data value indicating failure
-    }
-    Node *temp = *head;
-    Data poppedData = temp->data;
-    *head = temp->next;
-    free(temp); 
-    return poppedData;
+void setInt32Value(int32_t* arr, int32_t value, int index) {
+    arr[index] = value;
 }
 
-void printList(Node *head) {
-    Node *current = head;
+void printInt32List(int32_t* arr) {
+    int i = 0;
     printf("[");
-    while (current != NULL) {
-        switch (current->data.type) {
-            case INT32:
-                printf("%d", current->data.data.i32);
-                break;
-            case INT64:
-                printf("%d", current->data.data.i32);
-                break;
-            case FLOAT:
-                printf("%f", current->data.data.f);
-                break;
-            case STRING:
-                stringPrint(current->data.data.stringType);
-                break;
-            case LIST:
-                printList(current->data.data.listType);
-                break;
-        }
-        current = current->next;
-        if (current != NULL) {
+    while (arr[i] != -1) {
+        if (i != 0) {
             printf(",");
         }
+        printf("%d", arr[i]);
+        i++;
     }
     printf("]");
 }
 
-void pushInt32(Node **head, int32_t value) {
-    Data d1 = {.type = INT32, .data.i32 = value};
-    push(head, d1);
+int64_t* createInt64List(int size) {
+    // set sentinel value of -1 hence size + 1
+    int64_t* arr = (int64_t*)malloc((size + 1) * sizeof(int64_t));
+    arr[size] = -1;
+    return arr;
 }
 
-void pushInt64(Node **head, int64_t value) {
-    Data d1 = {.type = INT64, .data.i64 = value};
-    push(head, d1);
+int64_t getInt64Value(int64_t* arr, int index) {
+    return arr[index];
 }
 
-void pushFloat(Node **head, float value) {
-    Data d1 = {.type = FLOAT, .data.f = value};
-    push(head, d1);
+void setInt64Value(int64_t* arr, int64_t value, int index) {
+    arr[index] = value;
 }
 
-void pushString(Node **head, StringType *stringValue) {
-    Data d1 = {.type = STRING, .data.stringType = stringValue};
-    push(head, d1);
-}
-
-void pushList(Node **head, Node *list) {
-    Data d1 = {.type = LIST, .data.listType = list};
-    push(head, d1);
-}
-
-int test() {
-    Node *head = NULL;
-    Node *headTwo = NULL;
-    Node *headThree = NULL;
-
-    const char *data = "Hello, world!";
-    StringType *myString = stringInit(data);
-
-
-    pushInt32(&head, 5);
-    pushInt32(&head, 10);
-    pushInt32(&head, 15);
-
-    pushInt32(&headTwo, -5);
-    pushInt64(&headTwo, -10);
-    pushInt32(&headTwo, -15);
-    pushList(&headThree, head);
-    pushList(&headThree, headTwo);
-    // printList(headThree);
-    pop(&headThree);
-    pop(&headThree);
-    printList(headThree);
-
-    // Free the list
-    while (head != NULL) {
-        Node *temp = head;
-        head = head->next;
-        free(temp);
+void printInt64List(int64_t* arr) {
+    int i = 0;
+    printf("[");
+    while (arr[i] != -1) {
+        if (i != 0) {
+            printf(",");
+        }
+        printf("%lld", arr[i]);
+        i++;
     }
-
-    return 0;
- }
+    printf("]");
+}
 

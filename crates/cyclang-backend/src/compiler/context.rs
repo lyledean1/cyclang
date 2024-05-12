@@ -13,7 +13,7 @@ use crate::compiler::types::num64::NumberType64;
 use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::string::StringType;
 use crate::compiler::types::void::VoidType;
-use crate::compiler::types::TypeBase;
+use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::visitor::Visitor;
 use crate::compiler::Expression;
 use anyhow::anyhow;
@@ -217,24 +217,30 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 let expr = context.match_ast(x.clone(), &mut visitor, codegen)?;
                 vec_expr.push(expr)
             }
-            let first_element = vec_expr.first().unwrap();
-            let mut elements = vec![];
-            for x in vec_expr.iter() {
-                elements.push(x.get_value());
+
+            let list_init_func = codegen.llvm_func_cache.get("createInt32List").unwrap();
+            let length = self.visit_number(&Expression::Number(vec_expr.len() as i32), codegen);
+            let list = codegen.build_call(list_init_func, vec![length.unwrap().get_value()], 1, "");
+
+            let set_int32 = codegen.llvm_func_cache.get("setInt32Value").unwrap();
+
+            for (i, x) in vec_expr.iter().enumerate() {
+                let index = self.visit_number(&Expression::Number(i as i32), codegen);
+                let func_args = vec![list, x.get_value(), index.unwrap().get_value()];
+                match x.get_type() {
+                    BaseTypes::Number => {
+                        codegen.build_call(set_int32.clone(), func_args, 3, "");
+                    }
+                    _ => {
+                        unimplemented!("type {:?} is unimplemented", x.get_type())
+                    }
+                }
             }
-
-            let array_type = first_element.get_llvm_type();
-            let array_len = vec_expr.len() as u64;
-            let llvm_array_value =
-                codegen.const_array(array_type, elements.as_mut_ptr(), array_len);
-
-            // initiate array
-            let llvm_array_type = codegen.array_type(array_type, array_len);
-            let array_ptr = codegen.build_alloca_store(llvm_array_value, llvm_array_type, "array");
+            let list_ptr_value = codegen.build_load(list, int32_ptr_type(), "");
             return Ok(Box::new(ListType {
-                llvm_value: llvm_array_value,
-                llvm_value_ptr: array_ptr,
-                llvm_type: llvm_array_type,
+                llvm_value: list,
+                llvm_value_ptr: list_ptr_value,
+                llvm_type: int32_ptr_type(),
             }));
         }
         Err(anyhow!("unable to visit list"))
@@ -248,25 +254,26 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::ListIndex(v, i) = left {
-            let name = cstr_from_string("access_array").as_ptr();
             let val = context.match_ast(*v.clone(), &mut visitor, codegen)?;
             let index = context.match_ast(*i.clone(), &mut visitor, codegen)?;
-            let zero_index = codegen.const_int(int64_type(), 0, 0);
-            let build_load_index =
-                codegen.build_load(index.get_ptr().unwrap(), index.get_llvm_type(), "example");
-            let mut indices = [zero_index, build_load_index];
-            let val = codegen.build_gep(
-                val.get_llvm_type(),
-                val.get_ptr().unwrap(),
-                indices.as_mut_ptr(),
-                2_u32,
-                name,
-            );
-            return Ok(Box::new(NumberType {
-                llvm_value: val,
-                llvm_value_pointer: Some(val),
-                name: "".to_string(),
-            }));
+            let get_index_value_args = vec![val.get_value(), index.get_value()];
+            if let BaseTypes::List(inner) = val.get_type() {
+                match *inner {
+                    BaseTypes::Number => {
+                        let get_int32_value_func =
+                            codegen.llvm_func_cache.get("getInt32Value").unwrap();
+                        let i_val =
+                            codegen.build_call(get_int32_value_func, get_index_value_args, 2, "");
+                        let i_val_ptr = codegen.build_alloca_store(i_val, int32_ptr_type(), "");
+                        return Ok(Box::new(NumberType {
+                            llvm_value: i_val,
+                            llvm_value_pointer: Some(i_val_ptr),
+                            name: "".to_string(),
+                        }));
+                    }
+                    _ => unreachable!("not implement for {:?}", inner),
+                }
+            }
         }
         Err(anyhow!("not a list index"))
     }
@@ -279,31 +286,24 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::ListAssign(var, i, rhs) = left {
-            match context.var_cache.get(var) {
-                Some(val) => {
-                    let name = cstr_from_string("access_array").as_ptr();
-                    let lhs: Box<dyn TypeBase> =
-                        context.match_ast(*rhs.clone(), &mut visitor, codegen)?;
-                    let index = context.match_ast(*i.clone(), &mut visitor, codegen)?;
-                    let zero_index = codegen.const_int(int64_type(), 0, 0);
-                    let build_load_index = codegen.build_load(
-                        index.get_ptr().unwrap(),
-                        index.get_llvm_type(),
-                        "example",
-                    );
-                    let mut indices = [zero_index, build_load_index];
-                    let element_ptr = codegen.build_gep(
-                        val.get_llvm_type(),
-                        val.get_ptr().unwrap(),
-                        indices.as_mut_ptr(),
-                        2_u32,
-                        name,
-                    );
-                    codegen.build_store(lhs.get_value(), element_ptr);
+            if let Some(val) = context.var_cache.get(var) {
+                let lhs: Box<dyn TypeBase> =
+                    context.match_ast(*rhs.clone(), &mut visitor, codegen)?;
+                let index = context.match_ast(*i.clone(), &mut visitor, codegen)?;
+                if let BaseTypes::List(inner) = val.get_type() {
+                    match *inner {
+                        BaseTypes::Number => {
+                            let set_int32_value_func =
+                                codegen.llvm_func_cache.get("setInt32Value").unwrap();
+                            let set_int32_args =
+                                vec![val.get_value(), lhs.get_value(), index.get_value()];
+                            codegen.build_call(set_int32_value_func, set_int32_args, 3, "");
+                        }
+                        _ => {
+                            unreachable!()
+                        }
+                    }
                     return Ok(val);
-                }
-                _ => {
-                    unreachable!("can't assign as var doesn't exist")
                 }
             }
         }

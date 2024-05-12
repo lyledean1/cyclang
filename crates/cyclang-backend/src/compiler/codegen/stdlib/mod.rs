@@ -1,5 +1,5 @@
-pub mod string;
 pub mod list;
+pub mod string;
 
 use crate::compiler::codegen::context::LLVMFunctionCache;
 use anyhow::{anyhow, Result};

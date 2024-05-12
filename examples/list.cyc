@@ -1,18 +1,6 @@
-fn fib(i32 n) -> i32 {
-    if (n < 2) {
-        return n;
-    }
-    return fib(n - 1) + fib(n - 2);
-}
-
-let listExample: List<i32> = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-
-for (let i = 0; i < 30; i++)
-{
-    let val = fib(i);
-    listExample[i] = val;
-    print(listExample[i]);
-}
-
-let fibNum = listExample[29];
-print(fibNum == 514229);
+let listExample: List<i32> = [1,2,3,4,5];
+let valueOne = listExample[3];
+let valueTwo = listExample[4];
+listExample[3] = valueTwo;
+print(valueOne * valueTwo);
+print(listExample);
