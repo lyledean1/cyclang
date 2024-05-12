@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// * STRING IMPLEMENTATION * // 
 typedef struct {
     char *buffer;
     int32_t length;
@@ -11,6 +12,10 @@ typedef struct {
 
 void stringPrint(StringType *this) {
     printf("\"%s\"\n", this->buffer);
+}
+
+void stringPrintList(StringType *this) {
+    printf("\"%s\"", this->buffer);
 }
 
 void stringCreateDefault(StringType *this) {
@@ -46,8 +51,8 @@ void stringAddChar(StringType *this, char value) {
         int new_size = this->maxlen + this->factor;
         stringResize(this, new_size);
     }
-    this->buffer[this->length] = value; // Add the character
-    this->length++;                     // Increment the length
+    this->buffer[this->length] = value;
+    this->length++;
 }
 
 void stringAdd(StringType *this, const StringType *other) {
@@ -69,3 +74,61 @@ StringType* stringInit(const char *data) {
     }
     return this;
 }
+
+// * LIST IMPLEMENTATION * //
+int32_t* createInt32List(int size) {
+    // set sentinel value of -1 hence size + 1
+    int32_t* arr = (int32_t*)malloc((size + 1) * sizeof(int32_t));
+    arr[size] = -1;
+    return arr;
+}
+
+int32_t getInt32Value(int32_t* arr, int index) {
+    return arr[index];
+}
+
+void setInt32Value(int32_t* arr, int32_t value, int index) {
+    arr[index] = value;
+}
+
+void printInt32List(int32_t* arr) {
+    int i = 0;
+    printf("[");
+    while (arr[i] != -1) {
+        if (i != 0) {
+            printf(",");
+        }
+        printf("%d", arr[i]);
+        i++;
+    }
+    printf("]");
+}
+
+int64_t* createInt64List(int size) {
+    // set sentinel value of -1 hence size + 1
+    int64_t* arr = (int64_t*)malloc((size + 1) * sizeof(int64_t));
+    arr[size] = -1;
+    return arr;
+}
+
+int64_t getInt64Value(int64_t* arr, int index) {
+    return arr[index];
+}
+
+void setInt64Value(int64_t* arr, int64_t value, int index) {
+    arr[index] = value;
+}
+
+void printInt64List(int64_t* arr) {
+    int i = 0;
+    printf("[");
+    while (arr[i] != -1) {
+        if (i != 0) {
+            printf(",");
+        }
+        printf("%lld", arr[i]);
+        i++;
+    }
+    printf("]");
+}
+

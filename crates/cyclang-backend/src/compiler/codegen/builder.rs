@@ -1,4 +1,5 @@
 use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
+use crate::compiler::codegen::stdlib::list::load_list_helper_funcs;
 use crate::compiler::codegen::stdlib::load_bitcode_and_set_stdlib_funcs;
 use crate::compiler::codegen::stdlib::string::load_string_helper_funcs;
 use crate::compiler::codegen::{
@@ -359,6 +360,7 @@ impl LLVMCodegenBuilder {
             BaseTypes::Number64 => self.printf_str_num64_value,
             BaseTypes::Bool => self.printf_str_value,
             BaseTypes::String => self.printf_str_value,
+            BaseTypes::List(_) => self.printf_str_value, // placeholder - no-op
             _ => {
                 unreachable!("get_printf_str not implemented for type {:?}", val)
             }
@@ -659,6 +661,12 @@ impl LLVMCodegenBuilder {
                 },
             );
             load_string_helper_funcs(
+                self.context,
+                self.module,
+                &mut self.llvm_func_cache,
+                main_block,
+            );
+            load_list_helper_funcs(
                 self.context,
                 self.module,
                 &mut self.llvm_func_cache,

@@ -1,5 +1,6 @@
 extern crate llvm_sys;
 
+use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::types::{BaseTypes, TypeBase};
 use llvm_sys::prelude::*;
 
@@ -23,5 +24,11 @@ impl TypeBase for ListType {
     }
     fn get_llvm_type(&self) -> LLVMTypeRef {
         self.llvm_type
+    }
+
+    fn print(&self, codegen: &mut LLVMCodegenBuilder) -> anyhow::Result<()> {
+        let print_list_func = codegen.llvm_func_cache.get("printInt32List").unwrap();
+        codegen.build_call(print_list_func, vec![self.get_value()], 1, "");
+        Ok(())
     }
 }
