@@ -1,5 +1,5 @@
 use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
-use crate::compiler::codegen::int8_ptr_type;
+use crate::compiler::codegen::{int1_type, int8_ptr_type};
 use cyclang_parser::Type;
 use llvm_sys::core::{
     LLVMFunctionType, LLVMGetNamedFunction, LLVMGetTypeByName2, LLVMPointerType,
@@ -89,6 +89,30 @@ pub unsafe fn load_string_helper_funcs(
             entry_block: block,
             symbol_table: HashMap::new(),
             args: vec![string_ptr_type],
+            return_type: Type::None,
+        },
+    );
+
+
+    let string_is_equal_function_name = CString::new("isStringEqual").expect("CString::new failed");
+    let string_is_equal_function = LLVMGetNamedFunction(module, string_is_equal_function_name.as_ptr());
+
+    let mut string_is_equal_args = [string_ptr_type, string_ptr_type];
+    let string_is_equal_func_type = LLVMFunctionType(
+        int1_type(),
+        string_is_equal_args.as_mut_ptr(),
+        string_is_equal_args.len() as u32,
+        0,
+    );
+    llvm_func_cache.set(
+        "isStringEqual",
+        LLVMFunction {
+            function: string_is_equal_function,
+            func_type: string_is_equal_func_type,
+            block,
+            entry_block: block,
+            symbol_table: HashMap::new(),
+            args: vec![string_ptr_type, string_ptr_type],
             return_type: Type::None,
         },
     );

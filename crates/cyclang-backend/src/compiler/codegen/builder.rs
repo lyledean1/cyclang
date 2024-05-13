@@ -936,12 +936,14 @@ impl LLVMCodegenBuilder {
     ) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
             BaseTypes::String => {
-                let value = lhs.get_str() == rhs.get_str();
-                let name = "bool_value";
-                let bool_value = self.const_int(int1_type(), value.into(), 0);
-                let alloca = self.build_alloca_store(bool_value, int1_type(), name);
+
+                let is_string_equal_func = self.llvm_func_cache.get("isStringEqual").unwrap();
+                let is_string_equal_args = vec![lhs.get_ptr().unwrap(), rhs.get_ptr().unwrap()];
+
+                let bool_value = self.build_call(is_string_equal_func, is_string_equal_args, 2, "");
+                let alloca = self.build_alloca_store(bool_value, int1_type(), "");
                 return Ok(Box::new(BoolType {
-                    name: name.parse()?,
+                    name: "bool_type".to_string(),
                     builder: self.builder,
                     llvm_value: bool_value,
                     llvm_value_pointer: alloca,
@@ -989,5 +991,28 @@ impl LLVMCodegenBuilder {
             lhs.get_name_as_str(),
         );
         Ok(lhs)
+    }
+
+    pub fn get_string_type(&self) -> LLVMTypeRef {
+        let string_struct_name = CString::new("struct.StringType").expect("CString::new failed");
+        unsafe {
+            LLVMGetTypeByName2(self.context, string_struct_name.as_ptr())
+        }
+    }
+
+    pub fn get_string_ptr_type(&self) -> LLVMTypeRef {
+        unsafe {
+           LLVMPointerType(self.get_string_type(), 0)
+        }
+    }
+
+    pub fn get_list_int32_ptr_type(&self) -> LLVMTypeRef {
+        int32_ptr_type()
+    }
+
+    pub fn get_list_string_ptr_type(&self) -> LLVMTypeRef {
+        unsafe {
+            LLVMPointerType(self.get_string_ptr_type(), 0)
+        }
     }
 }
