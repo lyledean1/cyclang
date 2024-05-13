@@ -1,7 +1,9 @@
-use crate::compiler::codegen::{cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type};
+use crate::compiler::codegen::{
+    cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type,
+};
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
-use crate::compiler::types::{TypeBase};
+use crate::compiler::types::TypeBase;
 use std::collections::HashMap;
 
 extern crate llvm_sys;
@@ -112,7 +114,7 @@ impl LLVMFunction {
                                 name: "bool_param".into(),
                             };
                             new_function.set_func_var(v, Box::new(bool_type));
-                        },
+                        }
                         Type::List(_) => {
                             unimplemented!("inner type {:?} not found", t)
                         }
@@ -155,71 +157,51 @@ impl LLVMFunction {
         }
     }
 
-    unsafe fn get_function_type(codegen: &mut LLVMCodegenBuilder, args: &[Expression], return_type: &Type, param_types: &mut Vec<*mut LLVMType>) -> LLVMTypeRef {
+    unsafe fn get_function_type(
+        codegen: &mut LLVMCodegenBuilder,
+        args: &[Expression],
+        return_type: &Type,
+        param_types: &mut Vec<*mut LLVMType>,
+    ) -> LLVMTypeRef {
         match return_type {
             Type::i32 => {
-                LLVMFunctionType(
-                    int32_type(),
-                    param_types.as_mut_ptr(),
-                    args.len() as u32,
-                    0,
-                )
+                LLVMFunctionType(int32_type(), param_types.as_mut_ptr(), args.len() as u32, 0)
             }
             Type::i64 => {
-                LLVMFunctionType(
-                    int64_type(),
-                    param_types.as_mut_ptr(),
-                    args.len() as u32,
-                    0,
-                )
+                LLVMFunctionType(int64_type(), param_types.as_mut_ptr(), args.len() as u32, 0)
             }
             Type::Bool => {
-                LLVMFunctionType(
-                    int1_type(),
+                LLVMFunctionType(int1_type(), param_types.as_mut_ptr(), args.len() as u32, 0)
+            }
+            Type::String => LLVMFunctionType(
+                codegen.get_string_ptr_type(),
+                param_types.as_mut_ptr(),
+                args.len() as u32,
+                0,
+            ),
+            Type::None => LLVMFunctionType(
+                LLVMVoidType(),
+                param_types.as_mut_ptr(),
+                args.len() as u32,
+                0,
+            ),
+            Type::List(inner_type) => match **inner_type {
+                Type::i32 => LLVMFunctionType(
+                    int32_ptr_type(),
                     param_types.as_mut_ptr(),
                     args.len() as u32,
                     0,
-                )
-            }
-            Type::String => {
-                LLVMFunctionType(
-                    codegen.get_string_ptr_type(),
+                ),
+                Type::String => LLVMFunctionType(
+                    codegen.get_list_string_ptr_type(),
                     param_types.as_mut_ptr(),
                     args.len() as u32,
                     0,
-                )
-            }
-            Type::None => {
-                LLVMFunctionType(
-                    LLVMVoidType(),
-                    param_types.as_mut_ptr(),
-                    args.len() as u32,
-                    0,
-                )
-            }
-            Type::List(inner_type) => {
-                match **inner_type {
-                    Type::i32 => {
-                        LLVMFunctionType(
-                            int32_ptr_type(),
-                            param_types.as_mut_ptr(),
-                            args.len() as u32,
-                            0
-                        )
-                    }
-                    Type::String => {
-                        LLVMFunctionType(
-                            codegen.get_list_string_ptr_type(),
-                            param_types.as_mut_ptr(),
-                            args.len() as u32,
-                            0
-                        )
-                    }
-                    _ => {
-                        unimplemented!("inner type List<{:?}>", inner_type)
-                    }
+                ),
+                _ => {
+                    unimplemented!("inner type List<{:?}>", inner_type)
                 }
-            }
+            },
         }
     }
 
@@ -232,16 +214,12 @@ impl LLVMFunction {
                     Type::i32 => args_vec.push(int32_type()),
                     Type::i64 => args_vec.push(int64_type()),
                     Type::String => args_vec.push(int8_ptr_type()),
-                    Type::List(inner_type) => {
-                        match *inner_type {
-                            Type::i32 => {
-                                args_vec.push(int32_ptr_type())
-                            }
-                            _=> {
-                                unreachable!("unknown list type {:?}", inner_type)
-                            }
+                    Type::List(inner_type) => match *inner_type {
+                        Type::i32 => args_vec.push(int32_ptr_type()),
+                        _ => {
+                            unreachable!("unknown list type {:?}", inner_type)
                         }
-                    }
+                    },
                     _ => {
                         unreachable!("unknown type {:?}", t)
                     }

@@ -2,8 +2,8 @@ extern crate llvm_sys;
 
 use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::types::{BaseTypes, TypeBase};
-use llvm_sys::prelude::*;
 use anyhow::anyhow;
+use llvm_sys::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct ListType {
@@ -27,14 +27,14 @@ impl TypeBase for ListType {
                 BaseTypes::String => {
                     let print_list_func = codegen.llvm_func_cache.get("printStringList").unwrap();
                     codegen.build_call(print_list_func, vec![self.get_value()], 1, "");
-                    return Ok(())
+                    return Ok(());
                 }
                 BaseTypes::Number => {
                     let print_list_func = codegen.llvm_func_cache.get("printInt32List").unwrap();
                     codegen.build_call(print_list_func, vec![self.get_value()], 1, "");
-                    return Ok(())
+                    return Ok(());
                 }
-                _=> {
+                _ => {
                     unimplemented!("type {:?} not implemented", self.get_type())
                 }
             }

@@ -93,9 +93,9 @@ pub unsafe fn load_string_helper_funcs(
         },
     );
 
-
     let string_is_equal_function_name = CString::new("isStringEqual").expect("CString::new failed");
-    let string_is_equal_function = LLVMGetNamedFunction(module, string_is_equal_function_name.as_ptr());
+    let string_is_equal_function =
+        LLVMGetNamedFunction(module, string_is_equal_function_name.as_ptr());
 
     let mut string_is_equal_args = [string_ptr_type, string_ptr_type];
     let string_is_equal_func_type = LLVMFunctionType(
@@ -116,5 +116,4 @@ pub unsafe fn load_string_helper_funcs(
             return_type: Type::None,
         },
     );
-
 }

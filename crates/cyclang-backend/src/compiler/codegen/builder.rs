@@ -7,6 +7,7 @@ use crate::compiler::codegen::{
 };
 use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::bool::BoolType;
+use crate::compiler::types::list::ListType;
 use crate::compiler::types::num::NumberType;
 use crate::compiler::types::return_type::ReturnType;
 use crate::compiler::types::void::VoidType;
@@ -16,7 +17,18 @@ use crate::compiler::CompileOptions;
 use anyhow::{anyhow, Result};
 use cyclang_parser::{Expression, Type};
 use libc::{c_uint, c_ulonglong};
-use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2, LLVMInt32TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
+use llvm_sys::core::{
+    LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
+    LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
+    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet,
+    LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2,
+    LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
+    LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType,
+    LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2,
+    LLVMInt32TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType,
+    LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf,
+    LLVMVoidTypeInContext,
+};
 use llvm_sys::execution_engine::{
     LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
     LLVMLinkInMCJIT,
@@ -34,7 +46,6 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
-use crate::compiler::types::list::ListType;
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -880,43 +891,42 @@ impl LLVMCodegenBuilder {
                     }))
                 }
             },
-            BaseTypes::List(value) => {
-                match *value {
-                    BaseTypes::Number => {
-                        let llvm_func = self.llvm_func_cache.get("concatInt32List").unwrap();
-                        let concat_args = vec![lhs.get_value(), rhs.get_value()];
-                        let new_val = self.build_call(llvm_func, concat_args, 2, "");
-                        let new_val_ptr = self.build_alloca_store(new_val, int32_ptr_type(), "");
-                        Ok(Box::new(ListType{
-                            llvm_value: new_val,
-                            llvm_type: lhs.get_llvm_type(),
-                            llvm_value_ptr: new_val_ptr,
-                            inner_type: BaseTypes::Number,
-                        }))
-                    }
-                    BaseTypes::String => unsafe {
-                        let llvm_func = self.llvm_func_cache.get("concatStringList").unwrap();
-                        let concat_args = vec![lhs.get_value(), rhs.get_value()];
-                        let new_val = self.build_call(llvm_func, concat_args, 2, "");
-                        let string_struct_name = CString::new("struct.StringType").expect("CString::new failed");
-                        let string_type = LLVMGetTypeByName2(self.context, string_struct_name.as_ptr());
-                        let string_ptr_type = LLVMPointerType(string_type, 0);
-                        let string_ptr_ptr_type = LLVMPointerType(string_ptr_type, 0);
-
-                        let llvm_ptr_type = LLVMPointerType(string_ptr_ptr_type, 0);
-                        let new_val_ptr = self.build_alloca_store(new_val, llvm_ptr_type, "");
-                        Ok(Box::new(ListType{
-                            llvm_value: new_val,
-                            llvm_type: lhs.get_llvm_type(),
-                            llvm_value_ptr: new_val_ptr,
-                            inner_type: BaseTypes::String,
-                        }))
-                    }
-                    _=> {
-                        unimplemented!("for type {:?}", rhs.get_type())
-                    }
+            BaseTypes::List(value) => match *value {
+                BaseTypes::Number => {
+                    let llvm_func = self.llvm_func_cache.get("concatInt32List").unwrap();
+                    let concat_args = vec![lhs.get_value(), rhs.get_value()];
+                    let new_val = self.build_call(llvm_func, concat_args, 2, "");
+                    let new_val_ptr = self.build_alloca_store(new_val, int32_ptr_type(), "");
+                    Ok(Box::new(ListType {
+                        llvm_value: new_val,
+                        llvm_type: lhs.get_llvm_type(),
+                        llvm_value_ptr: new_val_ptr,
+                        inner_type: BaseTypes::Number,
+                    }))
                 }
-            }
+                BaseTypes::String => unsafe {
+                    let llvm_func = self.llvm_func_cache.get("concatStringList").unwrap();
+                    let concat_args = vec![lhs.get_value(), rhs.get_value()];
+                    let new_val = self.build_call(llvm_func, concat_args, 2, "");
+                    let string_struct_name =
+                        CString::new("struct.StringType").expect("CString::new failed");
+                    let string_type = LLVMGetTypeByName2(self.context, string_struct_name.as_ptr());
+                    let string_ptr_type = LLVMPointerType(string_type, 0);
+                    let string_ptr_ptr_type = LLVMPointerType(string_ptr_type, 0);
+
+                    let llvm_ptr_type = LLVMPointerType(string_ptr_ptr_type, 0);
+                    let new_val_ptr = self.build_alloca_store(new_val, llvm_ptr_type, "");
+                    Ok(Box::new(ListType {
+                        llvm_value: new_val,
+                        llvm_type: lhs.get_llvm_type(),
+                        llvm_value_ptr: new_val_ptr,
+                        inner_type: BaseTypes::String,
+                    }))
+                },
+                _ => {
+                    unimplemented!("for type {:?}", rhs.get_type())
+                }
+            },
             _ => {
                 unreachable!(
                     "Can't {} type {:?} and type {:?}",
@@ -936,7 +946,6 @@ impl LLVMCodegenBuilder {
     ) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
             BaseTypes::String => {
-
                 let is_string_equal_func = self.llvm_func_cache.get("isStringEqual").unwrap();
                 let is_string_equal_args = vec![lhs.get_ptr().unwrap(), rhs.get_ptr().unwrap()];
 
@@ -995,15 +1004,11 @@ impl LLVMCodegenBuilder {
 
     pub fn get_string_type(&self) -> LLVMTypeRef {
         let string_struct_name = CString::new("struct.StringType").expect("CString::new failed");
-        unsafe {
-            LLVMGetTypeByName2(self.context, string_struct_name.as_ptr())
-        }
+        unsafe { LLVMGetTypeByName2(self.context, string_struct_name.as_ptr()) }
     }
 
     pub fn get_string_ptr_type(&self) -> LLVMTypeRef {
-        unsafe {
-           LLVMPointerType(self.get_string_type(), 0)
-        }
+        unsafe { LLVMPointerType(self.get_string_type(), 0) }
     }
 
     pub fn get_list_int32_ptr_type(&self) -> LLVMTypeRef {
@@ -1011,8 +1016,6 @@ impl LLVMCodegenBuilder {
     }
 
     pub fn get_list_string_ptr_type(&self) -> LLVMTypeRef {
-        unsafe {
-            LLVMPointerType(self.get_string_ptr_type(), 0)
-        }
+        unsafe { LLVMPointerType(self.get_string_ptr_type(), 0) }
     }
 }
