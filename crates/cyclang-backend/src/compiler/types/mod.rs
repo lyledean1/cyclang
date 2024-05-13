@@ -61,10 +61,6 @@ pub trait TypeBase: DynClone {
         )
     }
 
-    fn get_str(&self) -> String {
-        unimplemented!("{:?} type does not implement get_cstr", self.get_type())
-    }
-
     fn get_value_for_printf(&self, codegen: &mut LLVMCodegenBuilder) -> LLVMValueRef {
         match self.get_ptr() {
             Some(v) => codegen.build_load(v, self.get_llvm_type(), "debug"),

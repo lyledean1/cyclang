@@ -1,5 +1,5 @@
 use crate::compiler::codegen::{
-    cstr_from_string, int1_type, int32_type, int64_type, int8_ptr_type,
+    cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type,
 };
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
@@ -35,7 +35,7 @@ pub struct LLVMFunction {
     pub entry_block: LLVMBasicBlockRef,
     pub block: LLVMBasicBlockRef,
     pub symbol_table: HashMap<String, Box<dyn TypeBase>>,
-    pub args: Vec<LLVMTypeRef>,
+    pub args: Vec<LLVMTypeRef>, // to delete? is not used?
     pub return_type: Type,
 }
 
@@ -55,45 +55,7 @@ impl LLVMFunction {
             let param_types: &mut Vec<*mut LLVMType> =
                 &mut LLVMFunction::get_arg_types(args.clone());
 
-            let mut function_type = LLVMFunctionType(
-                LLVMVoidType(),
-                param_types.as_mut_ptr(),
-                args.len() as u32,
-                0,
-            );
-
-            match return_type {
-                Type::i32 => {
-                    function_type = LLVMFunctionType(
-                        int32_type(),
-                        param_types.as_mut_ptr(),
-                        args.len() as u32,
-                        0,
-                    );
-                }
-                Type::i64 => {
-                    function_type = LLVMFunctionType(
-                        int64_type(),
-                        param_types.as_mut_ptr(),
-                        args.len() as u32,
-                        0,
-                    );
-                }
-                Type::Bool => {
-                    function_type = LLVMFunctionType(
-                        int1_type(),
-                        param_types.as_mut_ptr(),
-                        args.len() as u32,
-                        0,
-                    );
-                }
-                Type::None => {
-                    // skip
-                }
-                _ => {
-                    unimplemented!("not implemented")
-                }
-            }
+            let function_type = Self::get_function_type(codegen, &args, &return_type, param_types);
             // get correct function return type
             let function = LLVMAddFunction(
                 codegen.module,
@@ -153,6 +115,9 @@ impl LLVMFunction {
                             };
                             new_function.set_func_var(v, Box::new(bool_type));
                         }
+                        Type::List(_) => {
+                            unimplemented!("inner type {:?} not found", t)
+                        }
                         _ => {
                             unreachable!("type {:?} not found", t)
                         }
@@ -192,6 +157,54 @@ impl LLVMFunction {
         }
     }
 
+    unsafe fn get_function_type(
+        codegen: &mut LLVMCodegenBuilder,
+        args: &[Expression],
+        return_type: &Type,
+        param_types: &mut Vec<*mut LLVMType>,
+    ) -> LLVMTypeRef {
+        match return_type {
+            Type::i32 => {
+                LLVMFunctionType(int32_type(), param_types.as_mut_ptr(), args.len() as u32, 0)
+            }
+            Type::i64 => {
+                LLVMFunctionType(int64_type(), param_types.as_mut_ptr(), args.len() as u32, 0)
+            }
+            Type::Bool => {
+                LLVMFunctionType(int1_type(), param_types.as_mut_ptr(), args.len() as u32, 0)
+            }
+            Type::String => LLVMFunctionType(
+                codegen.get_string_ptr_type(),
+                param_types.as_mut_ptr(),
+                args.len() as u32,
+                0,
+            ),
+            Type::None => LLVMFunctionType(
+                LLVMVoidType(),
+                param_types.as_mut_ptr(),
+                args.len() as u32,
+                0,
+            ),
+            Type::List(inner_type) => match **inner_type {
+                Type::i32 => LLVMFunctionType(
+                    int32_ptr_type(),
+                    param_types.as_mut_ptr(),
+                    args.len() as u32,
+                    0,
+                ),
+                Type::String => LLVMFunctionType(
+                    codegen.get_list_string_ptr_type(),
+                    param_types.as_mut_ptr(),
+                    args.len() as u32,
+                    0,
+                ),
+                _ => {
+                    unimplemented!("inner type List<{:?}>", inner_type)
+                }
+            },
+        }
+    }
+
     fn get_arg_types(args: Vec<Expression>) -> Vec<*mut LLVMType> {
         let mut args_vec = vec![];
         for arg in args.into_iter() {
@@ -201,6 +214,12 @@ impl LLVMFunction {
                     Type::i32 => args_vec.push(int32_type()),
                     Type::i64 => args_vec.push(int64_type()),
                     Type::String => args_vec.push(int8_ptr_type()),
+                    Type::List(inner_type) => match *inner_type {
+                        Type::i32 => args_vec.push(int32_ptr_type()),
+                        _ => {
+                            unreachable!("unknown list type {:?}", inner_type)
+                        }
+                    },
                     _ => {
                         unreachable!("unknown type {:?}", t)
                     }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 // * STRING IMPLEMENTATION * // 
 typedef struct {
@@ -73,6 +74,20 @@ StringType* stringInit(const char *data) {
         this->maxlen = len;
     }
     return this;
+}
+
+bool isStringEqual(StringType *stringOne, StringType* stringTwo) {
+    if (stringOne->length != stringTwo->length) {
+        return false;
+    }
+    int i = 0;
+    while (i < stringOne->length) {
+        if (stringOne->buffer[i] != stringTwo->buffer[i]) {
+            return false;
+        }
+        i++;
+    }
+    return true;
 }
 
 // * LIST IMPLEMENTATION * //

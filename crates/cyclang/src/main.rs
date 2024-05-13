@@ -268,20 +268,24 @@ mod test {
     }
 
     #[test]
-    fn test_compile_list_i32() {
+    fn test_compile_fn_list_i32() {
         let input = r#"
-        let listExample: List<i32> = [1, 2] + [3, 4];
-        print(listExample);
+        fn listFnExample() -> List<i32> {
+            return [1, 2] + [3, 4];
+        }
+        print(listFnExample());
         "#;
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "[1,2,3,4]");
     }
 
     #[test]
-    fn test_compile_list_string() {
+    fn test_compile_fn_list_string() {
         let input = r#"
-        let listExample: List<string> = ["one", "two"] + ["three", "four"];
-        print(listExample);
+        fn listFnExample() -> List<string> {
+            return ["one", "two"] + ["three", "four"];
+        }
+        print(listFnExample());
         "#;
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "[\"one\",\"two\",\"three\",\"four\"]");

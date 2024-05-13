@@ -10,9 +10,7 @@ use llvm_sys::prelude::*;
 pub struct StringType {
     pub name: String,
     pub llvm_value: LLVMValueRef,
-    pub length: *mut usize,
     pub llvm_value_pointer: Option<LLVMValueRef>,
-    pub str_value: String,
 }
 impl TypeBase for StringType {
     fn get_value(&self) -> LLVMValueRef {
@@ -25,9 +23,6 @@ impl TypeBase for StringType {
                 unreachable!("No pointer for this value")
             }
         }
-    }
-    fn get_str(&self) -> String {
-        self.str_value.clone()
     }
     fn print(&self, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
         let string_print_func = codegen.llvm_func_cache.get("stringPrint").unwrap();

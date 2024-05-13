@@ -146,15 +146,10 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                     1,
                     "stringInitExample",
                 );
-
-                let mut len_value: usize = string.as_bytes().len();
-                let ptr: *mut usize = (&mut len_value) as *mut usize;
                 return Ok(Box::new(StringType {
                     name: name.to_string(),
-                    length: ptr,
                     llvm_value: return_value,
                     llvm_value_pointer: Some(return_value),
-                    str_value: val.to_string(), // fix
                 }));
             }
         }
@@ -224,7 +219,6 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             let list_init_func_name = Self::get_list_init_func_name(&first_type);
 
             let list_init_func = codegen.llvm_func_cache.get(list_init_func_name).unwrap();
-
 
             let length = self.visit_number(&Expression::Number(vec_expr.len() as i32), codegen);
             let list = codegen.build_call(list_init_func, vec![length.unwrap().get_value()], 1, "");
@@ -501,15 +495,64 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                                 Ok(call_val)
                             }
                             Type::String => {
-                                unimplemented!(
-                                    "String types haven't been implemented yet for functions"
-                                )
+                                let ptr = codegen.build_alloca_store(
+                                    call_value,
+                                    codegen.get_list_string_ptr_type(),
+                                    "string_value",
+                                );
+                                let call_val = Box::new(StringType {
+                                    llvm_value: call_value,
+                                    llvm_value_pointer: Some(ptr),
+                                    name: "call_value".into(),
+                                });
+                                context.var_cache.set(
+                                    name.as_str(),
+                                    call_val.clone(),
+                                    context.depth,
+                                );
+                                Ok(call_val)
                             }
-                            Type::List(_) => {
-                                unimplemented!(
-                                    "List types haven't been implemented yet for functions"
-                                )
-                            }
+                            Type::List(inner) => match *inner {
+                                Type::i32 => {
+                                    let ptr = codegen.build_alloca_store(
+                                        call_value,
+                                        codegen.get_list_int32_ptr_type(),
+                                        "list_i32",
+                                    );
+                                    let call_val = Box::new(ListType {
+                                        llvm_value: call_value,
+                                        llvm_value_ptr: ptr,
+                                        llvm_type: codegen.get_list_int32_ptr_type(),
+                                        inner_type: BaseTypes::Number,
+                                    });
+                                    context.var_cache.set(
+                                        name.as_str(),
+                                        call_val.clone(),
+                                        context.depth,
+                                    );
+                                    Ok(call_val)
+                                }
+                                Type::String => {
+                                    let ptr = codegen.build_alloca_store(
+                                        call_value,
+                                        codegen.get_list_string_ptr_type(),
+                                        "list_string",
+                                    );
+                                    let call_val = Box::new(ListType {
+                                        llvm_value: call_value,
+                                        llvm_value_ptr: ptr,
+                                        llvm_type: codegen.get_list_string_ptr_type(),
+                                        inner_type: BaseTypes::String,
+                                    });
+                                    context.var_cache.set(
+                                        name.as_str(),
+                                        call_val.clone(),
+                                        context.depth,
+                                    );
+                                    Ok(call_val)
+                                }
+                                _ => Err(anyhow!("call does not exist for type List<{:?}>", inner)),
+                            },
                             Type::None => {
                                 //Return void
                                 let call_val = Box::new(VoidType {});
@@ -650,12 +693,8 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
 impl LLVMCodegenVisitor {
     fn get_list_init_func_name(first_type: &BaseTypes) -> &str {
         match first_type {
-            BaseTypes::String => {
-                "createStringList"
-            }
-            BaseTypes::Number => {
-                "createInt32List"
-            }
+            BaseTypes::String => "createStringList",
+            BaseTypes::Number => "createInt32List",
             _ => {
                 unimplemented!("type {:?} is unimplemented", first_type)
             }

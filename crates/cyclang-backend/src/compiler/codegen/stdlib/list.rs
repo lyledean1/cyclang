@@ -1,7 +1,10 @@
 use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
 use crate::compiler::codegen::{int32_ptr_type, int32_type};
 use cyclang_parser::Type;
-use llvm_sys::core::{LLVMFunctionType, LLVMGetNamedFunction, LLVMGetTypeByName2, LLVMPointerType, LLVMVoidTypeInContext};
+use llvm_sys::core::{
+    LLVMFunctionType, LLVMGetNamedFunction, LLVMGetTypeByName2, LLVMPointerType,
+    LLVMVoidTypeInContext,
+};
 use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef};
 use std::collections::HashMap;
 use std::ffi::CString;
