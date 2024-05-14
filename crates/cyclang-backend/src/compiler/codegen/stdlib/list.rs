@@ -26,7 +26,7 @@ pub unsafe fn load_list_helper_funcs(
         module,
         llvm_func_cache,
         block,
-        "createInt32List",
+        "create_int32_tList",
         &mut list_create_int32_args,
         int32_ptr_type(),
     );
@@ -36,7 +36,7 @@ pub unsafe fn load_list_helper_funcs(
         module,
         llvm_func_cache,
         block,
-        "setInt32Value",
+        "set_int32_tValue",
         &mut list_set_int32_args,
         void_type,
     );
@@ -46,7 +46,7 @@ pub unsafe fn load_list_helper_funcs(
         module,
         llvm_func_cache,
         block,
-        "getInt32Value",
+        "get_int32_tValue",
         &mut list_get_int32_args,
         int32_ptr_type(),
     );
