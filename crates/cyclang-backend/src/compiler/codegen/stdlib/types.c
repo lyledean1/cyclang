@@ -3,6 +3,32 @@
 #include <string.h>
 #include <stdbool.h>
 
+
+// * MACROS * // 
+#define DEFINE_GET_VALUE_FUNC(type) \
+type get_##type##Value(type* arr, int index) { \
+    return arr[index]; \
+}
+
+#define DEFINE_SET_VALUE_FUNC(type) \
+void set_##type##Value(type* arr, type value, int index) { \
+    arr[index] = value; \
+}
+
+#define DEFINE_CREATE_VALUE_FUNC(type) \
+type* create_##type##List(int size) { \
+    type* arr = (type*)malloc((size + 1) * sizeof(type)); \
+    arr[size] = -1; \
+    return arr; \
+} 
+
+DEFINE_CREATE_VALUE_FUNC(int32_t)
+DEFINE_GET_VALUE_FUNC(int32_t)
+DEFINE_SET_VALUE_FUNC(int32_t)
+DEFINE_CREATE_VALUE_FUNC(int64_t)
+DEFINE_GET_VALUE_FUNC(int64_t)
+DEFINE_SET_VALUE_FUNC(int64_t)
+
 // * STRING IMPLEMENTATION * // 
 typedef struct {
     char *buffer;
@@ -91,21 +117,6 @@ bool isStringEqual(StringType *stringOne, StringType* stringTwo) {
 }
 
 // * LIST IMPLEMENTATION * //
-int32_t* createInt32List(int size) {
-    // set sentinel value of -1 hence size + 1
-    int32_t* arr = (int32_t*)malloc((size + 1) * sizeof(int32_t));
-    arr[size] = -1;
-    return arr;
-}
-
-int32_t getInt32Value(int32_t* arr, int index) {
-    return arr[index];
-}
-
-void setInt32Value(int32_t* arr, int32_t value, int index) {
-    arr[index] = value;
-}
-
 void printInt32List(int32_t* arr) {
     int i = 0;
     printf("[");
@@ -148,21 +159,6 @@ int32_t* concatInt32List(int32_t* arrOne, int32_t* arrTwo) {
         result[sizeOne + i] = arrTwo[i];
     }
     return result;
-}
-
-int64_t* createInt64List(int size) {
-    // set sentinel value of -1 hence size + 1
-    int64_t* arr = (int64_t*)malloc((size + 1) * sizeof(int64_t));
-    arr[size] = -1;
-    return arr;
-}
-
-int64_t getInt64Value(int64_t* arr, int index) {
-    return arr[index];
-}
-
-void setInt64Value(int64_t* arr, int64_t value, int index) {
-    arr[index] = value;
 }
 
 void printInt64List(int64_t* arr) {

@@ -223,7 +223,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             let length = self.visit_number(&Expression::Number(vec_expr.len() as i32), codegen);
             let list = codegen.build_call(list_init_func, vec![length.unwrap().get_value()], 1, "");
 
-            let set_int32_func = codegen.llvm_func_cache.get("setInt32Value").unwrap();
+            let set_int32_func = codegen.llvm_func_cache.get("set_int32_tValue").unwrap();
             let set_string_func = codegen.llvm_func_cache.get("setStringValue").unwrap();
 
             for (i, x) in vec_expr.iter().enumerate() {
@@ -267,7 +267,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 match *inner {
                     BaseTypes::Number => {
                         let get_int32_value_func =
-                            codegen.llvm_func_cache.get("getInt32Value").unwrap();
+                            codegen.llvm_func_cache.get("get_int32_tValue").unwrap();
                         let i_val =
                             codegen.build_call(get_int32_value_func, get_index_value_args, 2, "");
                         let i_val_ptr = codegen.build_alloca_store(i_val, int32_ptr_type(), "");
@@ -300,7 +300,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                     match *inner {
                         BaseTypes::Number => {
                             let set_int32_value_func =
-                                codegen.llvm_func_cache.get("setInt32Value").unwrap();
+                                codegen.llvm_func_cache.get("set_int32_tValue").unwrap();
                             let set_int32_args =
                                 vec![val.get_value(), lhs.get_value(), index.get_value()];
                             codegen.build_call(set_int32_value_func, set_int32_args, 3, "");
@@ -694,7 +694,7 @@ impl LLVMCodegenVisitor {
     fn get_list_init_func_name(first_type: &BaseTypes) -> &str {
         match first_type {
             BaseTypes::String => "createStringList",
-            BaseTypes::Number => "createInt32List",
+            BaseTypes::Number => "create_int32_tList",
             _ => {
                 unimplemented!("type {:?} is unimplemented", first_type)
             }
