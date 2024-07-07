@@ -233,3 +233,17 @@ StringType** concatStringList(StringType** arrOne, StringType** arrTwo) {
     }
     return stringArray;
 }
+
+
+void freeStringList(StringType **stringArray) {
+    if (stringArray == NULL) {
+        return;
+    }
+
+    for (int i = 0; stringArray[i] != NULL; i++) {
+        free(stringArray[i]->buffer); // Free the buffer within the StringType
+//        free(stringArray[i]);         // Free the StringType itself
+    }
+
+    free(stringArray); // Free the array of pointers itself
+}
