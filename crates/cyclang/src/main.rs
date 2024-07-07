@@ -292,6 +292,18 @@ mod test {
     }
 
     #[test]
+    fn test_compile_fn_list_i32_args() {
+        let input = r#"
+        fn listFnExample(List<i32> example) -> List<i32> {
+            return example;
+        }
+        print(listFnExample([1,2,3,4]);
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "[1,2,3,4]");
+    }
+
+    #[test]
     fn test_if_stmt_with_let_stmt() {
         let input = r#"
         let is_value = true;

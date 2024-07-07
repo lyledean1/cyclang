@@ -115,8 +115,21 @@ impl LLVMFunction {
                             };
                             new_function.set_func_var(v, Box::new(bool_type));
                         }
-                        Type::List(_) => {
-                            unimplemented!("inner type {:?} not found", t)
+                        Type::List(inner_type) => {
+                            match **inner_type {
+                                Type::i32 => {
+                                    let val = LLVMGetParam(function, i as u32);
+                                    let num = NumberType {
+                                        llvm_value: val,
+                                        llvm_value_pointer: None,
+                                        name: "param".into(),
+                                    };
+                                    new_function.set_func_var(v, Box::new(num));
+                                }
+                                _=> {
+                                    unimplemented!("inner type {:?} not found", t)
+                                }
+                            }
                         }
                         _ => {
                             unreachable!("type {:?} not found", t)
