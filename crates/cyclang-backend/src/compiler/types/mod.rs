@@ -104,7 +104,6 @@ pub trait TypeBase: DynClone {
             }
         }
     }
-
     fn get_return_type(&self) -> Type {
         unimplemented!()
     }

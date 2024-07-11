@@ -946,7 +946,7 @@ impl LLVMCodegenBuilder {
     ) -> Result<Box<dyn TypeBase>> {
         match rhs.get_type() {
             BaseTypes::String => {
-                let is_string_equal_func = self.llvm_func_cache.get("isStringEqual").unwrap();
+                let is_string_equal_func = self.llvm_func_cache.get("isStringEqual").ok_or(anyhow!("unable to get function isStringEqual"))?;
                 let is_string_equal_args = vec![lhs.get_ptr().unwrap(), rhs.get_ptr().unwrap()];
 
                 let bool_value = self.build_call(is_string_equal_func, is_string_equal_args, 2, "");

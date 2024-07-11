@@ -17,6 +17,5 @@ quote = "1.0.33"
 rustyline = "14.0.0"
 text-colorizer = "1.0.0"
 anyhow = "1.0.81"
-cyclang-macros = { workspace = true}
 cyclang-backend = { workspace = true}
 cyclang-parser = { workspace = true}

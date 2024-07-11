@@ -866,10 +866,10 @@ mod test {
     #[test]
     fn test_fn_return_and_print() {
         let input = r#"
-        fn get_ten() -> List<List<i32>> {
-            return [[1,2],[1,3]];
+        fn get_ten(List<List<i32>> example) -> List<List<i32>> {
+            return example;
         }
-        print(get_ten());
+        print(get_ten([[1,2],[1,3]]));
         "#;
         let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
             parse_cyclo_program(input);

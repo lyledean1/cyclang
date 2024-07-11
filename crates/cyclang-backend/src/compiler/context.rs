@@ -22,6 +22,7 @@ use cyclang_parser::Type;
 use libc::c_ulonglong;
 use llvm_sys::core::{LLVMBuildCall2, LLVMConstStringInContext, LLVMCountParamTypes};
 use std::ffi::CString;
+use llvm_sys::prelude::LLVMValueRef;
 
 pub struct ASTContext {
     pub var_cache: VariableCache,
@@ -213,7 +214,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                 vec_expr.push(expr)
             }
 
-            let first_type = vec_expr.first().unwrap().get_type();
+            let first_type = vec_expr.first().ok_or(anyhow!("unable to get first element from vec"))?.get_type();
 
             // todo: refactor this
             let list_init_func_name = Self::get_list_init_func_name(&first_type);
@@ -237,7 +238,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
                         codegen.build_call(set_string_func.clone(), func_args, 3, "");
                     }
                     _ => {
-                        unimplemented!("type {:?} is unimplemented", x.get_type())
+                        return Err(anyhow!("type {:?} is unimplemented", x.get_type()))
                     }
                 }
             }
@@ -410,166 +411,150 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     ) -> Result<Box<dyn TypeBase>> {
         let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         if let Expression::CallStmt(name, args) = left {
-            return match context.func_cache.get(name) {
-                Some(val) => {
-                    unsafe {
-                        // need to build up call with actual LLVMValue
-                        let call_args = &mut vec![];
-                        for arg in args.iter() {
-                            // build load args i.e if variable
-                            let ast_value =
-                                context.match_ast(arg.clone(), &mut visitor, codegen)?;
-
-                            if let Some(ptr) = ast_value.get_ptr() {
-                                let loaded_value =
-                                    codegen.build_load(ptr, ast_value.get_llvm_type(), "call_arg");
-                                call_args.push(loaded_value);
-                            } else {
-                                call_args.push(ast_value.get_value());
-                            }
-                        }
-                        let llvm_type = val.get_llvm_type();
-                        let value = val.get_value();
-                        let call_value = LLVMBuildCall2(
-                            codegen.builder,
-                            llvm_type,
-                            value,
-                            call_args.as_mut_ptr(),
-                            LLVMCountParamTypes(llvm_type),
-                            cstr_from_string("").as_ptr(),
+            let val = context.func_cache.get(name).ok_or(anyhow!("call does not exist for function {:?}", name))?;
+            unsafe {
+                // need to build up call with actual LLVMValue
+                let call_args = &mut vec![];
+                self.add_args_to_function(codegen, context, &mut visitor, args, call_args)?;
+                let llvm_type = val.get_llvm_type();
+                let value = val.get_value();
+                let call_value = LLVMBuildCall2(
+                    codegen.builder,
+                    llvm_type,
+                    value,
+                    call_args.as_mut_ptr(),
+                    LLVMCountParamTypes(llvm_type),
+                    cstr_from_string("").as_ptr(),
+                );
+                match val.get_return_type() {
+                    Type::i32 => {
+                        let _ptr = codegen.build_alloca_store(
+                            call_value,
+                            int32_ptr_type(),
+                            "call_value_int32",
                         );
-                        match val.get_return_type() {
-                            Type::i32 => {
-                                let _ptr = codegen.build_alloca_store(
-                                    call_value,
-                                    int32_ptr_type(),
-                                    "call_value_int32",
-                                );
-                                let call_val = Box::new(NumberType {
-                                    llvm_value: call_value,
-                                    llvm_value_pointer: None,
-                                    name: "call_value".into(),
-                                });
-                                context.var_cache.set(
-                                    name.as_str(),
-                                    call_val.clone(),
-                                    context.depth,
-                                );
-                                Ok(call_val)
-                            }
-                            Type::i64 => {
-                                let _ptr = codegen.build_alloca_store(
-                                    call_value,
-                                    int64_ptr_type(),
-                                    "call_value_int64",
-                                );
-                                let call_val = Box::new(NumberType {
-                                    llvm_value: call_value,
-                                    llvm_value_pointer: None,
-                                    name: "call_value".into(),
-                                });
-                                context.var_cache.set(
-                                    name.as_str(),
-                                    call_val.clone(),
-                                    context.depth,
-                                );
-                                Ok(call_val)
-                            }
-                            Type::Bool => {
-                                let ptr = codegen.build_alloca_store(
-                                    call_value,
-                                    int1_ptr_type(),
-                                    "bool_value",
-                                );
-                                let call_val = Box::new(BoolType {
-                                    builder: codegen.builder,
-                                    llvm_value: call_value,
-                                    llvm_value_pointer: ptr,
-                                    name: "call_value".into(),
-                                });
-                                context.var_cache.set(
-                                    name.as_str(),
-                                    call_val.clone(),
-                                    context.depth,
-                                );
-                                Ok(call_val)
-                            }
-                            Type::String => {
-                                let ptr = codegen.build_alloca_store(
-                                    call_value,
-                                    codegen.get_list_string_ptr_type(),
-                                    "string_value",
-                                );
-                                let call_val = Box::new(StringType {
-                                    llvm_value: call_value,
-                                    llvm_value_pointer: Some(ptr),
-                                    name: "call_value".into(),
-                                });
-                                context.var_cache.set(
-                                    name.as_str(),
-                                    call_val.clone(),
-                                    context.depth,
-                                );
-                                Ok(call_val)
-                            }
-                            Type::List(inner) => match *inner {
-                                Type::i32 => {
-                                    let ptr = codegen.build_alloca_store(
-                                        call_value,
-                                        codegen.get_list_int32_ptr_type(),
-                                        "list_i32",
-                                    );
-                                    let call_val = Box::new(ListType {
-                                        llvm_value: call_value,
-                                        llvm_value_ptr: ptr,
-                                        llvm_type: codegen.get_list_int32_ptr_type(),
-                                        inner_type: BaseTypes::Number,
-                                    });
-                                    context.var_cache.set(
-                                        name.as_str(),
-                                        call_val.clone(),
-                                        context.depth,
-                                    );
-                                    Ok(call_val)
-                                }
-                                Type::String => {
-                                    let ptr = codegen.build_alloca_store(
-                                        call_value,
-                                        codegen.get_list_string_ptr_type(),
-                                        "list_string",
-                                    );
-                                    let call_val = Box::new(ListType {
-                                        llvm_value: call_value,
-                                        llvm_value_ptr: ptr,
-                                        llvm_type: codegen.get_list_string_ptr_type(),
-                                        inner_type: BaseTypes::String,
-                                    });
-                                    context.var_cache.set(
-                                        name.as_str(),
-                                        call_val.clone(),
-                                        context.depth,
-                                    );
-                                    Ok(call_val)
-                                }
-                                _ => Err(anyhow!("call does not exist for type List<{:?}>", inner)),
-                            },
-                            Type::None => {
-                                //Return void
-                                let call_val = Box::new(VoidType {});
-                                context.var_cache.set(
-                                    name.as_str(),
-                                    call_val.clone(),
-                                    context.depth,
-                                );
-                                Ok(call_val)
-                            }
+                        let call_val = Box::new(NumberType {
+                            llvm_value: call_value,
+                            llvm_value_pointer: None,
+                            name: "call_value".into(),
+                        });
+                        context.var_cache.set(
+                            name.as_str(),
+                            call_val.clone(),
+                            context.depth,
+                        );
+                        return Ok(call_val)
+                    }
+                    Type::i64 => {
+                        let _ptr = codegen.build_alloca_store(
+                            call_value,
+                            int64_ptr_type(),
+                            "call_value_int64",
+                        );
+                        let call_val = Box::new(NumberType {
+                            llvm_value: call_value,
+                            llvm_value_pointer: None,
+                            name: "call_value".into(),
+                        });
+                        context.var_cache.set(
+                            name.as_str(),
+                            call_val.clone(),
+                            context.depth,
+                        );
+                        return Ok(call_val)
+                    }
+                    Type::Bool => {
+                        let ptr = codegen.build_alloca_store(
+                            call_value,
+                            int1_ptr_type(),
+                            "bool_value",
+                        );
+                        let call_val = Box::new(BoolType {
+                            builder: codegen.builder,
+                            llvm_value: call_value,
+                            llvm_value_pointer: ptr,
+                            name: "call_value".into(),
+                        });
+                        context.var_cache.set(
+                            name.as_str(),
+                            call_val.clone(),
+                            context.depth,
+                        );
+                        return Ok(call_val)
+                    }
+                    Type::String => {
+                        let ptr = codegen.build_alloca_store(
+                            call_value,
+                            codegen.get_list_string_ptr_type(),
+                            "string_value",
+                        );
+                        let call_val = Box::new(StringType {
+                            llvm_value: call_value,
+                            llvm_value_pointer: Some(ptr),
+                            name: "call_value".into(),
+                        });
+                        context.var_cache.set(
+                            name.as_str(),
+                            call_val.clone(),
+                            context.depth,
+                        );
+                        return Ok(call_val)
+                    }
+                    Type::List(inner) => match *inner {
+                        Type::i32 => {
+                            let ptr = codegen.build_alloca_store(
+                                call_value,
+                                codegen.get_list_int32_ptr_type(),
+                                "list_i32",
+                            );
+                            let call_val = Box::new(ListType {
+                                llvm_value: call_value,
+                                llvm_value_ptr: ptr,
+                                llvm_type: codegen.get_list_int32_ptr_type(),
+                                inner_type: BaseTypes::Number,
+                            });
+                            context.var_cache.set(
+                                name.as_str(),
+                                call_val.clone(),
+                                context.depth,
+                            );
+                            return Ok(call_val)
                         }
+                        Type::String => {
+                            let ptr = codegen.build_alloca_store(
+                                call_value,
+                                codegen.get_list_string_ptr_type(),
+                                "list_string",
+                            );
+                            let call_val = Box::new(ListType {
+                                llvm_value: call_value,
+                                llvm_value_ptr: ptr,
+                                llvm_type: codegen.get_list_string_ptr_type(),
+                                inner_type: BaseTypes::String,
+                            });
+                            context.var_cache.set(
+                                name.as_str(),
+                                call_val.clone(),
+                                context.depth,
+                            );
+                            return Ok(call_val)
+                        }
+                        _ => return Err(anyhow!("call does not exist for type List<{:?}>", inner)),
+                    },
+                    Type::None => {
+                        //Return void
+                        let call_val = Box::new(VoidType {});
+                        context.var_cache.set(
+                            name.as_str(),
+                            call_val.clone(),
+                            context.depth,
+                        );
+                        return Ok(call_val)
                     }
                 }
-                _ => Err(anyhow!("call does not exist for function {:?}", name)),
-            };
+            }
         }
-        Err(anyhow!("unable to visit call stmt"))
+        Err(anyhow!("call does not exist"))
     }
 
     fn visit_func_stmt(
@@ -699,5 +684,15 @@ impl LLVMCodegenVisitor {
                 unimplemented!("type {:?} is unimplemented", first_type)
             }
         }
+    }
+
+    fn add_args_to_function(&self, codegen: &mut LLVMCodegenBuilder, context: &mut ASTContext, visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>, args: &[Expression], call_args: &mut Vec<LLVMValueRef>) -> Result<()> {
+        for arg in args.iter() {
+            // build load args i.e if variable
+            let ast_value =
+                context.match_ast(arg.clone(), visitor, codegen)?;
+            call_args.push(ast_value.get_value());
+        }
+        Ok(())
     }
 }
