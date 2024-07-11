@@ -3,7 +3,7 @@ use crate::compiler::codegen::stdlib::list::load_list_helper_funcs;
 use crate::compiler::codegen::stdlib::load_bitcode_and_set_stdlib_funcs;
 use crate::compiler::codegen::stdlib::string::load_string_helper_funcs;
 use crate::compiler::codegen::{
-    cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type,
+    cstr_from_string, int1_type, int32_ptr_type, int64_type, int8_ptr_type,
 };
 use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::bool::BoolType;
@@ -16,7 +16,7 @@ use crate::compiler::visitor::Visitor;
 use crate::compiler::CompileOptions;
 use anyhow::{anyhow, Result};
 use cyclang_parser::{Expression, Type};
-use libc::{c_uint, c_ulonglong};
+use libc::{c_uint};
 use llvm_sys::core::{
     LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
     LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
@@ -25,7 +25,7 @@ use llvm_sys::core::{
     LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
     LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType,
     LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2,
-    LLVMInt32TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType,
+    LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType,
     LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf,
     LLVMVoidTypeInContext,
 };
@@ -46,6 +46,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
+use cyclang_parser::Expression::{BlockStmt, LetStmt, Number};
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,
@@ -514,11 +515,7 @@ impl LLVMCodegenBuilder {
         let loop_exit_block = self.append_basic_block(function, "loop_exit");
 
         let bool_type_ptr = self.build_alloca(int1_type(), "while_value_bool_var");
-        let value_condition = context.match_ast(condition, visitor, self)?;
 
-        let cmp = self.build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
-
-        self.build_store(cmp, bool_type_ptr);
 
         self.build_br(loop_cond_block);
 
@@ -530,6 +527,10 @@ impl LLVMCodegenBuilder {
         self.build_br(loop_cond_block); // Jump back to loop condition
 
         self.set_current_block(loop_cond_block);
+        let value_condition = context.match_ast(condition, visitor, self)?;
+        let cmp = self.build_load(value_condition.get_ptr().unwrap(), int1_type(), "cmp");
+
+        self.build_store(cmp, bool_type_ptr);
         // Build loop condition block
         let value_cond_load = self.build_load(
             value_condition.get_ptr().unwrap(),
@@ -544,6 +545,7 @@ impl LLVMCodegenBuilder {
         Ok(value_condition)
     }
 
+    // here we "desugar" a for loop to a while loop
     pub fn new_for_loop(
         &mut self,
         context: &mut ASTContext,
@@ -551,90 +553,33 @@ impl LLVMCodegenBuilder {
         init: i32,
         length: i32,
         increment: i32,
-        for_block_expr: Expression,
+        for_block_expr: Expression
     ) -> Result<Box<dyn TypeBase>> {
-        unsafe {
-            let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
-            let for_block = self.current_function.block;
-            let function = self.current_function.function;
-            self.set_current_block(for_block);
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        // initiate variable
+        let variable = Expression::Variable(var_name.clone());
+        let value = LetStmt(var_name.clone(), Type::i32, Box::new(Number(init)));
+        context.match_ast(value, &mut visitor, self)?;
 
-            let loop_cond_block = self.append_basic_block(function, "loop_cond");
-            let loop_body_block = self.append_basic_block(function, "loop_body");
-            let loop_exit_block = self.append_basic_block(function, "loop_exit");
+        // create condition for while loop
+        let condition_for_while_loop = Self::get_while_cond_loop(increment);
+        let cond = Expression::Binary(Box::new(variable.clone()), condition_for_while_loop.into(), Box::new(Number(length)));
 
-            // todo: REMOVE duplicated code for init variable
-            let name = "num32";
-            let c_val = init as c_ulonglong;
-            let value = self.const_int(int32_type(), c_val, 0);
-            let ptr = self.build_alloca_store(value, int32_ptr_type(), name);
-            let i = Box::new(NumberType {
-                name: name.to_string(),
-                llvm_value: value,
-                llvm_value_pointer: Some(ptr),
-            });
+        //increment after each while loop pass
+        let add_to_value =  Expression::Binary(Box::new(variable.clone()), "+".into(), Box::new(Number(increment)));
+        let add_to_value = LetStmt(var_name, Type::i32, Box::new(add_to_value.clone()));
 
-            let value = i.get_value();
-            let ptr = i.get_ptr();
-            context.var_cache.set(&var_name, i, context.depth);
+        // add at the end of the block stmt and then pass through as a while loop
+        let new_block_stmt = BlockStmt(vec![for_block_expr, add_to_value]);
+        self.new_while_stmt(context, cond, new_block_stmt, &mut visitor)
+    }
 
-            self.build_store(value, ptr.unwrap());
-            // Branch to loop condition block
-            self.build_br(loop_cond_block);
-
-            // Build loop condition block
-            self.set_current_block(loop_cond_block);
-
-            // TODO: improve this logic for identifying for and reverse fors
-            let mut op = LLVMIntSLT;
-            if increment < 0 {
-                op = LLVMIntSGT;
-            }
-
-            let op_lhs = ptr;
-            let op_rhs = length;
-
-            // Not sure why LLVMInt32TypeIntInContex
-            let lhs_val =
-                self.build_load(op_lhs.unwrap(), LLVMInt32TypeInContext(self.context), "i");
-
-            let icmp_val = self.const_int(
-                LLVMInt32TypeInContext(self.context),
-                op_rhs.try_into().unwrap(),
-                0,
-            );
-            let loop_condition = LLVMBuildICmp(
-                self.builder,
-                op,
-                lhs_val,
-                icmp_val,
-                cstr_from_string("").as_ptr(),
-            );
-
-            self.build_cond_br(loop_condition, loop_body_block, loop_exit_block);
-
-            // Build loop body block
-            self.set_current_block(loop_body_block);
-            let for_block_cond = context.match_ast(for_block_expr, &mut visitor, self)?;
-            let lhs_val = self.build_load(ptr.unwrap(), LLVMInt32TypeInContext(self.context), "i");
-
-            let incr_val =
-                self.const_int(LLVMInt32TypeInContext(self.context), increment as u64, 0);
-
-            let new_value = LLVMBuildAdd(
-                self.builder,
-                lhs_val,
-                incr_val,
-                cstr_from_string("i").as_ptr(),
-            );
-            self.build_store(new_value, ptr.unwrap());
-            self.build_br(loop_cond_block); // Jump back to loop condition
-
-            // Position builder at loop exit block
-            self.set_current_block(loop_exit_block);
-
-            Ok(for_block_cond)
+    fn get_while_cond_loop(increment: i32) -> &'static str {
+        if increment < 0 {
+            return ">"
         }
+        "<"
+
     }
 
     pub fn build_helper_funcs(&mut self, main_block: LLVMBasicBlockRef) {

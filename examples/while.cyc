@@ -1,6 +1,5 @@
-let is_true = true;
-while (is_true) {
-    is_true = false;
-    print("here");
+let other = 0;
+while (other < 10) {
+    print(other);
+    other = other + 1;
 }
-print(is_true);
