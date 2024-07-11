@@ -449,6 +449,19 @@ mod test {
     }
 
     #[test]
+    fn test_compile_while_stmt_increment() {
+        let input = r#"
+        let value = 0;
+        while(value < 10) {
+            value = value + 1;
+            print(value);
+        }
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n");
+    }
+
+    #[test]
     fn test_compile_while_stmt_with_if_true() {
         let input = r#"
         let value = true;
