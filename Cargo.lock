@@ -184,7 +184,6 @@ dependencies = [
  "anyhow",
  "clap",
  "cyclang-backend",
- "cyclang-macros",
  "cyclang-parser",
  "quote",
  "rustyline",
@@ -196,20 +195,10 @@ name = "cyclang-backend"
 version = "0.1.18"
 dependencies = [
  "anyhow",
- "cyclang-macros",
  "cyclang-parser",
  "dyn-clone",
  "libc",
  "llvm-sys",
-]
-
-[[package]]
-name = "cyclang-macros"
-version = "0.1.18"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]

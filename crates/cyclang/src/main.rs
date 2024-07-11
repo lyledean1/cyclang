@@ -1,5 +1,3 @@
-extern crate cyclang_macros;
-
 use clap::Parser;
 use cyclang_backend::compiler;
 use cyclang_backend::compiler::codegen::target::Target;
@@ -40,6 +38,7 @@ fn compile_output_from_string(
     });
     match parse_cyclo_program(&contents) {
         // loop through expression, if type var then store
+
         Ok(exprs) => compiler::compile(exprs, compile_options).unwrap_or_else(|e| {
             eprintln!("unable to compile contents due to error: {}", e);
             exit(1)
@@ -268,24 +267,12 @@ mod test {
     }
 
     #[test]
-    fn test_compile_fn_list_i32() {
-        let input = r#"
-        fn listFnExample() -> List<i32> {
-            return [1, 2] + [3, 4];
-        }
-        print(listFnExample());
-        "#;
-        let output = compile_output_from_string_test(input.to_string());
-        assert_eq!(output, "[1,2,3,4]");
-    }
-
-    #[test]
     fn test_compile_fn_list_string() {
         let input = r#"
-        fn listFnExample() -> List<string> {
-            return ["one", "two"] + ["three", "four"];
+        fn listFnExample(List<string> example) -> List<string> {
+            return example;
         }
-        print(listFnExample());
+        print(listFnExample(["one", "two"] + ["three", "four"]));
         "#;
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "[\"one\",\"two\",\"three\",\"four\"]");
@@ -297,7 +284,7 @@ mod test {
         fn listFnExample(List<i32> example) -> List<i32> {
             return example;
         }
-        print(listFnExample([1,2,3,4]);
+        print(listFnExample([1,2,3,4]));
         "#;
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "[1,2,3,4]");

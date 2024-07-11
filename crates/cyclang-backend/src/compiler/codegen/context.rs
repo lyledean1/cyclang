@@ -3,7 +3,7 @@ use crate::compiler::codegen::{
 };
 use crate::compiler::types::bool::BoolType;
 use crate::compiler::types::num::NumberType;
-use crate::compiler::types::TypeBase;
+use crate::compiler::types::{BaseTypes, TypeBase};
 use std::collections::HashMap;
 
 extern crate llvm_sys;
@@ -12,11 +12,12 @@ use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
 use crate::compiler::visitor::Visitor;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cyclang_parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
+use crate::compiler::types::list::ListType;
 
 pub struct LLVMFunctionCache {
     map: HashMap<String, LLVMFunction>,
@@ -83,63 +84,7 @@ impl LLVMFunction {
                 return_type: return_type.clone(),
             };
 
-            for (i, val) in args.iter().enumerate() {
-                match val {
-                    Expression::FuncArg(v, t) => match t {
-                        Type::i32 => {
-                            let val = LLVMGetParam(function, i as u32);
-                            let num = NumberType {
-                                llvm_value: val,
-                                llvm_value_pointer: None,
-                                name: "param".into(),
-                            };
-                            new_function.set_func_var(v, Box::new(num));
-                        }
-                        Type::i64 => {
-                            let val = LLVMGetParam(function, i as u32);
-                            let num = NumberType64 {
-                                llvm_value: val,
-                                llvm_value_pointer: None,
-                                name: "param".into(),
-                            };
-                            new_function.set_func_var(v, Box::new(num));
-                        }
-                        Type::String => {}
-                        Type::Bool => {
-                            let val = LLVMGetParam(function, i as u32);
-                            let bool_type = BoolType {
-                                builder: codegen.builder,
-                                llvm_value: val,
-                                llvm_value_pointer: val,
-                                name: "bool_param".into(),
-                            };
-                            new_function.set_func_var(v, Box::new(bool_type));
-                        }
-                        Type::List(inner_type) => {
-                            match **inner_type {
-                                Type::i32 => {
-                                    let val = LLVMGetParam(function, i as u32);
-                                    let num = NumberType {
-                                        llvm_value: val,
-                                        llvm_value_pointer: None,
-                                        name: "param".into(),
-                                    };
-                                    new_function.set_func_var(v, Box::new(num));
-                                }
-                                _=> {
-                                    unimplemented!("inner type {:?} not found", t)
-                                }
-                            }
-                        }
-                        _ => {
-                            unreachable!("type {:?} not found", t)
-                        }
-                    },
-                    _ => {
-                        unreachable!("this should only be FuncArg, got {:?}", val)
-                    }
-                }
-            }
+            Self::map_args_to_func(args, codegen, function, &mut new_function)?;
 
             codegen.current_function = new_function.clone();
 
@@ -168,6 +113,83 @@ impl LLVMFunction {
             codegen.current_function = previous_func;
             Ok(new_function)
         }
+    }
+
+    unsafe fn map_args_to_func(args: Vec<Expression>, codegen: &mut LLVMCodegenBuilder, function: LLVMValueRef, new_function: &mut LLVMFunction) -> Result<()> {
+        for (i, val) in args.iter().enumerate() {
+            match val {
+                Expression::FuncArg(v, t) => match t {
+                    Type::i32 => {
+                        let val = LLVMGetParam(function, i as u32);
+                        let num = NumberType {
+                            llvm_value: val,
+                            llvm_value_pointer: None,
+                            name: "param".into(),
+                        };
+                        new_function.set_func_var(v, Box::new(num));
+                    }
+                    Type::i64 => {
+                        let val = LLVMGetParam(function, i as u32);
+                        let num = NumberType64 {
+                            llvm_value: val,
+                            llvm_value_pointer: None,
+                            name: "param".into(),
+                        };
+                        new_function.set_func_var(v, Box::new(num));
+                    }
+                    Type::String => {}
+                    Type::Bool => {
+                        let val = LLVMGetParam(function, i as u32);
+                        let bool_type = BoolType {
+                            builder: codegen.builder,
+                            llvm_value: val,
+                            llvm_value_pointer: val,
+                            name: "bool_param".into(),
+                        };
+                        new_function.set_func_var(v, Box::new(bool_type));
+                    }
+                    Type::List(inner_type) => {
+                        Self::map_list_args_to_func(codegen, function, new_function, i, v, t, inner_type)?
+                    }
+                    _ => {
+                        return Err(anyhow!("type {:?} not found", t))
+                    }
+                },
+                _ => {
+                   return Err(anyhow!("this should only be FuncArg, got {:?}", val))
+                }
+            }
+        }
+        Ok(())
+    }
+
+    unsafe fn map_list_args_to_func(codegen: &mut LLVMCodegenBuilder, function: LLVMValueRef, new_function: &mut LLVMFunction, i: usize, v: &str, t: &Type, inner_type: &Type) -> Result<()> {
+        match inner_type {
+            Type::i32 => {
+                let val = LLVMGetParam(function, i as u32);
+                let num = ListType {
+                    llvm_value: val,
+                    llvm_value_ptr: val,
+                    llvm_type: codegen.get_list_int32_ptr_type(),
+                    inner_type: BaseTypes::Number,
+                };
+                new_function.set_func_var(v, Box::new(num));
+            }
+            Type::String => {
+                let val = LLVMGetParam(function, i as u32);
+                let num = ListType {
+                    llvm_value: val,
+                    llvm_value_ptr: val,
+                    llvm_type: codegen.get_list_string_ptr_type(),
+                    inner_type: BaseTypes::String,
+                };
+                new_function.set_func_var(v, Box::new(num));
+            }
+            _ => {
+                return Err(anyhow!("inner type {:?} not found", t))
+            }
+        }
+        Ok(())
     }
 
     unsafe fn get_function_type(
@@ -229,6 +251,7 @@ impl LLVMFunction {
                     Type::String => args_vec.push(int8_ptr_type()),
                     Type::List(inner_type) => match *inner_type {
                         Type::i32 => args_vec.push(int32_ptr_type()),
+                        Type::String => args_vec.push(int32_ptr_type()),
                         _ => {
                             unreachable!("unknown list type {:?}", inner_type)
                         }
