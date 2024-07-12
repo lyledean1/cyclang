@@ -34,7 +34,7 @@ base_type = _{bool_type | i32_type | i64_type | string_type}
 list_type = {"List<" ~  (base_type | list_type )~ ">"}
 // binary statemeents
 binary = {  operand ~ WHITESPACE? ~ operator_sequence }
-operand = _{ literal ~ WHITESPACE? | grouping | len_stmt | call_stmt | name  }
+operand = _{ literal ~ WHITESPACE? | grouping | name  }
 operator_sequence = _{ operator ~ WHITESPACE* ~ operand ~ (WHITESPACE* ~ operator_sequence)? }
 operator = { "==" | "!=" | ">=" | "<=" | ">" | "<" | "+" | "-" | "*" | "/" | "^" }
 
