@@ -180,7 +180,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
     fn visit_variable_expr(
         &mut self,
         left: &Expression,
-        codegen: &LLVMCodegenBuilder,
+        codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>> {
         if let Expression::Variable(input) = left {

@@ -14,7 +14,7 @@ pub trait Visitor<T> {
     fn visit_variable_expr(
         &mut self,
         expression: &Expression,
-        codegen: &LLVMCodegenBuilder,
+        codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<T>;
 

@@ -17,6 +17,7 @@ use cyclang_parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
+use cyclang_parser::Expression::Variable;
 use crate::compiler::types::list::ListType;
 
 pub struct LLVMFunctionCache {
@@ -84,11 +85,13 @@ impl LLVMFunction {
                 return_type: return_type.clone(),
             };
 
-            Self::map_args_to_func(args, codegen, function, &mut new_function)?;
+            Self::map_args_to_func_call(args.clone(), codegen, function, &mut new_function)?;
 
             codegen.current_function = new_function.clone();
 
             codegen.position_builder_at_end(function_entry_block);
+
+            Self::init_args_as_ptrs(context, args, codegen, &mut visitor)?;
 
             // Set func args here
             context.match_ast(body.clone(), &mut visitor, codegen)?;
@@ -115,7 +118,41 @@ impl LLVMFunction {
         }
     }
 
-    unsafe fn map_args_to_func(args: Vec<Expression>, codegen: &mut LLVMCodegenBuilder, function: LLVMValueRef, new_function: &mut LLVMFunction) -> Result<()> {
+    fn init_args_as_ptrs(context: &mut ASTContext, args: Vec<Expression>, codegen: &mut LLVMCodegenBuilder, mut visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>) -> Result<()> {
+        for (i, val) in args.iter().enumerate() {
+            match val {
+                Expression::FuncArg(v, t) => {
+                    match codegen.current_function.symbol_table.get(v) {
+                        Some(val) => {
+                            // check if there is a ptr, do nothing
+                            if val.get_ptr().is_some() {} else {
+                                match val.get_type() {
+                                    BaseTypes::Number => {
+                                        let value = val.get_value();
+                                        let ptr = codegen.build_alloca_store(value, val.get_llvm_ptr_type(), val.get_name_as_str());
+                                        let new_val = Box::new(NumberType {
+                                            llvm_value: value,
+                                            llvm_value_pointer: Some(ptr),
+                                            name: "ptr".into(),
+                                        });
+                                        codegen.current_function.symbol_table.insert(v.clone(), new_val.clone());
+                                        let expr = Expression::LetStmt(v.clone(), Type::i32, Box::new(Variable(v.clone())));
+                                        context.match_ast(expr, &mut visitor, codegen)?;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        },
+                        None => {}
+                    }
+                },
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    unsafe fn map_args_to_func_call(args: Vec<Expression>, codegen: &mut LLVMCodegenBuilder, function: LLVMValueRef, new_function: &mut LLVMFunction) -> Result<()> {
         for (i, val) in args.iter().enumerate() {
             match val {
                 Expression::FuncArg(v, t) => match t {

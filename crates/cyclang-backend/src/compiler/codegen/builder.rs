@@ -811,8 +811,8 @@ impl LLVMCodegenBuilder {
                     lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
                     rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
                     let result = self.llvm_build_fn(lhs_val, rhs_val, op);
-                    let alloca =
-                        self.build_alloca_store(result, lhs.get_llvm_ptr_type(), "param_add");
+                    let alloca = self.build_alloca_store(result, lhs.get_llvm_ptr_type(), rhs.get_name_as_str());
+                    // self.build_store(result, ptr);
                     let name = lhs.get_name_as_str().to_string();
                     Ok(Box::new(NumberType {
                         name,
@@ -827,7 +827,7 @@ impl LLVMCodegenBuilder {
                     rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
                     let result = self.llvm_build_fn(lhs_val, rhs_val, op);
                     let alloca =
-                        self.build_alloca_store(result, lhs.get_llvm_ptr_type(), "param_add");
+                        self.build_alloca_store(result, lhs.get_llvm_ptr_type(), rhs.get_name_as_str());
                     let name = lhs.get_name_as_str().to_string();
                     Ok(Box::new(NumberType {
                         name,
