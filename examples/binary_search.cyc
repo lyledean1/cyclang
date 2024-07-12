@@ -1,6 +1,7 @@
 fn binary_search(List<i32> array, i32 target) -> bool {
     let left = 0;
-    let right = 8 - 1;
+    let right = len(array) -11;
+    print(right);
     while (left <= right) {
         mid = (left + right) / 2;
         val = array[mid];

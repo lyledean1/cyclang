@@ -43,6 +43,7 @@ pub enum Expression {
     ReturnStmt(Box<Expression>),
     ForStmt(String, i32, i32, i32, Box<Expression>),
     Print(Box<Expression>),
+    Len(Box<Expression>),
 }
 
 impl Expression {
@@ -138,6 +139,10 @@ impl Expression {
 
     fn new_print_stmt(value: Expression) -> Self {
         Self::Print(Box::new(value))
+    }
+
+    fn new_len_stmt(value: Expression) -> Self {
+        Self::Len(Box::new(value))
     }
 
     fn new_return_stmt(value: Expression) -> Self {
@@ -249,6 +254,11 @@ fn parse_expression(
             let inner_pair = pair.into_inner().next().unwrap();
             let value = parse_expression(inner_pair)?;
             Ok(Expression::new_print_stmt(value))
+        }
+        Rule::len_stmt => {
+            let inner_pair = pair.into_inner().next().unwrap();
+            let value = parse_expression(inner_pair)?;
+            Ok(Expression::new_len_stmt(value))
         }
         Rule::func_stmt => {
             let mut inner_pairs = pair.into_inner();
@@ -808,6 +818,12 @@ mod test {
     #[test]
     fn test_parse_print_stmt_bool_assign() {
         let input = r#"print(other_value == first_value);"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_len_stmt_assign() {
+        let input = r#"let value = len(value) - 1;"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 

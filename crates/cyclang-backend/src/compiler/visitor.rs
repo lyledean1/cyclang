@@ -111,6 +111,13 @@ pub trait Visitor<T> {
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>>;
 
+    fn visit_len_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
     fn visit_return_stmt(
         &mut self,
         left: &Expression,

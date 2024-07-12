@@ -81,6 +81,10 @@ pub trait TypeBase: DynClone {
         Ok(())
     }
 
+    fn len(&self, _: &mut LLVMCodegenBuilder) -> Result<Box<dyn TypeBase>> {
+        unimplemented!("No value ref for return type")
+    }
+
     fn get_type(&self) -> BaseTypes;
     fn get_llvm_type(&self) -> LLVMTypeRef {
         match self.get_type() {

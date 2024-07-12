@@ -70,6 +70,7 @@ impl ASTContext {
             Expression::ForStmt(_, _, _, _, _) => {
                 visitor.visit_for_loop_stmt(&input, codegen, self)
             }
+            Expression::Len(_) => visitor.visit_len_stmt(&input, codegen, self),
             Expression::Print(_) => visitor.visit_print_stmt(&input, codegen, self),
             Expression::ReturnStmt(_) => visitor.visit_return_stmt(&input, codegen, self),
             _ => Err(anyhow!("this should be unreachable code, for {:?}", input)),
@@ -655,6 +656,15 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             let expression_value = context.match_ast(*input.clone(), &mut visitor, codegen)?;
             expression_value.print(codegen)?;
             return Ok(expression_value);
+        }
+        Err(anyhow!("unable to visit print stmt"))
+    }
+
+    fn visit_len_stmt(&mut self, left: &Expression, codegen: &mut LLVMCodegenBuilder, context: &mut ASTContext) -> Result<Box<dyn TypeBase>> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
+        if let Expression::Len(input) = left {
+            let expression_value = context.match_ast(*input.clone(), &mut visitor, codegen)?;
+            return expression_value.len(codegen);
         }
         Err(anyhow!("unable to visit print stmt"))
     }
