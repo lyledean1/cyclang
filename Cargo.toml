@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.package]
 description = "Cyclang is a toy language built in LLVM."
-version = "0.1.18"
+version = "0.1.19"
 edition = "2021"
 readme = "./README.md"
 keywords = ["cyclang", "llvm", "pest", "language", "wasm"]
@@ -26,5 +26,5 @@ quote = "1.0.33"
 rustyline = "12.0.0"
 syn = "2.0.38"
 text-colorizer = "1.0.0"
-cyclang-backend = { path = "./crates/cyclang-backend", version = "0.1.18"}
-cyclang-parser = { path = "./crates/cyclang-parser", version = "0.1.18"}
+cyclang-backend = { path = "./crates/cyclang-backend", version = "0.1.19"}
+cyclang-parser = { path = "./crates/cyclang-parser", version = "0.1.19"}
