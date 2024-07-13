@@ -829,6 +829,12 @@ mod test {
     // }
 
     #[test]
+    fn test_comments() {
+        let input = r#"let value = 1 - 1; // hello comments"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
     fn test_parse_multi_line_stmt() {
         let input = "
         let one = true;
