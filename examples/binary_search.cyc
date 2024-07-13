@@ -1,5 +1,8 @@
 fn binary_search(List<i32> array, i32 target) -> bool {
     let left = 0;
+    // todo: fix grammar
+    // should be able to do
+    // let length = len(array) - 1;
     let length = len(array);
     let right = length-1;
     while (left <= right) {
