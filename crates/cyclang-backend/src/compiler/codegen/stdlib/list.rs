@@ -61,6 +61,16 @@ pub unsafe fn load_list_helper_funcs(
         void_type,
     );
 
+    let mut len_list_int32_args = vec![int32_ptr_type()];
+    create_and_set_llvm_function(
+        module,
+        llvm_func_cache,
+        block,
+        "lenInt32List",
+        &mut len_list_int32_args,
+        int32_type(),
+    );
+
     let mut concat_int_32_args = vec![int32_ptr_type(), int32_ptr_type()];
     create_and_set_llvm_function(
         module,
@@ -115,6 +125,16 @@ pub unsafe fn load_list_helper_funcs(
         "printStringList",
         &mut print_list_string_args,
         void_type,
+    );
+
+    let mut len_list_string_args = vec![string_ptr_ptr_type];
+    create_and_set_llvm_function(
+        module,
+        llvm_func_cache,
+        block,
+        "lenStringList",
+        &mut len_list_string_args,
+        int32_type(),
     );
     // concatStringList
     let mut concat_string_list_args = vec![string_ptr_ptr_type, string_ptr_ptr_type];

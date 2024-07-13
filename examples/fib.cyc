@@ -1,4 +1,4 @@
-fn fib(i64 n) -> i64 {
+fn fib(i32 n) -> i32 {
     if (n < 2) {
         return n;
     }
@@ -6,5 +6,5 @@ fn fib(i64 n) -> i64 {
 }
 
 let val = 20;
-let output: i64 = fib(val);
+let output: i32 = fib(val);
 print(output);

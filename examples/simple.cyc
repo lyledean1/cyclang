@@ -1,4 +1,6 @@
-let first = "hello";
-let second = ", world!";
-let third = first + second;
-print(third);
+fn value() -> i32 {
+   return 10;
+}
+
+let value_two = value() - 1;
+print(value_two);

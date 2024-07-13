@@ -793,4 +793,47 @@ mod test {
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "6765\n");
     }
+
+    #[test]
+    fn test_while_loop_in_fn_with_var() {
+        let input = r#"
+        fn broken_loop(i32 val) -> bool {
+            while (val < 10) {
+              val = val + 1;
+            }
+            return true;
+        }
+        print(broken_loop(1));
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "true\n");
+    }
+
+    #[test]
+    fn test_binary_search_fn() {
+        let input = r#"
+        fn binary_search(List<i32> array, i32 target) -> bool {
+            let left = 0;
+            let length = len(array);
+            let right = length-1;
+            while (left <= right) {
+                mid = (left + right) / 2;
+                val = array[mid];
+                if (val == target) {
+                    return true;
+                }
+                if (val < target) {
+                    left = mid + 1;
+                }
+                if (val > target) {
+                    right = mid - 1;
+                }
+            }
+            return false;
+        }
+        print(binary_search([1000,2000,3000,4000,5000,6000,7000,8000], 5000));
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "true\n");
+    }
 }

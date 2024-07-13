@@ -14,7 +14,7 @@ pub trait Visitor<T> {
     fn visit_variable_expr(
         &mut self,
         expression: &Expression,
-        codegen: &LLVMCodegenBuilder,
+        codegen: &mut LLVMCodegenBuilder,
         context: &mut ASTContext,
     ) -> Result<T>;
 
@@ -105,6 +105,13 @@ pub trait Visitor<T> {
     ) -> Result<Box<dyn TypeBase>>;
 
     fn visit_print_stmt(
+        &mut self,
+        left: &Expression,
+        codegen: &mut LLVMCodegenBuilder,
+        context: &mut ASTContext,
+    ) -> Result<Box<dyn TypeBase>>;
+
+    fn visit_len_stmt(
         &mut self,
         left: &Expression,
         codegen: &mut LLVMCodegenBuilder,
