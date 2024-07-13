@@ -85,7 +85,7 @@ impl LLVMFunction {
                 return_type: return_type.clone(),
             };
 
-            Self::map_args_to_func_call(context, args.clone(), codegen, function, &mut new_function, codegen.current_function.block, function_entry_block, &mut visitor)?;
+            Self::map_args_to_func_call(context, args.clone(), codegen, function, &mut new_function, codegen.current_function.block, function_entry_block)?;
 
             codegen.current_function = new_function.clone();
 
@@ -125,7 +125,8 @@ impl LLVMFunction {
     //    var = var;
     //    return var;
     // }
-    unsafe fn map_args_to_func_call(context: &mut ASTContext, args: Vec<Expression>, codegen: &mut LLVMCodegenBuilder, function: LLVMValueRef, new_function: &mut LLVMFunction, current_block: LLVMBasicBlockRef, entry_block: LLVMBasicBlockRef, mut visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>) -> Result<()> {
+    unsafe fn map_args_to_func_call(context: &mut ASTContext, args: Vec<Expression>, codegen: &mut LLVMCodegenBuilder, function: LLVMValueRef, new_function: &mut LLVMFunction, current_block: LLVMBasicBlockRef, entry_block: LLVMBasicBlockRef) -> Result<()> {
+        let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
         for (i, val) in args.iter().enumerate() {
             match val {
                 Expression::FuncArg(v, t) => match t {
@@ -139,8 +140,8 @@ impl LLVMFunction {
                             name: "ptr".into(),
                         });
                         codegen.current_function.symbol_table.insert(v.clone(), new_val.clone());
-                        // let expr = Expression::LetStmt(v.clone(), Type::i32, Box::new(Variable(v.clone())));
-                        // context.match_ast(expr, &mut visitor, codegen)?;
+                        let expr = Expression::LetStmt(v.clone(), Type::i32, Box::new(Variable(v.clone())));
+                        context.match_ast(expr, &mut visitor, codegen)?;
                         codegen.position_builder_at_end(current_block);
                         new_function.set_func_var(v, new_val);
                     }
