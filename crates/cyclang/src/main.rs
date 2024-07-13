@@ -814,7 +814,8 @@ mod test {
         let input = r#"
         fn binary_search(List<i32> array, i32 target) -> bool {
             let left = 0;
-            let right = 8 - 1;
+            let length = len(array);
+            let right = length-1;
             while (left <= right) {
                 mid = (left + right) / 2;
                 val = array[mid];

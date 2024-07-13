@@ -119,9 +119,9 @@ impl LLVMFunction {
     }
 
     fn init_args_as_ptrs(context: &mut ASTContext, args: Vec<Expression>, codegen: &mut LLVMCodegenBuilder, mut visitor: &mut Box<dyn Visitor<Box<dyn TypeBase>>>) -> Result<()> {
-        for (i, val) in args.iter().enumerate() {
+        for (_, val) in args.iter().enumerate() {
             match val {
-                Expression::FuncArg(v, t) => {
+                Expression::FuncArg(v, _) => {
                     match codegen.current_function.symbol_table.get(v) {
                         Some(val) => {
                             // check if there is a ptr, do nothing

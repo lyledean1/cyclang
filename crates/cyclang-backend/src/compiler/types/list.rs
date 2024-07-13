@@ -6,7 +6,6 @@ use anyhow::anyhow;
 use anyhow::Result;
 use llvm_sys::prelude::*;
 use crate::compiler::codegen::int32_ptr_type;
-use crate::compiler::types::BaseTypes::Number;
 use crate::compiler::types::num::NumberType;
 
 #[derive(Debug, Clone)]
