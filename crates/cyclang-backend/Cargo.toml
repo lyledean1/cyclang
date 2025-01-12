@@ -16,4 +16,4 @@ dyn-clone = "1.0.11"
 libc = "0.2.149"
 cyclang-parser = { workspace = true}
 anyhow = "1.0.81"
-llvm-sys = "181.1.0"
+llvm-sys = "191.0.0"

@@ -24,22 +24,22 @@ This should output `6765`!
 
 ##  Installing and Running 
 
-You will need LLVM 17 installed before you install cyclang, 
+You will need LLVM 19 installed before you install cyclang, 
 
 For MacOS run the following command
 
 ```
-brew install llvm@17
+brew install llvm@19
 ```
 
 For Ubuntu install the following packages
 
 ```
-  llvm-17 
-  llvm-17-tools 
-  llvm-17-dev 
-  clang-17 
-  libpolly-17-dev
+  llvm-19 
+  llvm-19-tools 
+  llvm-19-dev 
+  clang-19 
+  libpolly-19-dev
 ```
 
 And run `make set-llvm-sys-ffi-workaround`

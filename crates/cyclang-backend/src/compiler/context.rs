@@ -20,7 +20,7 @@ use anyhow::anyhow;
 use anyhow::Result;
 use cyclang_parser::Type;
 use libc::c_ulonglong;
-use llvm_sys::core::{LLVMBuildCall2, LLVMConstStringInContext, LLVMCountParamTypes};
+use llvm_sys::core::{LLVMBuildCall2, LLVMConstStringInContext2, LLVMCountParamTypes};
 use std::ffi::CString;
 use llvm_sys::prelude::LLVMValueRef;
 
@@ -132,10 +132,10 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
             let val = val.replace('"', "");
             let string: CString = CString::new(val.clone()).unwrap();
             unsafe {
-                let value = LLVMConstStringInContext(
+                let value = LLVMConstStringInContext2(
                     codegen.context,
                     string.as_ptr(),
-                    string.as_bytes().len() as u32,
+                    string.as_bytes().len(),
                     0,
                 );
                 let string_init_func_llvm = codegen.llvm_func_cache.get("stringInit").unwrap();
