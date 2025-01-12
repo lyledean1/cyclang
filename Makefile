@@ -15,8 +15,8 @@ build-stdlib-ir:
 build-ir:
 	clang ./bin/main.ll -o ./bin/main
 
-install-local:
-	cargo install --path=./cyclang
+install-local: build-stdlib
+	cargo install -- --path=./crates/cyclang
 
 test-local: 
 	cargo test -- --test-threads=1
@@ -49,9 +49,6 @@ build-book:
 
 build-ubuntu-docker:
 	cd .devcontainer/ubuntu-x86_64 && docker build -t cyclang-base .
-
-set-llvm-sys-ffi-workaround:
-	echo 'export LLVM_SYS_17_FFI_WORKAROUND=true' >> ~/.bashrc
 
 set-x86-64-env:
 	echo 'source $$HOME/.cargo/env' >> $$HOME/.bashrc

@@ -29,9 +29,9 @@ fn main() {
 
     println!("Found LLVM version: {}", version_str);
 
-    if !version_str.starts_with("18") {
+    if !version_str.starts_with("19") {
         panic!(
-            "Unsupported LLVM version: {}. LLVM 18.x.x is required.",
+            "Unsupported LLVM version: {}. LLVM 19.x.x is required.",
             version_str
         );
     }
@@ -44,6 +44,6 @@ fn main() {
 
     let llvm_dir_str = llvm_dir.to_str().expect("Failed to convert path to string");
 
-    env::set_var("LLVM_SYS_170_PREFIX", llvm_dir_str);
+    env::set_var("LLVM_SYS_190_PREFIX", llvm_dir_str);
     println!("cargo:rerun-if-changed=build.rs");
 }
