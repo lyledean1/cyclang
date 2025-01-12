@@ -548,11 +548,8 @@ mod test {
     #[test]
     fn test_parse_negative_digit_expression() {
         let input = r#"-5 - 5;"#;
-        match parse_cyclo_program(input) {
-            Err(e) => {
-                eprintln!("{}", e);
-            }
-            _ => {}
+        if let Err(e) = parse_cyclo_program(input) {
+            eprintln!("{}", e);
         }
         assert!(parse_cyclo_program(input).is_ok());
     }
@@ -614,11 +611,8 @@ mod test {
     #[test]
     fn test_parse_number_equals_digit() {
         let input = r#"5 == 5;"#;
-        match parse_cyclo_program(input) {
-            Err(e) => {
-                eprintln!("{}", e);
-            }
-            _ => {}
+        if let Err(e) = parse_cyclo_program(input) {
+            eprintln!("{}", e);
         }
         assert!(parse_cyclo_program(input).is_ok());
     }

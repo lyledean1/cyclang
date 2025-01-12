@@ -177,7 +177,7 @@ impl LLVMCodegenBuilder {
                 }
                 let main_func: extern "C" fn() = std::mem::transmute(LLVMGetFunctionAddress(
                     engine,
-                    b"main\0".as_ptr() as *const _,
+                    c"main".as_ptr() as *const _,
                 ));
                 main_func();
             }
