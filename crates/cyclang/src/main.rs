@@ -449,6 +449,21 @@ mod test {
     }
 
     #[test]
+    fn test_compile_while_stmt_adding_array() {
+        let input = r#"
+        let values = [0];m
+        let i = 0;
+        while(i < 10) {
+            values = values + [1];
+            i = i + 1;
+        }
+        print(values);
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "false\n");
+    }
+
+    #[test]
     fn test_compile_while_stmt_increment() {
         let input = r#"
         let value = 0;

@@ -821,12 +821,12 @@ mod test {
         assert!(parse_cyclo_program(input).is_ok());
     }
 
-    // todo: fix
-    // #[test]
-    // fn test_parse_len_stmt_assign() {
-    //     let input = r#"let value = len(value) - 1;"#;
-    //     assert!(parse_cyclo_program(input).is_ok());
-    // }
+    #[test]
+    #[ignore]
+    fn test_parse_len_stmt_assign() {
+        let input = r#"let value = len(value) - 1;"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
 
     #[test]
     fn test_comments() {

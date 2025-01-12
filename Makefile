@@ -21,6 +21,9 @@ install-local:
 test-local: 
 	cargo test -- --test-threads=1
 
+test-local-ignored:
+	cargo test -- --test-threads=1 --ignored
+
 test-local-release:
 	cargo test --release -- --test-threads=1
 
