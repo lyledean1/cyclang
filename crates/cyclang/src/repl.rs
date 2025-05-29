@@ -24,7 +24,7 @@ pub fn run() {
                 _ => match parse_and_compile(input.to_string(), &mut rl) {
                     Ok(output) => {
                         if !output.is_empty() {
-                            println!("{:?}", output)
+                            println!("{output:?}")
                         }
                     }
                     Err(e) => {
@@ -40,7 +40,7 @@ pub fn run() {
                 break;
             }
             Err(err) => {
-                println!("Error: {:?}", err);
+                println!("Error: {err:?}");
                 break;
             }
         }
@@ -55,7 +55,7 @@ fn parse_and_compile(input: String, rl: &mut DefaultEditor) -> Result<String> {
         .collect::<Vec<&str>>()
         .join("\n");
 
-    let final_string = format!("{}{}", joined_history, input);
+    let final_string = format!("{joined_history}{input}");
     let exprs = parse_cyclo_program(&final_string)?;
     let compile_options = Some(CompileOptions {
         is_execution_engine: true,

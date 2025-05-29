@@ -29,17 +29,17 @@ You will need LLVM 19 installed before you install cyclang,
 For MacOS run the following command
 
 ```
-brew install llvm@19
+brew install llvm@20
 ```
 
 For Ubuntu install the following packages
 
 ```
-  llvm-19 
-  llvm-19-tools 
-  llvm-19-dev 
-  clang-19 
-  libpolly-19-dev
+  llvm-20 
+  llvm-20-tools 
+  llvm-20-dev 
+  clang-20 
+  libpolly-20-dev
 ```
 
 And run `make set-llvm-sys-ffi-workaround`
