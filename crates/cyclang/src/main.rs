@@ -40,11 +40,11 @@ fn compile_output_from_string(
         // loop through expression, if type var then store
 
         Ok(exprs) => compiler::compile(exprs, compile_options).unwrap_or_else(|e| {
-            eprintln!("unable to compile contents due to error: {}", e);
+            eprintln!("unable to compile contents due to error: {e}");
             exit(1)
         }),
         Err(e) => {
-            eprintln!("unable to parse contents due to error: {}", e);
+            eprintln!("unable to parse contents due to error: {e}");
             exit(1)
         }
     }

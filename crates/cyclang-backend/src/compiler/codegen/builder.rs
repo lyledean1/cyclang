@@ -17,18 +17,7 @@ use crate::compiler::CompileOptions;
 use anyhow::{anyhow, Result};
 use cyclang_parser::{Expression, Type};
 use libc::{c_uint};
-use llvm_sys::core::{
-    LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
-    LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
-    LLVMBuildGlobalStringPtr, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet,
-    LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2,
-    LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
-    LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType,
-    LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2,
-    LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType,
-    LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf,
-    LLVMVoidTypeInContext,
-};
+use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalString, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
 use llvm_sys::execution_engine::{
     LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
     LLVMLinkInMCJIT,
@@ -121,17 +110,17 @@ impl LLVMCodegenBuilder {
             // Define common functions
 
             let format_str = "%d\n";
-            let printf_str_num_value = LLVMBuildGlobalStringPtr(
+            let printf_str_num_value = LLVMBuildGlobalString(
                 builder,
                 cstr_from_string(format_str).as_ptr(),
                 cstr_from_string("number_printf_val").as_ptr(),
             );
-            let printf_str_num64_value = LLVMBuildGlobalStringPtr(
+            let printf_str_num64_value = LLVMBuildGlobalString(
                 builder,
                 cstr_from_string("%llu\n").as_ptr(),
                 cstr_from_string("number64_printf_val").as_ptr(),
             );
-            let printf_str_value = LLVMBuildGlobalStringPtr(
+            let printf_str_value = LLVMBuildGlobalString(
                 builder,
                 cstr_from_string("%s\n").as_ptr(),
                 cstr_from_string("str_printf_val").as_ptr(),
@@ -657,7 +646,7 @@ impl LLVMCodegenBuilder {
         LLVMBuildCondBr(builder, condition, then_block, else_block);
 
         // Build the 'then' block (return "true")
-        let true_global = LLVMBuildGlobalStringPtr(
+        let true_global = LLVMBuildGlobalString(
             builder,
             cstr_from_string("true\n").as_ptr(),
             cstr_from_string("true_str").as_ptr(),
@@ -667,7 +656,7 @@ impl LLVMCodegenBuilder {
         LLVMBuildRet(builder, true_global);
 
         // Build the 'else' block (return "false")
-        let false_global = LLVMBuildGlobalStringPtr(
+        let false_global = LLVMBuildGlobalString(
             builder,
             cstr_from_string("false\n").as_ptr(),
             cstr_from_string("false_str").as_ptr(),

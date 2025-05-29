@@ -27,12 +27,11 @@ fn main() {
     let version_str = String::from_utf8_lossy(&llvm_config_output.stdout);
     let version_str = version_str.trim();
 
-    println!("Found LLVM version: {}", version_str);
+    println!("Found LLVM version: {version_str}");
 
-    if !version_str.starts_with("19") {
+    if !version_str.starts_with("20") {
         panic!(
-            "Unsupported LLVM version: {}. LLVM 19.x.x is required.",
-            version_str
+            "Unsupported LLVM version: {version_str}. LLVM 20.x.x is required."
         );
     }
 

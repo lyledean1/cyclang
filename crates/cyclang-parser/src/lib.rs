@@ -269,7 +269,7 @@ fn parse_expression(
 
             while inner_pairs
                 .peek()
-                .map_or(false, |p| p.as_rule() == Rule::func_arg)
+                .is_some_and(|p| p.as_rule() == Rule::func_arg)
             {
                 let args: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
                 func_args.push(parse_expression(args)?);
@@ -277,7 +277,7 @@ fn parse_expression(
 
             let mut func_type = Type::None;
             // Get function type or default to none
-            while inner_pairs.peek().map_or(false, |p| {
+            while inner_pairs.peek().is_some_and(|p| {
                 p.as_rule() == Rule::type_name || p.as_rule() == Rule::arrow
             }) {
                 let next: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
@@ -292,7 +292,7 @@ fn parse_expression(
         }
         Rule::func_arg => {
             let mut inner_pairs = pair.clone().into_inner();
-            while inner_pairs.peek().map_or(false, |p| {
+            while inner_pairs.peek().is_some_and(|p| {
                 p.as_rule() == Rule::comma
                     || p.as_rule() == Rule::name
                     || p.as_rule() == Rule::type_name
@@ -325,7 +325,7 @@ fn parse_expression(
             let name = inner_pairs.next().unwrap().as_str().to_string();
             let mut args = vec![];
             // TODO: fix this so it handles the different cases properly instead of this hack
-            while inner_pairs.peek().map_or(false, |p| {
+            while inner_pairs.peek().is_some_and(|p| {
                 p.as_rule() == Rule::comma
                     || p.as_rule() == Rule::binary
                     || p.as_rule() == Rule::literal
@@ -409,7 +409,7 @@ fn parse_expression(
             let mut list = vec![];
             while inner_pairs
                 .peek()
-                .map_or(false, |p| p.as_rule() != Rule::rbracket)
+                .is_some_and(|p| p.as_rule() != Rule::rbracket)
             {
                 let next = inner_pairs.next().unwrap();
                 let next_rule = next.as_rule();
