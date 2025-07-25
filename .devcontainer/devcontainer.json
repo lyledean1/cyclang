@@ -1,0 +1,7 @@
+{
+  "name": "Ubuntu LLVM 17",
+  "dockerFile": "ubuntu-x86_64/Dockerfile",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  }
+}

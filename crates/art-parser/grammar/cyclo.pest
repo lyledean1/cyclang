@@ -1,0 +1,62 @@
+expression_list = { SOI ~ ( stmt_inner | expression_list_inner ) ~ (WHITESPACE* ~ (stmt_inner | expression_list_inner )*) ~ EOI }
+stmt_inner = _{ if_stmt | while_stmt| for_stmt | func_stmt | block_stmt }
+expression_list_inner = _{((( expression |  index_stmt  |let_stmt  | len_stmt | print_stmt | call_stmt | grouping ) ~ (semicolon ~ WHITESPACE? ~ (binary | expression |index_stmt| let_stmt | len_stmt | print_stmt | call_stmt | grouping))*) ~ semicolon)}
+expression = _ { binary | literal }
+
+
+// for loop
+initialization = { "let" ~ name ~ WHITESPACE? ~ "=" ~ WHITESPACE? ~ number }
+iteration = { name ~ WHITESPACE? ~ ("++" | "--") }
+condition = { name ~ WHITESPACE? ~ ("<" | "<=" | ">" | ">=" ) ~ WHITESPACE? ~ number }
+for_stmt = { "for" ~ WHITESPACE? ~ "(" ~ initialization ~ ";" ~ condition ~ ";" ~ iteration ~ ")" ~ block_stmt }
+
+// logical types
+if_stmt = { "if" ~ WHITESPACE? ~ "(" ~ (expression | name ) ~ ")" ~ WHITESPACE? ~ block_stmt ~ (WHITESPACE? ~ "else" ~ block_stmt)? }
+while_stmt = {"while" ~ WHITESPACE? ~ "(" ~ (expression | name) ~ ")" ~ WHITESPACE? ~ block_stmt}
+block_stmt = { "{" ~ WHITESPACE? ~ (return_stmt | expression_list_inner | stmt_inner | WHITESPACE?) ~ (WHITESPACE? ~ (return_stmt | expression_list_inner | stmt_inner)*) ~ (WHITESPACE*)? ~ return_stmt? ~ WHITESPACE? ~ "}" }
+
+// let statements and functions
+let_stmt = { (((("let" ~ WHITESPACE?)? ~ name)) ~ WHITESPACE?) ~ (colon ~ type_name ~ WHITESPACE?)? ~ assignment_stmt}
+index_stmt = {list_index ~ WHITESPACE?  ~ assignment_stmt  }
+assignment_stmt = _{equal ~ WHITESPACE? ~ (list_index | len_stmt | call_stmt | expression | grouping | name)}
+func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~ arrow ~ WHITESPACE? ~ type_name)? ~ WHITESPACE? ~ block_stmt }
+func_arg = { WHITESPACE? ~ type_name ~ WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
+type_name = { base_type | list_type  }
+call_stmt = { name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
+print_stmt = { "print(" ~ (len_stmt | call_stmt | list_index | expression | name ) ~ ")" }
+len_stmt = { "len(" ~ (call_stmt | list_index | expression | name ) ~ ")" }
+string_type = {"string"}
+i32_type = {"i32"}
+i64_type = {"i64"}
+bool_type = { "bool"}
+base_type = _{bool_type | i32_type | i64_type | string_type}
+list_type = {"List<" ~  (base_type | list_type )~ ">"}
+// binary statemeents
+binary = {  operand ~ WHITESPACE? ~ operator_sequence }
+operand = _{ literal ~ WHITESPACE? | grouping | call_stmt | name  }
+operator_sequence = _{ operator ~ WHITESPACE* ~ operand ~ (WHITESPACE* ~ operator_sequence)? }
+operator = { "==" | "!=" | ">=" | "<=" | ">" | "<" | "+" | "-" | "*" | "/" | "^" }
+
+grouping = { "(" ~ expression ~ ")" }
+literal = { number | string | bool | nil | list  }
+
+list = { lbracket ~ WHITESPACE? ~ literal ~ (WHITESPACE? ~ "," ~ WHITESPACE? ~ literal)* ~ rbracket }
+list_index = {(call_stmt  |expression | name) ~ lbracket ~ (expression  |number | name | call_stmt) ~ rbracket}
+name = { (alpha | "_") ~ (alpha | digits | "_")* }
+number = { "-"? ~ digits }
+digits = @{ ASCII_DIGIT+ }
+alpha = { ASCII_ALPHA | "_" }
+string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+nil = { "nil" }
+bool = { "true" | "false" }
+equal = { "=" }
+semicolon = { ";" }
+colon = { ":" }
+arrow = { "->" }
+lbracket  = {"["}
+rbracket = {"]"}
+return_keyword = _{ "return" }
+return_stmt = { return_keyword ~ WHITE_SPACE? ~ ((binary | grouping | literal | name | call_stmt)? ~ WHITESPACE? ~ semicolon?)? }
+comma = { WHITESPACE? ~ "," ~ WHITESPACE? }
+comment = _{ "//" ~ (!NEWLINE ~ ANY)* ~ (NEWLINE | EOI) }
+WHITESPACE = _{ " " | "\t" | NEWLINE | comment }

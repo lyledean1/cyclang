@@ -1,0 +1,19 @@
+[package]
+name = "art-backend"
+description.workspace = true
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+categories.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dyn-clone = "1.0.11"
+libc = "0.2.149"
+art-parser = { workspace = true}
+anyhow = "1.0.81"
+llvm-sys = "201.0.1"

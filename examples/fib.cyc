@@ -1,0 +1,10 @@
+fn fib(i32 n) -> i32 {
+    if (n < 2) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+let val = 20;
+let output: i32 = fib(val);
+print(output);

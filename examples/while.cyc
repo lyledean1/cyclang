@@ -1,0 +1,8 @@
+fn while_loop(i32 val) -> bool {
+    while (val < 10) {
+      val = val + 1;
+      print(val);
+    }
+    return true;
+}
+print(while_loop(0));

@@ -1,0 +1,14 @@
+fn addOne() -> i32 {
+    let varOne = 1;
+    let varTwo = 2;
+    let varThree = varTwo + varOne;
+    return varThree;
+}
+fn addTwo() -> i32 {
+    let varOne = 3;
+    let varTwo = 4;
+    let varThree = varOne + varTwo;
+    return varThree;
+}
+print(addOne());
+print(addTwo());
