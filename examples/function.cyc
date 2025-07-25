@@ -10,5 +10,8 @@ fn addTwo() -> i32 {
     let varThree = varOne + varTwo;
     return varThree;
 }
-print(addOne());
-print(addTwo());
+
+fn main() {
+    print(addOne());
+    print(addTwo());
+}

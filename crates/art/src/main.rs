@@ -13,7 +13,8 @@ struct Args {
     #[arg(short, long)]
     version: bool,
     #[arg(short, long)]
-    file: Option<String>,
+    repl: bool,
+    file: String,
     #[arg(short, long)]
     target: Option<String>,
     #[arg(short, long)]
@@ -57,12 +58,13 @@ fn main() {
         println!("{} {}", "art".italic(), version.italic());
         return;
     }
-    if let Some(filename) = args.file {
-        let contents = fs::read_to_string(filename).expect("Failed to read file");
-        compile_output_from_string(contents, !args.emit_llvm_ir, args.target);
+    if args.repl {
+        repl::run();
         return;
     }
-    repl::run();
+    let contents = fs::read_to_string(args.file).expect("Failed to read file");
+    compile_output_from_string(contents, !args.emit_llvm_ir, args.target);
+    return;
 }
 
 #[cfg(test)]
