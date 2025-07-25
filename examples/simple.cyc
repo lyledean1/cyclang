@@ -2,5 +2,8 @@ fn value() -> i32 {
    return 10;
 }
 
-let value_two = value() - 1;
-print(value_two);
+fn main () {
+    let value_one = value();
+    let value_two = value_one - 1;
+    print(value_two);
+}

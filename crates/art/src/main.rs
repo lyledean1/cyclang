@@ -73,23 +73,27 @@ mod test {
         compile_output_from_string(contents, false, None)
     }
 
+    fn add_into_main_func(input: &str) -> String {
+        format!("fn main() {{ {} }}", input)
+    }
+
     #[test]
     fn test_compile_print_number_expression() {
-        let input = r#"print(12);"#;
+        let input = add_into_main_func(r#"print(12);"#);
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "12\n");
     }
 
     #[test]
     fn test_compile_print_add_string_expression() {
-        let input = r#"print("hello" + " world");"#;
+        let input = add_into_main_func(r#"print("hello" + " world");"#);
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "\"hello world\"\n");
     }
 
     #[test]
     fn test_compile_print_bool_expression() {
-        let input = r#"print(true);"#;
+        let input = add_into_main_func(r#"print(true);"#);
         // call print statement for str
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "true\n");
@@ -101,7 +105,7 @@ mod test {
         let variable = true;
         print(variable);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -111,7 +115,7 @@ mod test {
         let variable = 2;
         print(variable);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "2\n");
     }
 
@@ -122,7 +126,7 @@ mod test {
         number = number + 1;
         print(number);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "3\n");
     }
 
@@ -132,7 +136,7 @@ mod test {
         let variable = "hello";
         print(variable);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"hello\"\n");
     }
 
@@ -142,7 +146,7 @@ mod test {
         let value = (1 == 1);
         print(value);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -154,7 +158,7 @@ mod test {
         let c = a + b;
         print(c);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "3\n");
     }
 
@@ -163,7 +167,7 @@ mod test {
         let input = r#"
         print(2 + 4);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "6\n");
     }
 
@@ -172,7 +176,7 @@ mod test {
         let input = r#"
         print(6 - 4);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "2\n");
     }
 
@@ -181,7 +185,7 @@ mod test {
         let input = r#"
         print(5 * 4);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "20\n");
     }
 
@@ -190,7 +194,7 @@ mod test {
         let input = r#"
         print(20/4);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "5\n");
     }
 
@@ -199,7 +203,7 @@ mod test {
         let input = r#"
         print(4 == 4);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -208,7 +212,7 @@ mod test {
         let input = r#"
         print(4 == 5);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "false\n");
     }
 
@@ -217,7 +221,7 @@ mod test {
         let input = r#"
         print("4" == "4");
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -226,7 +230,7 @@ mod test {
         let input = r#"
         print("4" == "5");
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "false\n");
     }
 
@@ -235,7 +239,7 @@ mod test {
         let input = r#"
         print(true == false);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "false\n");
     }
 
@@ -244,7 +248,7 @@ mod test {
         let input = r#"
         print(true == true);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -253,7 +257,7 @@ mod test {
         let input = r#"
         print(true != true);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "false\n");
     }
 
@@ -262,7 +266,7 @@ mod test {
         let input = r#"
         print(true != false);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -274,7 +278,7 @@ mod test {
         }
         print(listFnExample(["one", "two"] + ["three", "four"]));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "[\"one\",\"two\",\"three\",\"four\"]");
     }
 
@@ -286,7 +290,7 @@ mod test {
         }
         print(listFnExample([1,2,3,4]));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "[1,2,3,4]");
     }
 
@@ -299,7 +303,7 @@ mod test {
             print("hello");
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"hello\"\n");
     }
 
@@ -311,7 +315,7 @@ mod test {
             print("hello");
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"hello\"\n");
     }
 
@@ -325,7 +329,7 @@ mod test {
             print("hello");
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"hello\"\n");
     }
 
@@ -340,7 +344,7 @@ mod test {
             print("hello");
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"hello\"\n");
     }
 
@@ -357,7 +361,7 @@ mod test {
             print("don't print this");
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"yep\"\n");
     }
 
@@ -375,7 +379,7 @@ mod test {
             print("don't print this");
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"yep\"\n\"yep\"\n");
     }
 
@@ -401,7 +405,7 @@ mod test {
             print("don't print this");
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "1\n2\n3\n4\n");
     }
 
@@ -431,7 +435,7 @@ mod test {
         }
         print(var);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "1\n2\n3\n4\n5\n");
     }
 
@@ -444,7 +448,7 @@ mod test {
             print(value);
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "false\n");
     }
 
@@ -457,7 +461,7 @@ mod test {
             print(value);
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n");
     }
 
@@ -472,7 +476,7 @@ mod test {
             value = false;
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -485,7 +489,7 @@ mod test {
             print("here");
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"here\"\n");
     }
 
@@ -498,7 +502,7 @@ mod test {
             value = false;
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -510,7 +514,7 @@ mod test {
             print(value);
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "");
     }
 
@@ -527,7 +531,7 @@ mod test {
             }
             print(val);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "10\n");
     }
 
@@ -539,7 +543,7 @@ mod test {
             print(i);
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n");
     }
 
@@ -567,7 +571,7 @@ mod test {
         }
         print(is_true);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -579,7 +583,7 @@ mod test {
         }
         hello_world();
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"hello world\"\n");
     }
 
@@ -598,7 +602,7 @@ mod test {
             not_executed();
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "\"hello world\"\n");
     }
 
@@ -613,7 +617,7 @@ mod test {
         }
         hello_world();
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -627,7 +631,7 @@ mod test {
             print(val);
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "0\n1\n3\n6\n10\n15\n21\n28\n36\n45\n");
     }
 
@@ -641,7 +645,7 @@ mod test {
             print(val);
         }
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "10\n19\n27\n34\n40\n45\n49\n52\n54\n55\n");
     }
 
@@ -654,7 +658,7 @@ mod test {
         let val = get_int();
         print(get_int());
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "5\n");
     }
 
@@ -667,7 +671,7 @@ mod test {
         }
         add(10, 10);
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "20\n");
     }
 
@@ -679,7 +683,7 @@ mod test {
         }
         print(add(5,5));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "10\n");
     }
 
@@ -691,7 +695,7 @@ mod test {
         }
         print(mul(5,5));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "25\n");
     }
 
@@ -706,7 +710,7 @@ mod test {
         }
         print(add_together());
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "29\n");
     }
 
@@ -718,7 +722,7 @@ mod test {
         }
         print(compare(true,false));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "false\n");
     }
 
@@ -730,7 +734,7 @@ mod test {
         }
         print(compare_ints(1000,1000));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -745,7 +749,7 @@ mod test {
         }
         print(expect_true());
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -760,7 +764,7 @@ mod test {
         }
         print(expect_false());
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "false\n");
     }
 
@@ -773,7 +777,10 @@ mod test {
             }
             return n * factorial(n - 1);
         }
-        print(factorial(5));
+
+        fn main() {
+            print(factorial(5));
+        }
         "#;
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "120\n");
@@ -790,7 +797,7 @@ mod test {
         }
         print(fib(20));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "6765\n");
     }
 
@@ -805,7 +812,7 @@ mod test {
         }
         print(broken_loop(1));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 
@@ -833,7 +840,7 @@ mod test {
         }
         print(binary_search([1000,2000,3000,4000,5000,6000,7000,8000], 5000));
         "#;
-        let output = compile_output_from_string_test(input.to_string());
+        let output = compile_output_from_string_test(add_into_main_func(input));
         assert_eq!(output, "true\n");
     }
 }

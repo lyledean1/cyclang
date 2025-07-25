@@ -21,7 +21,13 @@ use art_parser::Expression::Variable;
 use crate::compiler::types::list::ListType;
 
 pub struct LLVMFunctionCache {
-    map: HashMap<String, LLVMFunction>,
+    map: HashMap<String, LLVMCallFn>,
+}
+
+#[derive(Clone)]
+pub struct LLVMCallFn {
+    pub function: LLVMValueRef,
+    pub func_type: LLVMTypeRef,
 }
 
 impl Default for LLVMFunctionCache {
@@ -37,7 +43,6 @@ pub struct LLVMFunction {
     pub entry_block: LLVMBasicBlockRef,
     pub block: LLVMBasicBlockRef,
     pub symbol_table: HashMap<String, Box<dyn TypeBase>>,
-    pub args: Vec<LLVMTypeRef>, // to delete? is not used?
     pub return_type: Type,
 }
 
@@ -81,7 +86,6 @@ impl LLVMFunction {
                 entry_block: function_entry_block,
                 block: function_entry_block,
                 symbol_table: HashMap::new(),
-                args: param_types.to_vec(),
                 return_type: return_type.clone(),
             };
 
@@ -297,11 +301,11 @@ impl LLVMFunctionCache {
         }
     }
 
-    pub fn set(&mut self, key: &str, value: LLVMFunction) {
+    pub fn set(&mut self, key: &str, value: LLVMCallFn) {
         self.map.insert(key.to_string(), value);
     }
 
-    pub fn get(&self, key: &str) -> Option<LLVMFunction> {
+    pub fn get(&self, key: &str) -> Option<LLVMCallFn> {
         //HACK, copy each time, probably want one reference to this
         self.map.get(key).cloned()
     }

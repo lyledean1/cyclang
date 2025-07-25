@@ -565,6 +565,7 @@ impl Visitor<Box<dyn TypeBase>> for LLVMCodegenVisitor {
         context: &mut ASTContext,
     ) -> Result<Box<dyn TypeBase>> {
         if let Expression::FuncStmt(name, args, _return_type, body) = left {
+
             let llvm_func = LLVMFunction::new(
                 context,
                 name.clone(),

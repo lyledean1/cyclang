@@ -5,4 +5,7 @@ fn while_loop(i32 val) -> bool {
     }
     return true;
 }
-print(while_loop(0));
+
+fn main() {
+    print(while_loop(0));
+}

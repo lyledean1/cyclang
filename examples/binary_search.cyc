@@ -20,4 +20,7 @@ fn binary_search(List<i32> array, i32 target) -> bool {
     }
     return false;
 }
-print(binary_search([1000,2000,3000,4000,5000,6000,7000,8000], 5000));
+
+fn main() {
+    print(binary_search([1000,2000,3000,4000,5000,6000,7000,8000], 5000));
+}

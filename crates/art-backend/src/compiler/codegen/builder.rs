@@ -1,4 +1,4 @@
-use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
+use crate::compiler::codegen::context::{LLVMCallFn, LLVMFunction, LLVMFunctionCache};
 use crate::compiler::codegen::stdlib::list::load_list_helper_funcs;
 use crate::compiler::codegen::stdlib::load_bitcode_and_set_stdlib_funcs;
 use crate::compiler::codegen::stdlib::string::load_string_helper_funcs;
@@ -17,7 +17,7 @@ use crate::compiler::CompileOptions;
 use anyhow::{anyhow, Result};
 use art_parser::{Expression, Type};
 use libc::{c_uint};
-use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalString, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
+use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalString, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDeleteFunction, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
 use llvm_sys::execution_engine::{
     LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
     LLVMLinkInMCJIT,
@@ -89,30 +89,22 @@ impl LLVMCodegenBuilder {
                 );
             }
 
-            let llvm_func_cache = LLVMFunctionCache::new();
-
-            let llvm_func_cache =
-                load_bitcode_and_set_stdlib_funcs(context, module, llvm_func_cache)?;
-            // common void type
             let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
-
-            // our "main" function which will be the entry point when we run the executable
-            let main_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
-            let main_func =
-                LLVMAddFunction(module, cstr_from_string("main").as_ptr(), main_func_type);
-            let main_block = LLVMAppendBasicBlockInContext(
+            let dummy_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
+            let dummy_func =
+                LLVMAddFunction(module, cstr_from_string("dummy").as_ptr(), dummy_func_type);
+            let dummy_func_block = LLVMAppendBasicBlockInContext(
                 context,
-                main_func,
-                cstr_from_string("main").as_ptr(),
+                dummy_func,
+                cstr_from_string("entry").as_ptr(),
             );
-            LLVMPositionBuilderAtEnd(builder, main_block);
+            LLVMPositionBuilderAtEnd(builder, dummy_func_block);
 
             // Define common functions
 
-            let format_str = "%d\n";
             let printf_str_num_value = LLVMBuildGlobalString(
                 builder,
-                cstr_from_string(format_str).as_ptr(),
+                cstr_from_string("%d\n").as_ptr(),
                 cstr_from_string("number_printf_val").as_ptr(),
             );
             let printf_str_num64_value = LLVMBuildGlobalString(
@@ -126,18 +118,22 @@ impl LLVMCodegenBuilder {
                 cstr_from_string("str_printf_val").as_ptr(),
             );
 
+            let llvm_func_cache = LLVMFunctionCache::new();
+
+            let llvm_func_cache =
+                load_bitcode_and_set_stdlib_funcs(context, module, llvm_func_cache)?;
+
             let mut codegen_builder = LLVMCodegenBuilder {
                 builder,
                 module,
                 context,
                 llvm_func_cache,
-                current_function: LLVMFunction {
-                    function: main_func,
-                    func_type: main_func_type,
-                    block: main_block,
-                    entry_block: main_block,
+                current_function: LLVMFunction{
+                    function: dummy_func,
+                    func_type: dummy_func_type,
+                    block: dummy_func_block,
+                    entry_block: dummy_func_block,
                     symbol_table: HashMap::new(),
-                    args: vec![],
                     return_type: Type::None,
                 },
                 printf_str_value,
@@ -145,15 +141,14 @@ impl LLVMCodegenBuilder {
                 printf_str_num64_value,
                 is_execution_engine,
             };
-            codegen_builder.build_helper_funcs(main_block);
+            LLVMDeleteFunction(dummy_func);
+            codegen_builder.build_helper_funcs();
             Ok(codegen_builder)
         }
     }
 
     pub fn dispose_and_get_module_str(&self) -> Result<String> {
         unsafe {
-            self.build_ret_void();
-
             // Run execution engine
             let mut engine = ptr::null_mut();
             let mut error = ptr::null_mut();
@@ -297,7 +292,7 @@ impl LLVMCodegenBuilder {
 
     pub fn build_call(
         &self,
-        func: LLVMFunction,
+        func: LLVMCallFn,
         args: Vec<LLVMValueRef>,
         num_args: c_uint,
         name: &str,
@@ -571,7 +566,7 @@ impl LLVMCodegenBuilder {
 
     }
 
-    pub fn build_helper_funcs(&mut self, main_block: LLVMBasicBlockRef) {
+    pub fn build_helper_funcs(&mut self) {
         unsafe {
             let bool_to_str_func = self.build_bool_to_str_func();
 
@@ -586,32 +581,25 @@ impl LLVMCodegenBuilder {
 
             self.llvm_func_cache.set(
                 "printf",
-                LLVMFunction {
+                LLVMCallFn {
                     function: printf_original_function,
                     func_type: print_func_type,
-                    block: main_block,
-                    entry_block: main_block,
-                    symbol_table: HashMap::new(),
-                    args: vec![],
-                    return_type: Type::None,
                 },
             );
             load_string_helper_funcs(
                 self.context,
                 self.module,
                 &mut self.llvm_func_cache,
-                main_block,
             );
             load_list_helper_funcs(
                 self.context,
                 self.module,
                 &mut self.llvm_func_cache,
-                main_block,
             );
         }
     }
 
-    pub unsafe fn build_bool_to_str_func(&self) -> LLVMFunction {
+    pub unsafe fn build_bool_to_str_func(&self) -> LLVMCallFn {
         // Create the function
         let char_ptr_type = LLVMPointerType(LLVMInt8TypeInContext(self.context), 0);
         let func_type = LLVMFunctionType(char_ptr_type, &mut int1_type(), 1, 0);
@@ -664,14 +652,9 @@ impl LLVMCodegenBuilder {
         LLVMPositionBuilderAtEnd(builder, else_block);
         LLVMBuildRet(builder, false_global);
 
-        LLVMFunction {
+        LLVMCallFn {
             function,
             func_type,
-            entry_block,
-            block: entry_block,
-            symbol_table: HashMap::new(),
-            args: vec![],
-            return_type: Type::Bool, // ignore
         }
     }
 

@@ -1,12 +1,10 @@
-use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
+use crate::compiler::codegen::context::{LLVMCallFn, LLVMFunctionCache};
 use crate::compiler::codegen::{int32_ptr_type, int32_type};
-use art_parser::Type;
 use llvm_sys::core::{
     LLVMFunctionType, LLVMGetNamedFunction, LLVMGetTypeByName2, LLVMPointerType,
     LLVMVoidTypeInContext,
 };
-use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef};
-use std::collections::HashMap;
+use llvm_sys::prelude::{LLVMContextRef, LLVMModuleRef, LLVMTypeRef};
 use std::ffi::CString;
 
 /// # Safety
@@ -16,7 +14,6 @@ pub unsafe fn load_list_helper_funcs(
     context: LLVMContextRef,
     module: LLVMModuleRef,
     llvm_func_cache: &mut LLVMFunctionCache,
-    block: LLVMBasicBlockRef,
 ) {
     let void_type = LLVMVoidTypeInContext(context);
 
@@ -25,7 +22,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "create_int32_tList",
         &mut list_create_int32_args,
         int32_ptr_type(),
@@ -35,7 +31,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "set_int32_tValue",
         &mut list_set_int32_args,
         void_type,
@@ -45,7 +40,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "get_int32_tValue",
         &mut list_get_int32_args,
         int32_ptr_type(),
@@ -55,7 +49,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "printInt32List",
         &mut print_list_int32_args,
         void_type,
@@ -65,7 +58,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "lenInt32List",
         &mut len_list_int32_args,
         int32_type(),
@@ -75,7 +67,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "concatInt32List",
         &mut concat_int_32_args,
         int32_ptr_type(),
@@ -91,7 +82,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "createStringList",
         &mut list_create_string_list_args,
         string_ptr_ptr_type,
@@ -101,7 +91,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "setStringValue",
         &mut list_set_string_args,
         void_type,
@@ -111,7 +100,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "getStringValue",
         &mut list_get_string_args,
         string_ptr_type,
@@ -121,7 +109,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "printStringList",
         &mut print_list_string_args,
         void_type,
@@ -131,7 +118,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "lenStringList",
         &mut len_list_string_args,
         int32_type(),
@@ -141,7 +127,6 @@ pub unsafe fn load_list_helper_funcs(
     create_and_set_llvm_function(
         module,
         llvm_func_cache,
-        block,
         "concatStringList",
         &mut concat_string_list_args,
         string_ptr_ptr_type,
@@ -151,7 +136,6 @@ pub unsafe fn load_list_helper_funcs(
 unsafe fn create_and_set_llvm_function(
     module: LLVMModuleRef,
     llvm_func_cache: &mut LLVMFunctionCache,
-    block: LLVMBasicBlockRef,
     func_name: &str,
     func_args: &mut Vec<LLVMTypeRef>,
     return_type: LLVMTypeRef,
@@ -166,14 +150,9 @@ unsafe fn create_and_set_llvm_function(
     );
     llvm_func_cache.set(
         func_name,
-        LLVMFunction {
+        LLVMCallFn {
             function: llvm_function,
             func_type: llvm_function_type,
-            block,
-            entry_block: block,
-            symbol_table: HashMap::new(),
-            args: vec![],
-            return_type: Type::None,
         },
     );
 }

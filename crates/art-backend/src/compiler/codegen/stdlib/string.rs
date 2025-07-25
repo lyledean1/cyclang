@@ -1,12 +1,10 @@
-use crate::compiler::codegen::context::{LLVMFunction, LLVMFunctionCache};
+use crate::compiler::codegen::context::{LLVMCallFn, LLVMFunctionCache};
 use crate::compiler::codegen::{int1_type, int8_ptr_type};
-use art_parser::Type;
 use llvm_sys::core::{
     LLVMFunctionType, LLVMGetNamedFunction, LLVMGetTypeByName2, LLVMPointerType,
     LLVMVoidTypeInContext,
 };
-use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMContextRef, LLVMModuleRef};
-use std::collections::HashMap;
+use llvm_sys::prelude::{LLVMContextRef, LLVMModuleRef};
 use std::ffi::CString;
 
 /// # Safety
@@ -16,7 +14,6 @@ pub unsafe fn load_string_helper_funcs(
     context: LLVMContextRef,
     module: LLVMModuleRef,
     llvm_func_cache: &mut LLVMFunctionCache,
-    block: LLVMBasicBlockRef,
 ) {
     let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
 
@@ -36,14 +33,9 @@ pub unsafe fn load_string_helper_funcs(
     );
     llvm_func_cache.set(
         "stringInit",
-        LLVMFunction {
+        LLVMCallFn {
             function: string_init_function,
             func_type: string_init_func_type,
-            block,
-            entry_block: block,
-            symbol_table: HashMap::new(),
-            args: vec![int8_ptr_type()],
-            return_type: Type::None,
         },
     );
 
@@ -59,14 +51,9 @@ pub unsafe fn load_string_helper_funcs(
     );
     llvm_func_cache.set(
         "stringAdd",
-        LLVMFunction {
+        LLVMCallFn {
             function: string_add_function,
             func_type: string_add_func_type,
-            block,
-            entry_block: block,
-            symbol_table: HashMap::new(),
-            args: vec![string_ptr_type, string_ptr_type],
-            return_type: Type::None,
         },
     );
 
@@ -82,14 +69,9 @@ pub unsafe fn load_string_helper_funcs(
     );
     llvm_func_cache.set(
         "stringPrint",
-        LLVMFunction {
+        LLVMCallFn {
             function: string_print_function,
             func_type: string_print_func_type,
-            block,
-            entry_block: block,
-            symbol_table: HashMap::new(),
-            args: vec![string_ptr_type],
-            return_type: Type::None,
         },
     );
 
@@ -106,14 +88,9 @@ pub unsafe fn load_string_helper_funcs(
     );
     llvm_func_cache.set(
         "isStringEqual",
-        LLVMFunction {
+        LLVMCallFn {
             function: string_is_equal_function,
             func_type: string_is_equal_func_type,
-            block,
-            entry_block: block,
-            symbol_table: HashMap::new(),
-            args: vec![string_ptr_type, string_ptr_type],
-            return_type: Type::None,
         },
     );
 }

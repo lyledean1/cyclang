@@ -55,7 +55,7 @@ fn parse_and_compile(input: String, rl: &mut DefaultEditor) -> Result<String> {
         .collect::<Vec<&str>>()
         .join("\n");
 
-    let final_string = format!("{joined_history}{input}");
+    let final_string = format!("fn main() {{ {joined_history}{input} }}");
     let exprs = parse_cyclo_program(&final_string)?;
     let compile_options = Some(CompileOptions {
         is_execution_engine: true,
