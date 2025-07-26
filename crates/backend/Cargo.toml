@@ -1,5 +1,5 @@
 [package]
-name = "art-backend"
+name = "backend"
 description.workspace = true
 version.workspace = true
 edition.workspace = true
@@ -14,6 +14,6 @@ categories.workspace = true
 [dependencies]
 dyn-clone = "1.0.11"
 libc = "0.2.149"
-art-parser = { workspace = true}
+parser = { workspace = true}
 anyhow = "1.0.81"
 llvm-sys = "201.0.1"

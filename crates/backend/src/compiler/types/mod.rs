@@ -25,7 +25,7 @@ use crate::compiler::codegen::{
 };
 use anyhow::anyhow;
 use anyhow::Result;
-use art_parser::Type;
+use parser::Type;
 use llvm_sys::prelude::*;
 
 #[derive(Debug, PartialEq, Clone)]

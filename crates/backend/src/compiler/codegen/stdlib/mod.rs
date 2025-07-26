@@ -23,7 +23,7 @@ pub unsafe fn load_bitcode_and_set_stdlib_funcs(
     let mut error: *mut i8 = ptr::null_mut();
 
     let path =
-        CString::new("/Users/lyledean/compilers/art/crates/art-backend/src/compiler/codegen/stdlib/types.bc").unwrap();
+        CString::new("/Users/lyledean/compilers/art/crates/backend/src/compiler/codegen/stdlib/types.bc").unwrap();
     let fail = LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr(), &mut buffer, &mut error);
     if fail != 0 {
         return Err(anyhow!("error loading memory"));

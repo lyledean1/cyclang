@@ -1,8 +1,8 @@
 use clap::Parser;
-use art_backend::compiler;
-use art_backend::compiler::codegen::target::Target;
-use art_backend::compiler::CompileOptions;
-use art_parser::parse_cyclo_program;
+use backend::compiler;
+use backend::compiler::codegen::target::Target;
+use backend::compiler::CompileOptions;
+use parser::parse_cyclo_program;
 use std::fs;
 use std::process::exit;
 use text_colorizer::Colorize;
@@ -64,7 +64,6 @@ fn main() {
     }
     let contents = fs::read_to_string(args.file).expect("Failed to read file");
     compile_output_from_string(contents, !args.emit_llvm_ir, args.target);
-    return;
 }
 
 #[cfg(test)]

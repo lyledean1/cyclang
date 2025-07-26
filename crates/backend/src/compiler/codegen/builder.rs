@@ -15,7 +15,7 @@ use crate::compiler::types::{BaseTypes, TypeBase};
 use crate::compiler::visitor::Visitor;
 use crate::compiler::CompileOptions;
 use anyhow::{anyhow, Result};
-use art_parser::{Expression, Type};
+use parser::{Expression, Type};
 use libc::{c_uint};
 use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2, LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2, LLVMBuildGlobalString, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDeleteFunction, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule, LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2, LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext};
 use llvm_sys::execution_engine::{
@@ -35,7 +35,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::process::Command;
 use std::ptr;
-use art_parser::Expression::{BlockStmt, LetStmt, Number};
+use parser::Expression::{BlockStmt, LetStmt, Number};
 
 pub struct LLVMCodegenBuilder {
     pub builder: LLVMBuilderRef,

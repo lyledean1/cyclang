@@ -1,6 +1,6 @@
 extern crate llvm_sys;
 use crate::compiler::types::{BaseTypes, TypeBase};
-use art_parser::Type;
+use parser::Type;
 use llvm_sys::prelude::*;
 
 // FuncType -> Exposes the Call Func (i.e after function has been executed)

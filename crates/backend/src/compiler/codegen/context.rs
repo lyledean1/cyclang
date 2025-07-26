@@ -13,11 +13,11 @@ use crate::compiler::types::func::FuncType;
 use crate::compiler::types::num64::NumberType64;
 use crate::compiler::visitor::Visitor;
 use anyhow::{anyhow, Result};
-use art_parser::{Expression, Type};
+use parser::{Expression, Type};
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::LLVMType;
-use art_parser::Expression::Variable;
+use parser::Expression::Variable;
 use crate::compiler::types::list::ListType;
 
 pub struct LLVMFunctionCache {

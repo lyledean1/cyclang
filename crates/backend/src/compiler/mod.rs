@@ -4,7 +4,7 @@ use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
 use crate::compiler::types::TypeBase;
 use crate::compiler::visitor::Visitor;
 use anyhow::Result;
-use art_parser::Expression;
+use parser::Expression;
 
 extern crate llvm_sys;
 pub mod cache;

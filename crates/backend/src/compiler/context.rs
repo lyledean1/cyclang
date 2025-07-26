@@ -18,7 +18,7 @@ use crate::compiler::visitor::Visitor;
 use crate::compiler::Expression;
 use anyhow::anyhow;
 use anyhow::Result;
-use art_parser::Type;
+use parser::Type;
 use libc::c_ulonglong;
 use llvm_sys::core::{LLVMBuildCall2, LLVMConstStringInContext2, LLVMCountParamTypes};
 use std::ffi::CString;

@@ -1,6 +1,6 @@
 [package]
-name = "art"
-description = "ART is a toy language built in LLVM."
+name = "parser"
+description.workspace = true
 version.workspace = true
 edition.workspace = true
 readme.workspace = true
@@ -12,10 +12,5 @@ categories.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = {version = "4.1.8", features = ["derive"]}
-quote = "1.0.33"
-rustyline = "14.0.0"
-text-colorizer = "1.0.0"
-anyhow = "1.0.81"
-backend = { workspace = true}
-parser = { workspace = true}
+pest = "2.7.10"
+pest_derive = "2.7.10"

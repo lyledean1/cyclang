@@ -6,10 +6,10 @@ run:
 	./bin/main
 
 build-stdlib:
-	cd crates/art-backend/src/compiler/codegen/stdlib && clang -c -emit-llvm -O0 types.c -o types.bc
+	cd crates/backend/src/compiler/codegen/stdlib && clang -c -emit-llvm -O0 types.c -o types.bc
 
 build-stdlib-ir:
-	cd crates/art-backend/src/compiler/codegen/stdlib && clang -S -emit-llvm -O0 types.c -o types.ll
+	cd crates/backend/src/compiler/codegen/stdlib && clang -S -emit-llvm -O0 types.c -o types.ll
 
 #run clang on the llvm ir to generate a binary 
 build-ir:
@@ -25,7 +25,7 @@ test-local-release:
 	cargo test --release -- --test-threads=1
 
 test-local-parser:
-	cargo test -- art-parser
+	cargo test -- parser
 
 clean:
 	rm -rf ./bin/main*

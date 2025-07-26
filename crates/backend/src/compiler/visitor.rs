@@ -2,7 +2,7 @@ use crate::compiler::codegen::builder::LLVMCodegenBuilder;
 use crate::compiler::context::ASTContext;
 use crate::compiler::types::TypeBase;
 use anyhow::Result;
-use art_parser::Expression;
+use parser::Expression;
 
 pub trait Visitor<T> {
     fn visit_number(&mut self, expression: &Expression, codegen: &LLVMCodegenBuilder) -> Result<T>;
