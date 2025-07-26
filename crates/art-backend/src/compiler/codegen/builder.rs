@@ -89,16 +89,7 @@ impl LLVMCodegenBuilder {
                 );
             }
 
-            let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
-            let dummy_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
-            let dummy_func =
-                LLVMAddFunction(module, cstr_from_string("dummy").as_ptr(), dummy_func_type);
-            let dummy_func_block = LLVMAppendBasicBlockInContext(
-                context,
-                dummy_func,
-                cstr_from_string("entry").as_ptr(),
-            );
-            LLVMPositionBuilderAtEnd(builder, dummy_func_block);
+            let dummy_func = Self::build_dummy_function(context, builder, module);
 
             // Define common functions
 
@@ -128,20 +119,13 @@ impl LLVMCodegenBuilder {
                 module,
                 context,
                 llvm_func_cache,
-                current_function: LLVMFunction{
-                    function: dummy_func,
-                    func_type: dummy_func_type,
-                    block: dummy_func_block,
-                    entry_block: dummy_func_block,
-                    symbol_table: HashMap::new(),
-                    return_type: Type::None,
-                },
+                current_function: dummy_func.clone(),
                 printf_str_value,
                 printf_str_num_value,
                 printf_str_num64_value,
                 is_execution_engine,
             };
-            LLVMDeleteFunction(dummy_func);
+            LLVMDeleteFunction(dummy_func.function);
             codegen_builder.build_helper_funcs();
             Ok(codegen_builder)
         }
@@ -197,6 +181,34 @@ impl LLVMCodegenBuilder {
             return Ok(String::from_utf8_lossy(&output.stdout).to_string());
         }
         Ok("".to_string())
+    }
+
+    // create dummy function to add global variables that is deleted after init
+    pub fn build_dummy_function(
+        context: LLVMContextRef,
+        builder: LLVMBuilderRef,
+        module: LLVMModuleRef,
+    ) -> LLVMFunction {
+        unsafe {
+            let void_type: *mut llvm_sys::LLVMType = LLVMVoidTypeInContext(context);
+            let dummy_func_type = LLVMFunctionType(void_type, ptr::null_mut(), 0, 0);
+            let dummy_func =
+                LLVMAddFunction(module, cstr_from_string("dummy").as_ptr(), dummy_func_type);
+            let dummy_func_block = LLVMAppendBasicBlockInContext(
+                context,
+                dummy_func,
+                cstr_from_string("entry").as_ptr(),
+            );
+            LLVMPositionBuilderAtEnd(builder, dummy_func_block);
+            LLVMFunction {
+                function: dummy_func,
+                func_type: dummy_func_type,
+                block: dummy_func_block,
+                entry_block: dummy_func_block,
+                symbol_table: HashMap::new(),
+                return_type: Type::None,
+            }
+        }
     }
 
     /// build_load
