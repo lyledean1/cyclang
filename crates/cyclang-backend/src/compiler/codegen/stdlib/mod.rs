@@ -10,6 +10,17 @@ use llvm_sys::prelude::{LLVMContextRef, LLVMMemoryBufferRef, LLVMModuleRef};
 use std::ffi::CString;
 use std::ptr;
 
+use std::io::Write;
+use tempfile::NamedTempFile;
+
+const TYPES_BC: &[u8] = include_bytes!("./types.bc");
+
+fn get_types_bc_path() -> Result<NamedTempFile, std::io::Error> {
+    let mut temp_file = NamedTempFile::new()?;
+    temp_file.write_all(TYPES_BC)?;
+    Ok(temp_file)
+}
+
 /// # Safety
 ///
 /// Loads the bitcode file generated from string.c
@@ -22,11 +33,13 @@ pub unsafe fn load_bitcode_and_set_stdlib_funcs(
     let mut buffer: LLVMMemoryBufferRef = ptr::null_mut();
     let mut error: *mut i8 = ptr::null_mut();
 
-    let path =
-        CString::new("/Users/lyledean/compilers/cyclang/crates/cyclang-backend/src/compiler/codegen/stdlib/types.bc").unwrap();
+    let temp_file = get_types_bc_path()?;
+    let path = CString::new(temp_file.path().to_str().unwrap())?;
+    // let path =
+    //     CString::new("./crates/cyclang-backend/src/compiler/codegen/stdlib/types.bc").unwrap();
     let fail = LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr(), &mut buffer, &mut error);
     if fail != 0 {
-        return Err(anyhow!("error loading memory"));
+        return Err(anyhow!("error loading bitcode and set stdlib funcs, check file exists for types.bc"));
     }
 
     // Parse the bitcode file
