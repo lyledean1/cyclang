@@ -12,5 +12,5 @@ categories.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pest = "2.7.10"
-pest_derive = "2.7.10"
+pest = "2.8.2"
+pest_derive = "2.8.2"
