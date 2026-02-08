@@ -31,12 +31,12 @@ async function runWasm() {
     let start = performance.now();
     const resultWasm = wasmInstance.exports.fib(n);
     let end = performance.now();
-    console.log(`ART WASM fib(${n})             =`, resultWasm, `| Time: ${(end - start).toFixed(2)} ms`);
+    console.log(`Cyclang WASM fib(${n})             =`, resultWasm, `| Time: ${(end - start).toFixed(2)} ms`);
 
     start = performance.now();
     const resultOptWasm = wasmOptInstance.exports.fib(n);
     end = performance.now();
-    console.log(`ART WASM (Optimized) fib(${n}) =`, resultOptWasm, `| Time: ${(end - start).toFixed(2)} ms`);
+    console.log(`Cyclang WASM (Optimized) fib(${n}) =`, resultOptWasm, `| Time: ${(end - start).toFixed(2)} ms`);
 
     // Measure JavaScript execution time
     start = performance.now();

@@ -1,6 +1,6 @@
 [package]
-name = "backend"
-description.workspace = true
+name = "cyclang"
+description = "cyclang is a toy language built in LLVM."
 version.workspace = true
 edition.workspace = true
 readme.workspace = true
@@ -12,6 +12,11 @@ categories.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = {version = "4.1.8", features = ["derive"]}
+quote = "1.0.33"
+rustyline = "14.0.0"
+text-colorizer = "1.0.0"
 anyhow = "1.0.81"
+backend = { workspace = true}
 codegen = { path = "../codegen" }
-parser = { workspace = true }
+parser = { workspace = true}

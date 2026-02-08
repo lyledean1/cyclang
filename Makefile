@@ -16,7 +16,7 @@ build-ir:
 	clang ./bin/main.ll -o ./bin/main
 
 install-local: build-stdlib
-	cargo install -- --path=./crates/art
+	cargo install --path=./crates/cyclang
 
 test-local: 
 	cargo test -- --test-threads=1
@@ -48,13 +48,13 @@ build-book:
 	cd book && mdbook build
 
 build-ubuntu-docker:
-	cd .devcontainer/ubuntu-x86_64 && docker build -t art-base .
+	cd .devcontainer/ubuntu-x86_64 && docker build -t cyclang-base .
 
 set-x86-64-env:
 	echo 'source $$HOME/.cargo/env' >> $$HOME/.bashrc
 
 test-x86-64-docker: build-ubuntu-docker
-	docker run -it -v "${PWD}:/art" art-base make test-local
+	docker run -it -v "${PWD}:/cyclang" cyclang-base make test-local
 
 fib-wasm:
 	cargo run -- --file=./examples/wasm/fib.cyc --target=wasm --emit-llvm-ir
@@ -70,4 +70,4 @@ fib-wasm:
 	node ./examples/wasm/fib.js
 
 cargo-publish:
-	cargo publish -p art-macros && cargo publish -p art
+	cargo publish -p cyclang-macros && cargo publish -p cyclang

@@ -1,0 +1,9 @@
+fn main() {
+    if (true) {
+        if (false) {
+            print(5);
+        } else {
+            print(6);
+        }
+    }
+}

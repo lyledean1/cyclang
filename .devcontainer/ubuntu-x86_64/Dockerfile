@@ -39,7 +39,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Set the LLVM_SYS_17_FFI_WORKAROUND environment variable
 ENV LLVM_SYS_17_FFI_WORKAROUND=true
 
-# load art volume
-WORKDIR /art
+# load cyclang volume
+WORKDIR /cyclang
 
 CMD ["/bin/bash"]

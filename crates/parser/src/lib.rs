@@ -277,9 +277,10 @@ fn parse_expression(
 
             let mut func_type = Type::None;
             // Get function type or default to none
-            while inner_pairs.peek().is_some_and(|p| {
-                p.as_rule() == Rule::type_name || p.as_rule() == Rule::arrow
-            }) {
+            while inner_pairs
+                .peek()
+                .is_some_and(|p| p.as_rule() == Rule::type_name || p.as_rule() == Rule::arrow)
+            {
                 let next: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
                 if next.as_rule() == Rule::type_name {
                     func_type = get_type(next);

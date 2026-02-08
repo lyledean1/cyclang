@@ -1,15 +1,15 @@
 [workspace]
-members = ["crates/art", "crates/backend", "crates/parser", "crates/codegen"]
+members = ["crates/cyclang", "crates/backend", "crates/parser", "crates/codegen"]
 resolver = "2"
 
 [workspace.package]
-description = "Art is a language built in LLVM."
+description = "Cyclang is a language built in LLVM."
 version = "0.1.20"
 edition = "2021"
 readme = "./README.md"
-keywords = ["art", "llvm", "pest", "language", "wasm"]
+keywords = ["cyclang", "llvm", "pest", "language", "wasm"]
 license = "Apache-2.0/MIT"
-repository = "https://github.com/lyledean1/art"
+repository = "https://github.com/lyledean1/cyclang"
 categories = ["compilers"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,7 +18,7 @@ categories = ["compilers"]
 clap = {version = "4.1.8", features = ["derive"]}
 dyn-clone = "1.0.11"
 libc = "0.2.149"
-llvm-sys = "191.0.0"
+llvm-sys = "21.0.0"
 pest = "2.7.10"
 pest_derive = "2.7.10"
 quote = "1.0.33"

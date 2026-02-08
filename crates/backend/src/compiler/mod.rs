@@ -1,31 +1,37 @@
-use crate::compiler::codegen::builder::LLVMCodegenBuilder;
-use crate::compiler::codegen::target::Target;
-use crate::compiler::context::{ASTContext, LLVMCodegenVisitor};
-use crate::compiler::types::TypeBase;
-use crate::compiler::visitor::Visitor;
+mod semantic_analyzer;
+mod type_resolver;
+mod validation_rules;
+
+use crate::compiler::semantic_analyzer::SemanticAnalyzer;
+use crate::compiler::type_resolver::TypeResolver;
 use anyhow::Result;
+use codegen::builder::LLVMCodegenBuilder;
+use codegen::code_generator::CodeGenerator;
 use parser::Expression;
 
-extern crate llvm_sys;
-pub mod cache;
-pub mod codegen;
-pub mod context;
-pub mod types;
-pub mod visitor;
-#[derive(Debug, Clone, Copy)]
-pub struct CompileOptions {
-    pub is_execution_engine: bool,
-    pub target: Option<Target>,
-}
+pub use codegen::CompileOptions;
 
-pub fn compile(exprs: Vec<Expression>, compile_options: Option<CompileOptions>) -> Result<String> {
-    // output LLVM IR
-    let mut ast_ctx = ASTContext::init()?;
-    let mut visitor: Box<dyn Visitor<Box<dyn TypeBase>>> = Box::new(LLVMCodegenVisitor {});
-    let mut codegen = LLVMCodegenBuilder::init(compile_options)?;
-
+pub fn compile(exprs: Vec<Expression>, options: Option<CompileOptions>) -> Result<String> {
+    let mut type_resolver = TypeResolver::new();
+    let mut typed_exprs = Vec::new();
     for expr in exprs {
-        ast_ctx.match_ast(expr, &mut visitor, &mut codegen)?;
+        let (typed_expr, ty) = type_resolver.resolve_expression(&expr)?;
+        typed_exprs.push((typed_expr, ty));
     }
-    codegen.dispose_and_get_module_str()
+
+    let mut analyzer = SemanticAnalyzer::new();
+
+    analyzer.validate_program(&typed_exprs)?;
+    for (typed_expr, _) in &typed_exprs {
+        analyzer.analyze(typed_expr)?;
+    }
+
+    let mut codegen_builder = LLVMCodegenBuilder::init(options)?;
+    let mut generator = CodeGenerator::new(&mut codegen_builder);
+
+    for (typed_expr, _ty) in typed_exprs {
+        generator.generate_expression(&typed_expr)?;
+    }
+
+    codegen_builder.dispose_and_get_module_str()
 }

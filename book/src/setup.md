@@ -3,14 +3,14 @@
 
 *Note*: I've only tested this on MacOS.
 
-You will need LLVM 20 installed before you install ART, runn the following command
+You will need LLVM 20 installed before you install Cyclang, runn the following command
 ```
 brew install llvm@20
 ```
 
 Then the easiest way to install the binary currently is through the Rust package manager Cargo - see [Install Rust](https://www.rust-lang.org/tools/install). Once the step above is done, then run 
 ```
-cargo install art
+cargo install cyclang
 ```
 
 ## Test

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>name</key>
+	<string>Cyclang</string>
+	<key>uuid</key>
+	<string>8F9F5B7E-3D2A-4E1C-9B4F-2A8C6D5E7F9A</string>
+	<key>contactEmailRot13</key>
+	<string></string>
+	<key>description</key>
+	<string>Syntax highlighting for Cyclang programming language</string>
+</dict>
+</plist>

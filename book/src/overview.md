@@ -1,16 +1,16 @@
-# *Art* Language Overview
+# *Cyclang* Language Overview
 
-*ART* is a toy programming language that leverages the power of LLVM for efficient code execution. It is designed to transform your code into machine-ready instructions seamlessly. Here's a high level overview of how ART works:
+*Cyclang* is a toy programming language that leverages the power of LLVM for efficient code execution. It is designed to transform your code into machine-ready instructions seamlessly. Here's a high level overview of how Cyclang works:
 
-1. **Parsing the Grammar**:  *ART* uses the [pest parser](https://pest.rs/), an elegant parser written in Rust, to interpret and process *ART* code. You can delve into the intricacies of the ART parser in the [source code here](https://github.com/lyledean1/art/blob/main/src/parser.rs) and the [grammar file](https://github.com/lyledean1/art/blob/main/grammar/cyclo.pest).
+1. **Parsing the Grammar**:  *Cyclang* uses the [pest parser](https://pest.rs/), an elegant parser written in Rust, to interpret and process *Cyclang* code. You can delve into the intricacies of the Cyclang parser in the [source code here](https://github.com/lyledean1/cyclang/blob/main/src/parser.rs) and the [grammar file](https://github.com/lyledean1/cyclang/blob/main/grammar/cyclo.pest).
 
-2. **Translating to LLVM IR**: Once parsed, *ART* code gets converted to LLVM Intermediate Representation (IR) through the [llvm-sys crate](https://crates.io/crates/llvm-sys). LLVM IR is a low-level, type-rich representation suitable for efficient machine code generation.
+2. **Translating to LLVM IR**: Once parsed, *Cyclang* code gets converted to LLVM Intermediate Representation (IR) through the [llvm-sys crate](https://crates.io/crates/llvm-sys). LLVM IR is a low-level, type-rich representation suitable for efficient machine code generation.
 
-3. **Just-In-Time Compilation**: *ART* ensures quick and efficient execution of *ART* code by using the LLVM JIT (Just in Time) Execution engine. To see how this happens explore the [ART compiler source code here](https://github.com/lyledean1/art/blob/main/src/compiler/mod.rs).
+3. **Just-In-Time Compilation**: *Cyclang* ensures quick and efficient execution of *Cyclang* code by using the LLVM JIT (Just in Time) Execution engine. To see how this happens explore the [Cyclang compiler source code here](https://github.com/lyledean1/cyclang/blob/main/src/compiler/mod.rs).
 
 ```mermaid
 flowchart LR;
-    ARTLanguage-->PestParser;
+    CyclangLanguage-->PestParser;
     PestParser--> AST;
     AST-->|llvm-sys| LLVM-IR;
     LLVM-IR-->|LLVM-JIT-Engine| Output;
@@ -18,7 +18,7 @@ flowchart LR;
 ## Language Features
 ### Functional
 
-This functional example demonstrates how to write a recursive function in *ART* to compute the Fibonacci series.
+This functional example demonstrates how to write a recursive function in *Cyclang* to compute the Fibonacci series.
 
 ```rust
 fn fib(i32 n) -> i32 {

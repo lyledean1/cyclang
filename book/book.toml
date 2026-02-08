@@ -1,9 +1,8 @@
 [book]
 authors = ["Lyle Dean"]
 language = "en"
-multilingual = false
 src = "src"
-title = "art"
+title = "cyclang"
 
 [preprocessor]
 
