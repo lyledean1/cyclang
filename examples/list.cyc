@@ -1,0 +1,10 @@
+fn main() {
+    let listExample: List<i32> = [1,2,3,4,5];
+    let valueOne = listExample[3];
+    let valueTwo = listExample[4];
+    listExample[3] = valueTwo;
+    let listExampleTwo: List<string> = ["one", "two", "three", "four"];
+    print(listExample + listExample);
+    print("\n");
+    print(listExampleTwo + listExampleTwo);
+}

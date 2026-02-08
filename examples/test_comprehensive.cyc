@@ -1,0 +1,12 @@
+fn main() {
+    let x = 10;
+    let y = 20;
+    let sum = x + y;
+    let greeting = "Hello, compiler v2!";
+    let is_greater = y > x;
+
+    print(greeting);
+    print(sum);
+    print(is_greater);
+    print(x == 10);
+}

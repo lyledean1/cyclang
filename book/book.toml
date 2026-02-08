@@ -1,0 +1,15 @@
+[book]
+authors = ["Lyle Dean"]
+language = "en"
+src = "src"
+title = "cyclang"
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output]
+
+[output.html]
+additional-js = ["mermaid.min.js", "mermaid-init.js"]

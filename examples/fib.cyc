@@ -1,0 +1,10 @@
+fn factorial(i32 n) -> i32 {
+    if (n == 0) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+fn main() {
+    print(factorial(5));
+}
