@@ -1,6 +1,7 @@
 mod semantic_analyzer;
 mod type_resolver;
 mod validation_rules;
+mod desugar;
 
 use crate::compiler::semantic_analyzer::SemanticAnalyzer;
 use crate::compiler::type_resolver::TypeResolver;
@@ -12,6 +13,7 @@ use parser::Expression;
 pub use codegen::CompileOptions;
 
 pub fn compile(exprs: Vec<Expression>, options: Option<CompileOptions>) -> Result<String> {
+    let exprs = desugar::desugar_program(exprs);
     let mut type_resolver = TypeResolver::new();
     let mut typed_exprs = Vec::new();
     for expr in exprs {

@@ -334,35 +334,6 @@ impl TypeResolver {
                     ResolvedType::Void, // While loops don't return values
                 ))
             }
-            Expression::ForStmt(var_name, start, end, step, body) => {
-                // For loops declare a loop variable that's scoped to the loop
-                // We need to:
-                // 1. Create a new scope
-                // 2. Declare the loop variable
-                // 3. Resolve the body (which can reference the loop variable)
-                // 4. Exit the scope
-
-                self.incr_depth();
-
-                // Declare the loop variable with type i32
-                self.set_variable(var_name, ResolvedType::I32);
-
-                // Resolve body
-                let (typed_body, _body_type) = self.resolve_expression(body)?;
-
-                self.decr_depth();
-
-                Ok((
-                    TypedExpression::ForStmt {
-                        var_name: var_name.clone(),
-                        start: *start,
-                        end: *end,
-                        step: *step,
-                        body: Box::new(typed_body),
-                    },
-                    ResolvedType::Void, // For loops don't return values
-                ))
-            }
             Expression::Grouping(inner) => {
                 // Resolve the inner expression and wrap it in Grouping
                 let (typed_inner, inner_type) = self.resolve_expression(inner)?;

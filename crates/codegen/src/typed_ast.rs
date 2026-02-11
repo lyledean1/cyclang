@@ -54,13 +54,6 @@ pub enum TypedExpression {
         condition: Box<TypedExpression>,
         body: Box<TypedExpression>,
     },
-    ForStmt {
-        var_name: String,
-        start: i32,
-        end: i32,
-        step: i32,
-        body: Box<TypedExpression>,
-    },
     AssignStmt {
         name: String,
         value: Box<TypedExpression>,

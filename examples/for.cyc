@@ -4,10 +4,4 @@ fn main() {
         let value = i * 100;
         print(value);
     }
-
-    for (let i = 10; i > 0; i--)
-    {
-        let value = i * 100;
-        print(value);
-    }
 }
