@@ -24,22 +24,22 @@ This should output `6765`!
 
 ##  Installing and Running 
 
-You will need LLVM 19 installed before you install Cyclang, 
+You will need LLVM 21 installed before you install Cyclang, 
 
 For MacOS run the following command
 
 ```
-brew install llvm@20
+brew install llvm@21
 ```
 
 For Ubuntu install the following packages
 
 ```
-  llvm-20 
-  llvm-20-tools 
-  llvm-20-dev 
-  clang-20 
-  libpolly-20-dev
+  llvm-21 
+  llvm-21-tools 
+  llvm-21-dev 
+  clang-21 
+  libpolly-21-dev
 ```
 
 And run `make set-llvm-sys-ffi-workaround`
