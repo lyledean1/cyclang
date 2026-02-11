@@ -6,10 +6,10 @@ run:
 	./bin/main
 
 build-stdlib:
-	cd crates/backend/src/compiler/codegen/stdlib && clang -c -emit-llvm -O0 types.c -o types.bc
+	cd crates/codegen/src/stdlib && clang -c -emit-llvm -O0 types.c -o types.bc
 
 build-stdlib-ir:
-	cd crates/backend/src/compiler/codegen/stdlib && clang -S -emit-llvm -O0 types.c -o types.ll
+	cd crates/codegen/src/stdlib && clang -S -emit-llvm -O0 types.c -o types.ll
 
 #run clang on the llvm ir to generate a binary 
 build-ir:

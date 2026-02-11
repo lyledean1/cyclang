@@ -79,16 +79,6 @@ impl SemanticAnalyzer {
                 self.analyze(body)?;
                 Ok(())
             }
-            TypedExpression::ForStmt {
-                var_name: _,
-                start: _,
-                end: _,
-                step: _,
-                body,
-            } => {
-                self.analyze(body)?;
-                Ok(())
-            }
             TypedExpression::AssignStmt { name: _, value } => {
                 self.analyze(value)?;
                 Ok(())
