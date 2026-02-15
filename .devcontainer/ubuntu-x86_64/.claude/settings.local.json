@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker build:*)",
+      "Read(//Users/lyledean/.docker/**)",
+      "Bash(docker run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

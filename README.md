@@ -22,7 +22,17 @@ cyclang --file ./examples/fib.cyc
 
 This should output `6765`! 
 
-##  Installing and Running 
+## Installing and Running
+
+### Quick Install (No LLVM Required)
+
+Download and install the latest prebuilt binary:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lyledean1/cyclang/main/install.sh | bash
+```
+
+### From Source (LLVM Required)
 
 You will need LLVM 21 installed before you install Cyclang, 
 
