@@ -11,7 +11,7 @@ use llvm_sys::prelude::{LLVMBuilderRef, LLVMValueRef};
 pub struct BoolType {
     pub builder: LLVMBuilderRef,
     pub llvm_value: LLVMValueRef,
-    pub llvm_value_pointer: LLVMValueRef,
+    pub llvm_value_pointer: Option<LLVMValueRef>,
     pub name: String,
 }
 
@@ -31,7 +31,7 @@ impl TypeBase for BoolType {
         self.llvm_value
     }
     fn get_ptr(&self) -> Option<LLVMValueRef> {
-        Some(self.llvm_value_pointer)
+        self.llvm_value_pointer
     }
     fn print(&self, codegen: &mut LLVMCodegenBuilder) -> Result<()> {
         let bool_func_args = get_value_for_print_argument(codegen, "", self.clone());

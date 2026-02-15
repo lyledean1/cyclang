@@ -23,7 +23,7 @@ use llvm_sys::core::{
     LLVMGetGlobalContext,
     LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2,
     LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd,
-    LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMPrintValueToString,
+    LLVMPrintModuleToFile, LLVMPrintModuleToString,
     LLVMSetDataLayout, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext, LLVMDisposeMessage,
 };
 use llvm_sys::error::{LLVMDisposeErrorMessage, LLVMGetErrorMessage, LLVMErrorRef};
@@ -704,15 +704,20 @@ impl LLVMCodegenBuilder {
         op: LLVMIntPredicate,
     ) -> Result<Box<dyn TypeBase>> {
         unsafe {
-            match (lhs.get_ptr(), lhs.get_type()) {
-                (Some(lhs_ptr), BaseTypes::Number) => {
-                    let mut lhs_val =
-                        self.build_load(lhs_ptr, lhs.get_llvm_type(), lhs.get_name_as_str());
-                    let mut rhs_val = self.build_load(
-                        rhs.get_ptr().unwrap(),
-                        rhs.get_llvm_type(),
-                        rhs.get_name_as_str(),
-                    );
+            match lhs.get_type() {
+                BaseTypes::Number | BaseTypes::Bool => {
+                    let mut lhs_val = match lhs.get_ptr() {
+                        Some(lhs_ptr) => {
+                            self.build_load(lhs_ptr, lhs.get_llvm_type(), lhs.get_name_as_str())
+                        }
+                        None => lhs.get_value(),
+                    };
+                    let mut rhs_val = match rhs.get_ptr() {
+                        Some(rhs_ptr) => {
+                            self.build_load(rhs_ptr, rhs.get_llvm_type(), rhs.get_name_as_str())
+                        }
+                        None => rhs.get_value(),
+                    };
                     lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
                     rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
                     let cmp = LLVMBuildICmp(
@@ -727,28 +732,15 @@ impl LLVMCodegenBuilder {
                         name: lhs.get_name_as_str().to_string(),
                         builder: self.builder,
                         llvm_value: cmp,
-                        llvm_value_pointer: alloca,
+                        llvm_value_pointer: Some(alloca),
                     }))
                 }
                 _ => {
-                    let mut lhs_val = lhs.get_value();
-                    let mut rhs_val = rhs.get_value();
-                    lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
-                    rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
-                    let cmp = LLVMBuildICmp(
-                        self.builder,
-                        op,
-                        lhs_val,
-                        rhs_val,
-                        cstr_from_string("result").as_ptr(),
-                    );
-                    let alloca = self.build_alloca_store(cmp, int1_type(), "bool_cmp");
-                    Ok(Box::new(BoolType {
-                        name: lhs.get_name_as_str().to_string(),
-                        builder: self.builder,
-                        llvm_value: cmp,
-                        llvm_value_pointer: alloca,
-                    }))
+                    unreachable!(
+                        "Can't do operation type {:?} and type {:?}",
+                        lhs.get_type(),
+                        rhs.get_type()
+                    )
                 }
             }
         }
@@ -866,14 +858,9 @@ impl LLVMCodegenBuilder {
                     lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
                     rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
                     let result = self.llvm_build_fn(lhs_val, rhs_val, op.to_string());
-                    let alloca = self.build_alloca_store(
-                        result,
-                        int32_ptr_type(), //todo fix
-                        "lhs",
-                    );
                     Ok(GeneratedValue {
                         value: result,
-                        pointer: Some(alloca),
+                        pointer: None,
                         ty: ResolvedType::I32,
                     })
                 }
@@ -883,14 +870,9 @@ impl LLVMCodegenBuilder {
                     lhs_val = self.cast_i32_to_i64(lhs_val, rhs_val);
                     rhs_val = self.cast_i32_to_i64(rhs_val, lhs_val);
                     let result = self.llvm_build_fn(lhs_val, rhs_val, op.to_string());
-                    let alloca = self.build_alloca_store(
-                        result,
-                        int32_ptr_type(), //todo fix
-                        "rhs",
-                    );
                     Ok(GeneratedValue {
                         value: result,
-                        pointer: Some(alloca),
+                        pointer: None,
                         ty: ResolvedType::I32,
                     })
                 }
@@ -924,7 +906,7 @@ impl LLVMCodegenBuilder {
                     name: "bool_type".to_string(),
                     builder: self.builder,
                     llvm_value: bool_value,
-                    llvm_value_pointer: alloca,
+                    llvm_value_pointer: Some(alloca),
                 }));
             }
             BaseTypes::Number | BaseTypes::Bool => {}

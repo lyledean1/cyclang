@@ -129,13 +129,10 @@ impl<'a> CodeGenerator<'a> {
         let llvm_value = self
             .builder
             .const_int(int32_type(), value as c_ulonglong, 0);
-        let ptr = self
-            .builder
-            .build_alloca_store(llvm_value, int32_type(), "num32");
 
         Ok(GeneratedValue {
             value: llvm_value,
-            pointer: Some(ptr),
+            pointer: None,
             ty: ResolvedType::I32,
         })
     }
@@ -144,13 +141,10 @@ impl<'a> CodeGenerator<'a> {
         let llvm_value = self
             .builder
             .const_int(int64_type(), value as c_ulonglong, 0);
-        let ptr = self
-            .builder
-            .build_alloca_store(llvm_value, int64_type(), "num64");
 
         Ok(GeneratedValue {
             value: llvm_value,
-            pointer: Some(ptr),
+            pointer: None,
             ty: ResolvedType::I64,
         })
     }
@@ -195,13 +189,10 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_bool(&mut self, value: bool) -> Result<GeneratedValue> {
         let bool_value = self.builder.const_int(int1_type(), value as c_ulonglong, 0);
-        let alloca = self
-            .builder
-            .build_alloca_store(bool_value, int1_type(), "bool_value");
 
         Ok(GeneratedValue {
             value: bool_value,
-            pointer: Some(alloca),
+            pointer: None,
             ty: ResolvedType::Bool,
         })
     }
@@ -235,7 +226,7 @@ impl<'a> CodeGenerator<'a> {
                         name: "lhs".to_string(),
                         builder: self.builder.builder,
                         llvm_value: lhs.value,
-                        llvm_value_pointer: lhs.pointer.unwrap_or(lhs.value),
+                        llvm_value_pointer: lhs.pointer,
                     }),
                     ResolvedType::String => Box::new(StringType {
                         name: "lhs".to_string(),
@@ -255,7 +246,7 @@ impl<'a> CodeGenerator<'a> {
                         name: "rhs".to_string(),
                         builder: self.builder.builder,
                         llvm_value: rhs.value,
-                        llvm_value_pointer: rhs.pointer.unwrap_or(rhs.value),
+                        llvm_value_pointer: rhs.pointer,
                     }),
                     ResolvedType::String => Box::new(StringType {
                         name: "rhs".to_string(),
@@ -623,12 +614,21 @@ impl<'a> CodeGenerator<'a> {
         // Generate the value expression
         let generated_value = self.generate_expression(value)?;
 
+        let ptr = match generated_value.pointer {
+            Some(ptr) => ptr,
+            None => {
+                let llvm_ty = self.resolved_type_to_llvm(&generated_value.ty);
+                self.builder
+                    .build_alloca_store(generated_value.value, llvm_ty, name)
+            }
+        };
+
         // Store in symbol table
         self.set_variable(
             name,
             GeneratedValue {
                 value: generated_value.value,
-                pointer: generated_value.pointer,
+                pointer: Some(ptr),
                 ty: generated_value.ty.clone(),
             },
         );
@@ -657,7 +657,8 @@ impl<'a> CodeGenerator<'a> {
         // Generate then branch
         self.builder.set_current_block(then_block);
         self.generate_expression(then_branch)?;
-        if !self.builder.block_has_terminator(then_block) {
+        let then_end_block = self.builder.current_function.block;
+        if !self.builder.block_has_terminator(then_end_block) {
             self.builder.build_br(merge_block);
         }
 
@@ -667,7 +668,8 @@ impl<'a> CodeGenerator<'a> {
         if let Some(else_expr) = else_branch {
             self.generate_expression(else_expr)?;
         }
-        if !self.builder.block_has_terminator(else_block) {
+        let else_end_block = self.builder.current_function.block;
+        if !self.builder.block_has_terminator(else_end_block) {
             self.builder.build_br(merge_block);
         }
 
