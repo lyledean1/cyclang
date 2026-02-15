@@ -24,3 +24,4 @@ build
 main
 main.ll
 *.ll
+.claude
