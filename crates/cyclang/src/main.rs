@@ -15,7 +15,7 @@ struct Args {
     version: bool,
     #[arg(short, long)]
     repl: bool,
-    file: String,
+    file: Option<String>,
     #[arg(short, long)]
     target: Option<String>,
     #[arg(short, long)]
@@ -61,7 +61,14 @@ fn main() {
         repl::run();
         return;
     }
-    let contents = fs::read_to_string(args.file).expect("Failed to read file");
+    let file = match args.file {
+        Some(file) => file,
+        None => {
+            eprintln!("No input file provided. Use --repl or pass a file path.");
+            exit(2);
+        }
+    };
+    let contents = fs::read_to_string(file).expect("Failed to read file");
     let output =
         compile_output_from_string(contents, !args.emit_llvm_ir, args.target);
 
