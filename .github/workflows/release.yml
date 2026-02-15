@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-amd64:
+    name: Build Linux (amd64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build in Docker (LLVM 21)
+        run: |
+          docker run --rm -v "${PWD}:/cyclang" -w /cyclang docker.io/lyledean1/cyclang-ubuntu-x86_64 bash -lc '
+            export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
+            export LLVM_SYS_21_FFI_WORKAROUND=true
+            cargo build --release -p cyclang
+            mkdir -p dist/bin dist/lib
+            cp target/release/cyclang dist/bin/cyclang.real
+            ldd dist/bin/cyclang.real | awk "{print \$3}" | grep "/usr/lib/llvm-21" | xargs -I{} cp -a {} dist/lib/
+            tar czf cyclang-linux-amd64.tar.gz -C dist .
+          '
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyclang-linux-amd64
+          path: cyclang-linux-amd64.tar.gz
+
+      - name: Create Release (Linux)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: cyclang-linux-amd64.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build macOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            asset_name: cyclang-macos-amd64
+          - os: macos-14
+            asset_name: cyclang-macos-arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install LLVM 21
+        run: |
+          brew update
+          brew install llvm@21
+
+      - name: Build binary
+        run: |
+          LLVM_PREFIX="$(brew --prefix llvm@21)"
+          export LLVM_SYS_211_PREFIX="$LLVM_PREFIX"
+          export LLVM_SYS_21_FFI_WORKAROUND=true
+          export PATH="$LLVM_PREFIX/bin:$PATH"
+          cargo build --release -p cyclang
+          mkdir -p dist/bin dist/lib
+          cp target/release/cyclang dist/bin/cyclang.real
+          otool -L dist/bin/cyclang.real | awk "{print \$1}" | grep "$LLVM_PREFIX" | xargs -I{} cp -a {} dist/lib/
+          for f in dist/lib/*.dylib; do
+            install_name_tool -id "@rpath/$(basename "$f")" "$f"
+          done
+          for lib in $(otool -L dist/bin/cyclang.real | awk "{print \$1}" | grep "$LLVM_PREFIX"); do
+            base="$(basename "$lib")"
+            install_name_tool -change "$lib" "@rpath/$base" dist/bin/cyclang.real
+          done
+          install_name_tool -add_rpath "@loader_path/../lib" dist/bin/cyclang.real
+          tar czf ${{ matrix.asset_name }}.tar.gz -C dist .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}.tar.gz
+
+      - name: Create Release (macOS)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ matrix.asset_name }}.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
