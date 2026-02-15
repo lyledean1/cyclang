@@ -171,6 +171,21 @@ pub fn run() {
                         println!("{}", e.to_string().red());
                     }
                 },
+                cmd if cmd.starts_with(":asm") => match wrap_asm(cmd) {
+                    Ok(source) => match parse_and_asm(source, &mut persisted) {
+                        Ok(output) => {
+                            if !output.is_empty() {
+                                print!("{}", highlight_asm(&output));
+                            }
+                        }
+                        Err(e) => {
+                            println!("{}", e.to_string().red());
+                        }
+                    },
+                    Err(e) => {
+                        println!("{}", e.to_string().red());
+                    }
+                },
                 _ => match parse_and_compile(cleaned.to_string(), &mut persisted) {
                     Ok(output) => {
                         if !output.is_empty() {
@@ -228,7 +243,17 @@ fn wrap_opt(cmd: &str) -> Result<String> {
     if expr.is_empty() {
         return Err(anyhow!("Usage: :opt <statement>"));
     }
-    Ok(expr.to_string())
+    let expr = expr.trim_end_matches(';').trim_end();
+    Ok(format!("{expr};"))
+}
+
+fn wrap_asm(cmd: &str) -> Result<String> {
+    let expr = cmd.trim_start_matches(":asm").trim();
+    if expr.is_empty() {
+        return Err(anyhow!("Usage: :asm <statement>"));
+    }
+    let expr = expr.trim_end_matches(';').trim_end();
+    Ok(format!("{expr};"))
 }
 
 fn highlight_line(line: &str) -> String {
@@ -503,6 +528,26 @@ fn parse_and_opt_ir(input: String, persisted: &mut Vec<String>) -> Result<String
     run_opt_on_ir(&module_ir)
 }
 
+fn parse_and_asm(input: String, persisted: &mut Vec<String>) -> Result<String> {
+    let joined = if persisted.is_empty() {
+        String::new()
+    } else {
+        persisted.join("\n") + "\n"
+    };
+
+    let final_string = format!("fn main() {{ {joined}{input} }}");
+    let exprs = parse_cyclo_program(&final_string)?;
+    let compile_options = Some(CompileOptions {
+        is_execution_engine: false,
+        emit_llvm_ir: true,
+        emit_llvm_ir_main_only: false,
+        emit_llvm_ir_with_called: false,
+        target: None,
+    });
+    let module_ir = compiler::compile(exprs, compile_options)?;
+    run_llc_on_ir(&module_ir)
+}
+
 fn run_opt_on_ir(ir: &str) -> Result<String> {
     let mut child = Command::new("opt")
         .arg("-O2")
@@ -526,6 +571,151 @@ fn run_opt_on_ir(ir: &str) -> Result<String> {
     }
     let optimized = String::from_utf8_lossy(&output.stdout).to_string();
     Ok(extract_main_ir(&optimized).unwrap_or(optimized))
+}
+
+fn run_llc_on_ir(ir: &str) -> Result<String> {
+    let mut child = Command::new("llc")
+        .arg("-O2")
+        .arg("-filetype=asm")
+        .arg("-o")
+        .arg("-")
+        .arg("-")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| anyhow!("Failed to run llc: {e}"))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(ir.as_bytes())?;
+    }
+
+    let output = child.wait_with_output()?;
+    if !output.status.success() {
+        return Err(anyhow!(
+            "llc failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    let asm = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(extract_main_asm(&asm).unwrap_or(asm))
+}
+
+fn extract_main_asm(asm: &str) -> Option<String> {
+    let mut lines = asm.lines().peekable();
+    let mut buf = String::new();
+    let mut in_fn = false;
+    while let Some(line) = lines.next() {
+        let trimmed = line.trim_start();
+        if !in_fn {
+            if trimmed.starts_with("_main:") || trimmed.starts_with("main:") {
+                in_fn = true;
+                buf.push_str(line);
+                buf.push('\n');
+                continue;
+            }
+        } else {
+            if trimmed.starts_with(".globl") || trimmed.starts_with(".section") {
+                break;
+            }
+            buf.push_str(line);
+            buf.push('\n');
+        }
+    }
+    if buf.is_empty() { None } else { Some(buf) }
+}
+
+fn highlight_asm(input: &str) -> String {
+    const RESET: &str = "\x1b[0m";
+    const MN: &str = "\x1b[38;5;81m";
+    const REG: &str = "\x1b[38;5;75m";
+    const NUM: &str = "\x1b[38;5;221m";
+    const COM: &str = "\x1b[38;5;242m";
+    const LABEL: &str = "\x1b[38;5;208m";
+
+    let mut out = String::with_capacity(input.len() + 32);
+    for line in input.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('#') {
+            out.push_str(COM);
+            out.push_str(line);
+            out.push_str(RESET);
+            out.push('\n');
+            continue;
+        }
+        if trimmed.ends_with(':') {
+            out.push_str(LABEL);
+            out.push_str(line);
+            out.push_str(RESET);
+            out.push('\n');
+            continue;
+        }
+
+        let mut i = 0;
+        let bytes = line.as_bytes();
+        while i < bytes.len() {
+            let c = bytes[i] as char;
+            if c == '#' {
+                out.push_str(COM);
+                out.push_str(&line[i..]);
+                out.push_str(RESET);
+                i = bytes.len();
+                continue;
+            }
+            if c == '%' {
+                let start = i;
+                i += 1;
+                while i < bytes.len() {
+                    let ch = bytes[i] as char;
+                    if ch.is_ascii_alphanumeric() || ch == '_' {
+                        i += 1;
+                    } else {
+                        break;
+                    }
+                }
+                out.push_str(REG);
+                out.push_str(&line[start..i]);
+                out.push_str(RESET);
+                continue;
+            }
+            if c.is_ascii_digit() || (c == '-' && i + 1 < bytes.len() && (bytes[i + 1] as char).is_ascii_digit()) {
+                let start = i;
+                i += 1;
+                while i < bytes.len() && (bytes[i] as char).is_ascii_digit() {
+                    i += 1;
+                }
+                out.push_str(NUM);
+                out.push_str(&line[start..i]);
+                out.push_str(RESET);
+                continue;
+            }
+            if c.is_ascii_alphabetic() || c == '_' || c == '.' {
+                let start = i;
+                i += 1;
+                while i < bytes.len() {
+                    let ch = bytes[i] as char;
+                    if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+                        i += 1;
+                    } else {
+                        break;
+                    }
+                }
+                let token = &line[start..i];
+                // Color the mnemonic if it's the first token after indentation
+                if line[..start].trim().is_empty() {
+                    out.push_str(MN);
+                    out.push_str(token);
+                    out.push_str(RESET);
+                } else {
+                    out.push_str(token);
+                }
+                continue;
+            }
+            out.push(c);
+            i += 1;
+        }
+        out.push('\n');
+    }
+    out
 }
 
 fn extract_main_ir(module_ir: &str) -> Option<String> {
