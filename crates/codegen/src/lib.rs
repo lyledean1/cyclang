@@ -18,6 +18,9 @@ pub mod types;
 pub struct CompileOptions {
     pub is_execution_engine: bool,
     pub target: Option<target::Target>,
+    pub emit_llvm_ir: bool,
+    pub emit_llvm_ir_main_only: bool,
+    pub emit_llvm_ir_with_called: bool,
 }
 
 pub fn cstr_from_string(name: &str) -> CString {

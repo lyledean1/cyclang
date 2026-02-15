@@ -12,16 +12,19 @@ use crate::types::{BaseTypes, TypeBase};
 use crate::CompileOptions;
 use anyhow::{anyhow, Result};
 use libc::c_uint;
+use llvm_sys::analysis::{LLVMVerifierFailureAction, LLVMVerifyModule};
 use llvm_sys::core::{
     LLVMAddFunction, LLVMAppendBasicBlock, LLVMAppendBasicBlockInContext, LLVMArrayType2,
     LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr, LLVMBuildGEP2,
     LLVMBuildGlobalString, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet,
     LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2,
-    LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
-    LLVMDeleteFunction, LLVMDisposeBuilder, LLVMDisposeModule,
+    LLVMConstInt, LLVMCreateBuilderInContext,
+    LLVMDeleteFunction, LLVMDisposeBuilder, LLVMDisposeModule, LLVMGetBasicBlockTerminator,
+    LLVMGetGlobalContext,
     LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2,
     LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd,
-    LLVMPrintModuleToFile, LLVMSetDataLayout, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext,
+    LLVMPrintModuleToFile, LLVMPrintModuleToString, LLVMPrintValueToString,
+    LLVMSetDataLayout, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext, LLVMDisposeMessage,
 };
 use llvm_sys::error::{LLVMDisposeErrorMessage, LLVMGetErrorMessage, LLVMErrorRef};
 use llvm_sys::orc2::lljit::{
@@ -59,6 +62,9 @@ pub struct LLVMCodegenBuilder {
     pub printf_str_num_value: LLVMValueRef,
     pub printf_str_num64_value: LLVMValueRef,
     is_execution_engine: bool,
+    emit_llvm_ir: bool,
+    emit_llvm_ir_main_only: bool,
+    emit_llvm_ir_with_called: bool,
 }
 
 macro_rules! llvm_build_fn {
@@ -74,9 +80,15 @@ impl LLVMCodegenBuilder {
             let mut is_execution_engine = false;
             let mut is_default_target: bool = true;
 
+            let mut emit_llvm_ir = false;
+            let mut emit_llvm_ir_main_only = true;
+            let mut emit_llvm_ir_with_called = false;
             if let Some(compile_options) = compile_options {
                 is_execution_engine = compile_options.is_execution_engine;
                 is_default_target = compile_options.target.is_none();
+                emit_llvm_ir = compile_options.emit_llvm_ir;
+                emit_llvm_ir_main_only = compile_options.emit_llvm_ir_main_only;
+                emit_llvm_ir_with_called = compile_options.emit_llvm_ir_with_called;
             }
 
             if is_default_target {
@@ -87,7 +99,7 @@ impl LLVMCodegenBuilder {
                 compile_options.unwrap().target.unwrap().initialize();
             }
 
-            let context = LLVMContextCreate();
+            let context = LLVMGetGlobalContext();
             let module = LLVMModuleCreateWithName(cstr_from_string("main").as_ptr());
             let builder = LLVMCreateBuilderInContext(context);
             if !is_default_target {
@@ -132,6 +144,9 @@ impl LLVMCodegenBuilder {
                 printf_str_num_value,
                 printf_str_num64_value,
                 is_execution_engine,
+                emit_llvm_ir,
+                emit_llvm_ir_main_only,
+                emit_llvm_ir_with_called,
             };
             LLVMDeleteFunction(dummy_func.function);
             codegen_builder.build_helper_funcs();
@@ -142,7 +157,64 @@ impl LLVMCodegenBuilder {
     pub fn dispose_and_get_module_str(&self) -> Result<String> {
         unsafe {
             if self.is_execution_engine {
+                // Verify module before JIT to surface invalid IR instead of crashing.
+                let mut error: *mut i8 = ptr::null_mut();
+                let has_error = LLVMVerifyModule(
+                    self.module,
+                    LLVMVerifierFailureAction::LLVMReturnStatusAction,
+                    &mut error,
+                );
+                if has_error != 0 {
+                    let msg = if error.is_null() {
+                        "Unknown verification error".to_string()
+                    } else {
+                        let cstr = std::ffi::CStr::from_ptr(error);
+                        let msg = cstr.to_string_lossy().to_string();
+                        LLVMDisposeMessage(error);
+                        msg
+                    };
+                    let ir = LLVMPrintModuleToString(self.module);
+                    let ir_str = if ir.is_null() {
+                        "<unable to print module>".to_string()
+                    } else {
+                        let cstr = std::ffi::CStr::from_ptr(ir);
+                        let s = cstr.to_string_lossy().to_string();
+                        LLVMDisposeMessage(ir);
+                        s
+                    };
+                    return Err(anyhow!("LLVM module verification failed:\n{msg}\n{ir_str}"));
+                }
                 self.run_orc_jit_main()?;
+            }
+
+            if self.emit_llvm_ir {
+                let module_ir = {
+                    let ir = LLVMPrintModuleToString(self.module);
+                    if ir.is_null() {
+                        "<unable to print module>".to_string()
+                    } else {
+                        let cstr = std::ffi::CStr::from_ptr(ir);
+                        let s = cstr.to_string_lossy().to_string();
+                        LLVMDisposeMessage(ir);
+                        s
+                    }
+                };
+
+                let ir_str = if self.emit_llvm_ir_main_only {
+                    if self.emit_llvm_ir_with_called {
+                        extract_main_with_called_from_ir(&module_ir).unwrap_or(module_ir)
+                    } else {
+                        extract_main_only_from_ir(&module_ir).unwrap_or(module_ir)
+                    }
+                } else {
+                    module_ir
+                };
+                LLVMDisposeBuilder(self.builder);
+                if !self.is_execution_engine {
+                    LLVMDisposeModule(self.module);
+                }
+                // Global context is managed by LLVM; don't dispose it.
+                return Ok(ir_str);
             }
 
             if !self.is_execution_engine {
@@ -157,7 +229,7 @@ impl LLVMCodegenBuilder {
             if !self.is_execution_engine {
                 LLVMDisposeModule(self.module);
             }
-            LLVMContextDispose(self.context);
+            // Global context is managed by LLVM; don't dispose it.
             self.emit_binary()
         }
     }
@@ -475,6 +547,10 @@ impl LLVMCodegenBuilder {
 
     pub fn build_br(&self, block: LLVMBasicBlockRef) -> LLVMValueRef {
         unsafe { LLVMBuildBr(self.builder, block) }
+    }
+
+    pub fn block_has_terminator(&self, block: LLVMBasicBlockRef) -> bool {
+        unsafe { !LLVMGetBasicBlockTerminator(block).is_null() }
     }
 
     pub fn build_cond_br(
@@ -889,4 +965,120 @@ impl LLVMCodegenBuilder {
     pub fn get_list_string_ptr_type(&self) -> LLVMTypeRef {
         unsafe { LLVMPointerType(self.get_string_ptr_type(), 0) }
     }
+}
+
+fn extract_main_only_from_ir(module_ir: &str) -> Option<String> {
+    let mut lines = module_ir.lines();
+    let mut buf = String::new();
+    let mut in_main = false;
+    let mut brace_depth = 0i32;
+
+    while let Some(line) = lines.next() {
+        if !in_main {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("define ") && trimmed.contains("@main") {
+                in_main = true;
+                buf.push_str(line);
+                buf.push('\n');
+                brace_depth += line.matches('{').count() as i32;
+                brace_depth -= line.matches('}').count() as i32;
+                if brace_depth <= 0 && line.contains('}') {
+                    return Some(buf);
+                }
+                continue;
+            }
+        } else {
+            buf.push_str(line);
+            buf.push('\n');
+            brace_depth += line.matches('{').count() as i32;
+            brace_depth -= line.matches('}').count() as i32;
+            if brace_depth <= 0 {
+                return Some(buf);
+            }
+        }
+    }
+    None
+}
+
+fn extract_main_with_called_from_ir(module_ir: &str) -> Option<String> {
+    let main_ir = extract_main_only_from_ir(module_ir)?;
+    let mut out = String::new();
+    out.push_str(&main_ir);
+    let calls = collect_called_functions(&main_ir);
+    for name in calls {
+        if let Some(def) = extract_function_def(module_ir, &name) {
+            out.push('\n');
+            out.push_str(&def);
+        }
+    }
+    Some(out)
+}
+
+fn collect_called_functions(ir: &str) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    for line in ir.lines() {
+        if !line.contains("call") {
+            continue;
+        }
+        let mut i = 0;
+        let bytes = line.as_bytes();
+        while i < bytes.len() {
+            if bytes[i] as char == '@' {
+                let start = i + 1;
+                let mut end = start;
+                while end < bytes.len() {
+                    let ch = bytes[end] as char;
+                    if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+                        end += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if end > start {
+                    let name = &line[start..end];
+                    if !name.starts_with("llvm.") && name != "printf" {
+                        names.insert(name.to_string());
+                    }
+                }
+                i = end;
+            } else {
+                i += 1;
+            }
+        }
+    }
+    names
+}
+
+fn extract_function_def(module_ir: &str, name: &str) -> Option<String> {
+    let needle = format!("@{name}");
+    let mut lines = module_ir.lines();
+    let mut buf = String::new();
+    let mut in_fn = false;
+    let mut brace_depth = 0i32;
+
+    while let Some(line) = lines.next() {
+        if !in_fn {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("define ") && trimmed.contains(&needle) {
+                in_fn = true;
+                buf.push_str(line);
+                buf.push('\n');
+                brace_depth += line.matches('{').count() as i32;
+                brace_depth -= line.matches('}').count() as i32;
+                if brace_depth <= 0 && line.contains('}') {
+                    return Some(buf);
+                }
+                continue;
+            }
+        } else {
+            buf.push_str(line);
+            buf.push('\n');
+            brace_depth += line.matches('{').count() as i32;
+            brace_depth -= line.matches('}').count() as i32;
+            if brace_depth <= 0 {
+                return Some(buf);
+            }
+        }
+    }
+    None
 }

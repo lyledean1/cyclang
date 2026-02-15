@@ -1,0 +1,6 @@
+  let i = 0;
+  while (i < 10) {
+      let value = i * 100;
+      print(value);
+      i = i + 1;
+  }

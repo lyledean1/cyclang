@@ -12,7 +12,10 @@ use rustyline::history::DefaultHistory;
 use rustyline::Editor;
 use rustyline::{Cmd, EventHandler, KeyCode, KeyEvent, Modifiers};
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fs;
+use std::io::Write;
+use std::process::Command;
 use text_colorizer::*;
 
 struct CyclangHelper;
@@ -84,6 +87,7 @@ pub fn run() {
     println!("{} {}", "cyclang".italic(), version.italic());
     let mut rl = Editor::<CyclangHelper, DefaultHistory>::new().unwrap();
     rl.set_helper(Some(CyclangHelper::new()));
+    let mut persisted: Vec<String> = Vec::new();
     rl.bind_sequence(
         KeyEvent(KeyCode::Down, Modifiers::SHIFT),
         EventHandler::Simple(Cmd::Newline),
@@ -92,13 +96,23 @@ pub fn run() {
     loop {
         let line = rl.readline(">> ");
         match line {
-            Ok(input) => match input.trim() {
+            Ok(input) => {
+                let cleaned = if input.starts_with(">>\n") {
+                    input.trim_start_matches(">>\n").to_string()
+                } else if input.starts_with(">> ") {
+                    input.trim_start_matches(">> ").to_string()
+                } else {
+                    input
+                };
+                match cleaned.trim() {
                 "exit()" => break,
                 "" => continue,
                 cmd if cmd.starts_with(":load ") => match load_file(cmd) {
                     Ok(source) => {
-                        let _ = rl.add_history_entry(source.as_str());
-                        match parse_and_compile(source, &mut rl) {
+                        println!(">>\n{source}");
+                        let history_entry = format!(">>\n{source}");
+                        let _ = rl.add_history_entry(history_entry.as_str());
+                        match parse_and_compile_no_state(source) {
                         Ok(output) => {
                             if !output.is_empty() {
                                 print!("{output}");
@@ -113,7 +127,7 @@ pub fn run() {
                     }
                 },
                 cmd if cmd.starts_with(":print ") => match wrap_print(cmd) {
-                    Ok(source) => match parse_and_compile(source, &mut rl) {
+                    Ok(source) => match parse_and_compile(source, &mut persisted) {
                         Ok(output) => {
                             if !output.is_empty() {
                                 print!("{output}");
@@ -127,7 +141,37 @@ pub fn run() {
                         println!("{}", e.to_string().red());
                     }
                 },
-                _ => match parse_and_compile(input.to_string(), &mut rl) {
+                cmd if cmd.starts_with(":emit") => match wrap_emit(cmd) {
+                    Ok(source) => match parse_and_emit_ir(source, &mut persisted) {
+                        Ok(output) => {
+                            if !output.is_empty() {
+                                print!("{}", highlight_llvm_ir(&output));
+                            }
+                        }
+                        Err(e) => {
+                            println!("{}", e.to_string().red());
+                        }
+                    },
+                    Err(e) => {
+                        println!("{}", e.to_string().red());
+                    }
+                },
+                cmd if cmd.starts_with(":opt") => match wrap_opt(cmd) {
+                    Ok(source) => match parse_and_opt_ir(source, &mut persisted) {
+                        Ok(output) => {
+                            if !output.is_empty() {
+                                print!("{}", highlight_llvm_ir(&output));
+                            }
+                        }
+                        Err(e) => {
+                            println!("{}", e.to_string().red());
+                        }
+                    },
+                    Err(e) => {
+                        println!("{}", e.to_string().red());
+                    }
+                },
+                _ => match parse_and_compile(cleaned.to_string(), &mut persisted) {
                     Ok(output) => {
                         if !output.is_empty() {
                             print!("{output}");
@@ -137,6 +181,7 @@ pub fn run() {
                         println!("{}", e.to_string().red());
                     }
                 },
+            }
             },
             Err(ReadlineError::Interrupted) => {
                 println!("Did you want to exit? Type exit()");
@@ -168,6 +213,22 @@ fn wrap_print(cmd: &str) -> Result<String> {
     }
     let expr = expr.trim_end_matches(';').trim_end();
     Ok(format!("print({});", expr))
+}
+
+fn wrap_emit(cmd: &str) -> Result<String> {
+    let expr = cmd.trim_start_matches(":emit").trim();
+    if expr.is_empty() {
+        return Err(anyhow!("Usage: :emit <statement>"));
+    }
+    Ok(expr.to_string())
+}
+
+fn wrap_opt(cmd: &str) -> Result<String> {
+    let expr = cmd.trim_start_matches(":opt").trim();
+    if expr.is_empty() {
+        return Err(anyhow!("Usage: :opt <statement>"));
+    }
+    Ok(expr.to_string())
 }
 
 fn highlight_line(line: &str) -> String {
@@ -259,18 +320,122 @@ fn highlight_line(line: &str) -> String {
     out
 }
 
-fn parse_and_compile(input: String, rl: &mut Editor<CyclangHelper, DefaultHistory>) -> Result<String> {
-    let joined_history = rl
-        .history()
-        .iter()
-        .map(|s| &**s) // Convert &String to &str
-        .collect::<Vec<&str>>()
-        .join("\n");
+fn highlight_llvm_ir(input: &str) -> String {
+    const RESET: &str = "\x1b[0m";
+    const KW: &str = "\x1b[38;5;81m";
+    const TY: &str = "\x1b[38;5;75m";
+    const NUM: &str = "\x1b[38;5;221m";
+    const STR: &str = "\x1b[38;5;114m";
+    const COM: &str = "\x1b[38;5;242m";
+    const LABEL: &str = "\x1b[38;5;208m";
 
-    let final_string = format!("fn main() {{ {joined_history}{input} }}");
+    let mut out = String::with_capacity(input.len() + 32);
+    for line in input.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with(';') {
+            out.push_str(COM);
+            out.push_str(line);
+            out.push_str(RESET);
+            out.push('\n');
+            continue;
+        }
+
+        if trimmed.ends_with(':') {
+            out.push_str(LABEL);
+            out.push_str(line);
+            out.push_str(RESET);
+            out.push('\n');
+            continue;
+        }
+
+        let mut i = 0;
+        let bytes = line.as_bytes();
+        while i < bytes.len() {
+            let c = bytes[i] as char;
+            if c == '"' {
+                let start = i;
+                i += 1;
+                while i < bytes.len() {
+                    let ch = bytes[i] as char;
+                    if ch == '"' {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                out.push_str(STR);
+                out.push_str(&line[start..i]);
+                out.push_str(RESET);
+                continue;
+            }
+
+            if c.is_ascii_digit()
+                || (c == '-' && i + 1 < bytes.len() && (bytes[i + 1] as char).is_ascii_digit())
+            {
+                let start = i;
+                i += 1;
+                while i < bytes.len() && (bytes[i] as char).is_ascii_digit() {
+                    i += 1;
+                }
+                out.push_str(NUM);
+                out.push_str(&line[start..i]);
+                out.push_str(RESET);
+                continue;
+            }
+
+            if c.is_ascii_alphabetic() || c == '_' || c == '.' {
+                let start = i;
+                i += 1;
+                while i < bytes.len() {
+                    let ch = bytes[i] as char;
+                    if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+                        i += 1;
+                    } else {
+                        break;
+                    }
+                }
+                let token = &line[start..i];
+                let color = match token {
+                    "define" | "declare" | "call" | "ret" | "br" | "load" | "store"
+                    | "alloca" | "getelementptr" | "icmp" | "phi" | "switch" | "unreachable"
+                    | "tail" | "invoke" | "landingpad" => KW,
+                    "i1" | "i8" | "i16" | "i32" | "i64" | "i128" | "void" | "ptr" | "label"
+                    | "double" | "float" => TY,
+                    _ => "",
+                };
+                if color.is_empty() {
+                    out.push_str(token);
+                } else {
+                    out.push_str(color);
+                    out.push_str(token);
+                    out.push_str(RESET);
+                }
+                continue;
+            }
+
+            out.push(c);
+            i += 1;
+        }
+        out.push('\n');
+    }
+
+    out
+}
+
+fn parse_and_compile(input: String, persisted: &mut Vec<String>) -> Result<String> {
+    let joined = if persisted.is_empty() {
+        String::new()
+    } else {
+        persisted.join("\n") + "\n"
+    };
+
+    let final_string = format!("fn main() {{ {joined}{input} }}");
     let exprs = parse_cyclo_program(&final_string)?;
     let compile_options = Some(CompileOptions {
         is_execution_engine: true,
+        emit_llvm_ir: false,
+        emit_llvm_ir_main_only: true,
+        emit_llvm_ir_with_called: false,
         target: None,
     });
     let output = compiler::compile(exprs.clone(), compile_options)?;
@@ -280,8 +445,201 @@ fn parse_and_compile(input: String, rl: &mut Editor<CyclangHelper, DefaultHistor
         | Expression::FuncStmt(_, _, _, _)
         | Expression::ListAssign(_, _, _) = expr
         {
-            let _ = rl.add_history_entry(input.as_str());
+            persisted.push(input.clone());
         }
     }
     Ok(output)
+}
+
+fn parse_and_compile_no_state(input: String) -> Result<String> {
+    let final_string = format!("fn main() {{ {input} }}");
+    let exprs = parse_cyclo_program(&final_string)?;
+    let compile_options = Some(CompileOptions {
+        is_execution_engine: true,
+        emit_llvm_ir: false,
+        emit_llvm_ir_main_only: true,
+        emit_llvm_ir_with_called: false,
+        target: None,
+    });
+    compiler::compile(exprs, compile_options)
+}
+
+fn parse_and_emit_ir(input: String, persisted: &mut Vec<String>) -> Result<String> {
+    let joined = if persisted.is_empty() {
+        String::new()
+    } else {
+        persisted.join("\n") + "\n"
+    };
+
+    let final_string = format!("fn main() {{ {joined}{input} }}");
+    let exprs = parse_cyclo_program(&final_string)?;
+    let compile_options = Some(CompileOptions {
+        is_execution_engine: false,
+        emit_llvm_ir: true,
+        emit_llvm_ir_main_only: true,
+        emit_llvm_ir_with_called: true,
+        target: None,
+    });
+    compiler::compile(exprs, compile_options)
+}
+
+fn parse_and_opt_ir(input: String, persisted: &mut Vec<String>) -> Result<String> {
+    let joined = if persisted.is_empty() {
+        String::new()
+    } else {
+        persisted.join("\n") + "\n"
+    };
+
+    let final_string = format!("fn main() {{ {joined}{input} }}");
+    let exprs = parse_cyclo_program(&final_string)?;
+    let compile_options = Some(CompileOptions {
+        is_execution_engine: false,
+        emit_llvm_ir: true,
+        emit_llvm_ir_main_only: false,
+        emit_llvm_ir_with_called: false,
+        target: None,
+    });
+    let module_ir = compiler::compile(exprs, compile_options)?;
+    run_opt_on_ir(&module_ir)
+}
+
+fn run_opt_on_ir(ir: &str) -> Result<String> {
+    let mut child = Command::new("opt")
+        .arg("-O2")
+        .arg("-S")
+        .arg("-")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| anyhow!("Failed to run opt: {e}"))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(ir.as_bytes())?;
+    }
+
+    let output = child.wait_with_output()?;
+    if !output.status.success() {
+        return Err(anyhow!(
+            "opt failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    let optimized = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(extract_main_ir(&optimized).unwrap_or(optimized))
+}
+
+fn extract_main_ir(module_ir: &str) -> Option<String> {
+    let main_ir = extract_main_only(module_ir)?;
+    let mut out = String::new();
+    out.push_str(&main_ir);
+    let calls = collect_called_functions(&main_ir);
+    for name in calls {
+        if let Some(def) = extract_function_def(module_ir, &name) {
+            out.push('\n');
+            out.push_str(&def);
+        }
+    }
+    Some(out)
+}
+
+fn extract_main_only(module_ir: &str) -> Option<String> {
+    let mut lines = module_ir.lines();
+    let mut buf = String::new();
+    let mut in_main = false;
+    let mut brace_depth = 0i32;
+
+    while let Some(line) = lines.next() {
+        if !in_main {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("define ") && trimmed.contains("@main") {
+                in_main = true;
+                buf.push_str(line);
+                buf.push('\n');
+                brace_depth += line.matches('{').count() as i32;
+                brace_depth -= line.matches('}').count() as i32;
+                if brace_depth <= 0 && line.contains('}') {
+                    return Some(buf);
+                }
+                continue;
+            }
+        } else {
+            buf.push_str(line);
+            buf.push('\n');
+            brace_depth += line.matches('{').count() as i32;
+            brace_depth -= line.matches('}').count() as i32;
+            if brace_depth <= 0 {
+                return Some(buf);
+            }
+        }
+    }
+    None
+}
+
+fn collect_called_functions(ir: &str) -> HashSet<String> {
+    let mut names = HashSet::new();
+    for line in ir.lines() {
+        if !line.contains("call") {
+            continue;
+        }
+        let mut i = 0;
+        let bytes = line.as_bytes();
+        while i < bytes.len() {
+            if bytes[i] as char == '@' {
+                let start = i + 1;
+                let mut end = start;
+                while end < bytes.len() {
+                    let ch = bytes[end] as char;
+                    if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+                        end += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if end > start {
+                    let name = &line[start..end];
+                    if !name.starts_with("llvm.") && name != "printf" {
+                        names.insert(name.to_string());
+                    }
+                }
+                i = end;
+            } else {
+                i += 1;
+            }
+        }
+    }
+    names
+}
+
+fn extract_function_def(module_ir: &str, name: &str) -> Option<String> {
+    let needle = format!("@{name}");
+    let mut lines = module_ir.lines();
+    let mut buf = String::new();
+    let mut in_fn = false;
+    let mut brace_depth = 0i32;
+
+    while let Some(line) = lines.next() {
+        if !in_fn {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("define ") && trimmed.contains(&needle) {
+                in_fn = true;
+                buf.push_str(line);
+                buf.push('\n');
+                brace_depth += line.matches('{').count() as i32;
+                brace_depth -= line.matches('}').count() as i32;
+                if brace_depth <= 0 && line.contains('}') {
+                    return Some(buf);
+                }
+                continue;
+            }
+        } else {
+            buf.push_str(line);
+            buf.push('\n');
+            brace_depth += line.matches('{').count() as i32;
+            brace_depth -= line.matches('}').count() as i32;
+            if brace_depth <= 0 {
+                return Some(buf);
+            }
+        }
+    }
+    None
 }
