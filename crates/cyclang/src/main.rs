@@ -32,10 +32,14 @@ fn get_target(target: Option<String>) -> Option<Target> {
 fn compile_output_from_string(
     contents: String,
     is_execution_engine: bool,
+    emit_llvm_ir: bool,
     target: Option<String>,
 ) -> String {
     let compile_options = Some(CompileOptions {
         is_execution_engine,
+        emit_llvm_ir,
+        emit_llvm_ir_main_only: true,
+        emit_llvm_ir_with_called: false,
         target: get_target(target),
     });
     match parse_cyclo_program(&contents) {
@@ -69,8 +73,12 @@ fn main() {
         }
     };
     let contents = fs::read_to_string(file).expect("Failed to read file");
-    let output =
-        compile_output_from_string(contents, !args.emit_llvm_ir, args.target);
+    let output = compile_output_from_string(
+        contents,
+        !args.emit_llvm_ir,
+        args.emit_llvm_ir,
+        args.target,
+    );
 
     // If we're emitting LLVM IR, print it; otherwise it's execution output
     if args.emit_llvm_ir {
@@ -85,7 +93,7 @@ mod test {
     use super::*;
     //Note: Integration tests for parsing and compiling output
     fn compile_output_from_string_test(contents: String) -> String {
-        compile_output_from_string(contents, false, None)
+        compile_output_from_string(contents, false, false, None)
     }
 
     fn add_into_main_func(input: &str) -> String {

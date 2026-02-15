@@ -395,8 +395,8 @@ impl<'a> CodeGenerator<'a> {
             let entry_block = self.builder.append_basic_block(function, "entry");
 
             // Save current function and block
-            let current_block = self.builder.current_function.block;
-            self.previous_block = Some(current_block);
+            let previous_function = self.builder.current_function.clone();
+            self.previous_block = Some(previous_function.block);
 
             // Update current_function to point to the new function being generated
             self.builder.current_function.function = function;
@@ -435,9 +435,10 @@ impl<'a> CodeGenerator<'a> {
                 self.builder.build_ret_void();
             }
 
-            // 9. Clean up local variables and restore previous block
+            // 9. Clean up local variables and restore previous function/block
             self.decr_depth();
             if let Some(prev_block) = self.previous_block {
+                self.builder.current_function = previous_function;
                 self.builder.set_current_block(prev_block);
             }
 
@@ -656,7 +657,9 @@ impl<'a> CodeGenerator<'a> {
         // Generate then branch
         self.builder.set_current_block(then_block);
         self.generate_expression(then_branch)?;
-        self.builder.build_br(merge_block);
+        if !self.builder.block_has_terminator(then_block) {
+            self.builder.build_br(merge_block);
+        }
 
         // Create and generate else block
         let else_block = self.builder.append_basic_block(function, "else_block");
@@ -664,7 +667,9 @@ impl<'a> CodeGenerator<'a> {
         if let Some(else_expr) = else_branch {
             self.generate_expression(else_expr)?;
         }
-        self.builder.build_br(merge_block);
+        if !self.builder.block_has_terminator(else_block) {
+            self.builder.build_br(merge_block);
+        }
 
         // Position at merge block
         self.builder.position_builder_at_end(merge_block);
