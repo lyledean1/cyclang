@@ -18,14 +18,23 @@ use llvm_sys::core::{
     LLVMBuildGlobalString, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildRet,
     LLVMBuildRetVoid, LLVMBuildSDiv, LLVMBuildSExt, LLVMBuildStore, LLVMBuildSub, LLVMConstArray2,
     LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
-    LLVMDeleteFunction, LLVMDisposeBuilder, LLVMDisposeMessage, LLVMDisposeModule,
+    LLVMDeleteFunction, LLVMDisposeBuilder, LLVMDisposeModule,
     LLVMFunctionType, LLVMGetIntTypeWidth, LLVMGetNamedFunction, LLVMGetParam, LLVMGetTypeByName2,
     LLVMInt8TypeInContext, LLVMModuleCreateWithName, LLVMPointerType, LLVMPositionBuilderAtEnd,
-    LLVMPrintModuleToFile, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext,
+    LLVMPrintModuleToFile, LLVMSetDataLayout, LLVMSetTarget, LLVMTypeOf, LLVMVoidTypeInContext,
 };
-use llvm_sys::execution_engine::{
-    LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress,
-    LLVMLinkInMCJIT,
+use llvm_sys::error::{LLVMDisposeErrorMessage, LLVMGetErrorMessage, LLVMErrorRef};
+use llvm_sys::orc2::lljit::{
+    LLVMOrcCreateLLJIT, LLVMOrcCreateLLJITBuilder, LLVMOrcDisposeLLJIT,
+    LLVMOrcLLJITAddLLVMIRModule, LLVMOrcLLJITBuilderSetJITTargetMachineBuilder,
+    LLVMOrcLLJITGetDataLayoutStr, LLVMOrcLLJITGetGlobalPrefix,
+    LLVMOrcLLJITGetMainJITDylib, LLVMOrcLLJITGetTripleString, LLVMOrcLLJITLookup,
+};
+use llvm_sys::orc2::{
+    LLVMOrcCreateDynamicLibrarySearchGeneratorForProcess, LLVMOrcCreateNewThreadSafeContext,
+    LLVMOrcCreateNewThreadSafeModule, LLVMOrcDefinitionGeneratorRef, LLVMOrcJITDylibAddGenerator,
+    LLVMOrcJITTargetMachineBuilderDetectHost, LLVMOrcJITTargetMachineBuilderRef,
+    LLVMOrcDisposeThreadSafeContext, LLVMOrcThreadSafeModuleRef,
 };
 use llvm_sys::prelude::{
     LLVMBasicBlockRef, LLVMBool, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef,
@@ -68,10 +77,6 @@ impl LLVMCodegenBuilder {
             if let Some(compile_options) = compile_options {
                 is_execution_engine = compile_options.is_execution_engine;
                 is_default_target = compile_options.target.is_none();
-            }
-
-            if is_execution_engine {
-                LLVMLinkInMCJIT();
             }
 
             if is_default_target {
@@ -136,21 +141,8 @@ impl LLVMCodegenBuilder {
 
     pub fn dispose_and_get_module_str(&self) -> Result<String> {
         unsafe {
-            // Run execution engine
-            let mut engine = ptr::null_mut();
-            let mut error = ptr::null_mut();
-
-            // Call the main function. It should execute its code.
             if self.is_execution_engine {
-                if LLVMCreateExecutionEngineForModule(&mut engine, self.module, &mut error) != 0 {
-                    LLVMDisposeMessage(error);
-                    panic!("Failed to create execution engine");
-                }
-                let main_func: extern "C" fn() = std::mem::transmute(LLVMGetFunctionAddress(
-                    engine,
-                    c"main".as_ptr() as *const _,
-                ));
-                main_func();
+                self.run_orc_jit_main()?;
             }
 
             if !self.is_execution_engine {
@@ -162,14 +154,128 @@ impl LLVMCodegenBuilder {
             }
             // clean up
             LLVMDisposeBuilder(self.builder);
-            if self.is_execution_engine {
-                LLVMDisposeExecutionEngine(engine);
-            }
             if !self.is_execution_engine {
                 LLVMDisposeModule(self.module);
             }
             LLVMContextDispose(self.context);
             self.emit_binary()
+        }
+    }
+
+    fn orc_error_to_anyhow(err: LLVMErrorRef, context: &str) -> anyhow::Error {
+        unsafe {
+            if err.is_null() {
+                return anyhow::anyhow!("unknown ORC error");
+            }
+            let msg_ptr = LLVMGetErrorMessage(err);
+            let msg = if msg_ptr.is_null() {
+                "unknown ORC error".to_string()
+            } else {
+                let cstr = std::ffi::CStr::from_ptr(msg_ptr);
+                let msg = cstr.to_string_lossy().to_string();
+                LLVMDisposeErrorMessage(msg_ptr);
+                msg
+            };
+            anyhow::anyhow!("{}: {}", context, msg)
+        }
+    }
+
+    fn run_orc_jit_main(&self) -> Result<()> {
+        unsafe {
+            let tsc = LLVMOrcCreateNewThreadSafeContext();
+            // Create LLJIT with host target
+            let mut jit = ptr::null_mut();
+            let builder = LLVMOrcCreateLLJITBuilder();
+            let mut jtmb: LLVMOrcJITTargetMachineBuilderRef = ptr::null_mut();
+            let err = LLVMOrcJITTargetMachineBuilderDetectHost(&mut jtmb);
+            if !err.is_null() {
+                return Err(Self::orc_error_to_anyhow(
+                    err,
+                    "ORC: failed to detect host target",
+                ));
+            }
+            LLVMOrcLLJITBuilderSetJITTargetMachineBuilder(builder, jtmb);
+
+            let err = LLVMOrcCreateLLJIT(&mut jit, builder);
+            if !err.is_null() {
+                return Err(Self::orc_error_to_anyhow(err, "ORC: failed to create LLJIT"));
+            }
+
+            // Set module target + data layout to match LLJIT
+            let triple = LLVMOrcLLJITGetTripleString(jit);
+            LLVMSetTarget(self.module, triple);
+            let data_layout = LLVMOrcLLJITGetDataLayoutStr(jit);
+            LLVMSetDataLayout(self.module, data_layout);
+
+            // Allow resolving symbols like printf from the current process
+            let mut gen: LLVMOrcDefinitionGeneratorRef = ptr::null_mut();
+            let global_prefix = LLVMOrcLLJITGetGlobalPrefix(jit);
+            let err = LLVMOrcCreateDynamicLibrarySearchGeneratorForProcess(
+                &mut gen,
+                global_prefix,
+                None,
+                ptr::null_mut(),
+            );
+            if !err.is_null() {
+                let dispose_err = LLVMOrcDisposeLLJIT(jit);
+                if !dispose_err.is_null() {
+                    return Err(Self::orc_error_to_anyhow(
+                        dispose_err,
+                        "ORC: failed to dispose LLJIT after error",
+                    ));
+                }
+                return Err(Self::orc_error_to_anyhow(
+                    err,
+                    "ORC: failed to create process symbol generator",
+                ));
+            }
+
+            let jd = LLVMOrcLLJITGetMainJITDylib(jit);
+            LLVMOrcJITDylibAddGenerator(jd, gen);
+
+            // Create ThreadSafeModule and add to LLJIT
+            let tsm: LLVMOrcThreadSafeModuleRef =
+                LLVMOrcCreateNewThreadSafeModule(self.module, tsc);
+            let err = LLVMOrcLLJITAddLLVMIRModule(jit, jd, tsm);
+            if !err.is_null() {
+                LLVMOrcDisposeThreadSafeContext(tsc);
+                let dispose_err = LLVMOrcDisposeLLJIT(jit);
+                if !dispose_err.is_null() {
+                    return Err(Self::orc_error_to_anyhow(
+                        dispose_err,
+                        "ORC: failed to dispose LLJIT after error",
+                    ));
+                }
+                return Err(Self::orc_error_to_anyhow(err, "ORC: failed to add module"));
+            }
+
+            // Lookup and call main
+            let mut addr = 0u64;
+            let err = LLVMOrcLLJITLookup(jit, &mut addr, c"main".as_ptr());
+            if !err.is_null() {
+                let dispose_err = LLVMOrcDisposeLLJIT(jit);
+                if !dispose_err.is_null() {
+                    return Err(Self::orc_error_to_anyhow(
+                        dispose_err,
+                        "ORC: failed to dispose LLJIT after error",
+                    ));
+                }
+                LLVMOrcDisposeThreadSafeContext(tsc);
+                return Err(Self::orc_error_to_anyhow(
+                    err,
+                    "ORC: failed to lookup symbol 'main'",
+                ));
+            }
+            let main_func: extern "C" fn() = std::mem::transmute(addr);
+            main_func();
+
+            let err = LLVMOrcDisposeLLJIT(jit);
+            LLVMOrcDisposeThreadSafeContext(tsc);
+            if !err.is_null() {
+                return Err(Self::orc_error_to_anyhow(err, "ORC: failed to dispose LLJIT"));
+            }
+
+            Ok(())
         }
     }
 
