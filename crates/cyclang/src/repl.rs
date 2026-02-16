@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use backend::compiler::CompileOptions;
+use backend::compiler::{CompileOptions, desugar_program};
 use backend::compiler;
 use parser::{parse_cyclo_program, Expression};
 use rustyline::completion::Completer;
@@ -186,6 +186,36 @@ pub fn run() {
                         println!("{}", e.to_string().red());
                     }
                 },
+                cmd if cmd.starts_with(":ast") && !cmd.starts_with(":astd") => match wrap_ast(cmd) {
+                    Ok(source) => match parse_and_ast(source, &mut persisted) {
+                        Ok(output) => {
+                            if !output.is_empty() {
+                                print!("{}", highlight_ast(&output));
+                            }
+                        }
+                        Err(e) => {
+                            println!("{}", e.to_string().red());
+                        }
+                    },
+                    Err(e) => {
+                        println!("{}", e.to_string().red());
+                    }
+                },
+                cmd if cmd.starts_with(":astd") => match wrap_astd(cmd) {
+                    Ok(source) => match parse_and_ast_desugar(source, &mut persisted) {
+                        Ok(output) => {
+                            if !output.is_empty() {
+                                print!("{}", highlight_ast(&output));
+                            }
+                        }
+                        Err(e) => {
+                            println!("{}", e.to_string().red());
+                        }
+                    },
+                    Err(e) => {
+                        println!("{}", e.to_string().red());
+                    }
+                },
                 _ => match parse_and_compile(cleaned.to_string(), &mut persisted) {
                     Ok(output) => {
                         if !output.is_empty() {
@@ -254,6 +284,22 @@ fn wrap_asm(cmd: &str) -> Result<String> {
     }
     let expr = expr.trim_end_matches(';').trim_end();
     Ok(format!("{expr};"))
+}
+
+fn wrap_ast(cmd: &str) -> Result<String> {
+    let expr = cmd.trim_start_matches(":ast").trim();
+    if expr.is_empty() {
+        return Err(anyhow!("Usage: :ast <statement>"));
+    }
+    Ok(expr.to_string())
+}
+
+fn wrap_astd(cmd: &str) -> Result<String> {
+    let expr = cmd.trim_start_matches(":astd").trim();
+    if expr.is_empty() {
+        return Err(anyhow!("Usage: :astd <statement>"));
+    }
+    Ok(expr.to_string())
 }
 
 fn highlight_line(line: &str) -> String {
@@ -548,6 +594,29 @@ fn parse_and_asm(input: String, persisted: &mut Vec<String>) -> Result<String> {
     run_llc_on_ir(&module_ir)
 }
 
+fn parse_and_ast(input: String, persisted: &mut Vec<String>) -> Result<String> {
+    let joined = if persisted.is_empty() {
+        String::new()
+    } else {
+        persisted.join("\n") + "\n"
+    };
+    let final_string = format!("fn main() {{ {joined}{input} }}");
+    let exprs = parse_cyclo_program(&final_string)?;
+    Ok(format_ast(&exprs))
+}
+
+fn parse_and_ast_desugar(input: String, persisted: &mut Vec<String>) -> Result<String> {
+    let joined = if persisted.is_empty() {
+        String::new()
+    } else {
+        persisted.join("\n") + "\n"
+    };
+    let final_string = format!("fn main() {{ {joined}{input} }}");
+    let exprs = parse_cyclo_program(&final_string)?;
+    let desugared = desugar_program(exprs);
+    Ok(format_ast(&desugared))
+}
+
 fn run_opt_on_ir(ir: &str) -> Result<String> {
     let mut child = Command::new("opt")
         .arg("-O2")
@@ -716,6 +785,243 @@ fn highlight_asm(input: &str) -> String {
         out.push('\n');
     }
     out
+}
+
+fn format_ast(exprs: &[Expression]) -> String {
+    let mut out = String::new();
+    out.push_str("Program\n");
+    for (i, expr) in exprs.iter().enumerate() {
+        let is_last = i + 1 == exprs.len();
+        format_expr_tree(expr, "", is_last, &mut out);
+    }
+    out
+}
+
+fn highlight_ast(input: &str) -> String {
+    const RESET: &str = "\x1b[0m";
+    const BLOCK: &str = "\x1b[38;5;75m";
+    const FLOW: &str = "\x1b[38;5;81m";
+    const FUNC: &str = "\x1b[38;5;135m";
+    const OP: &str = "\x1b[38;5;208m";
+    const LIT: &str = "\x1b[38;5;114m";
+    const VAR: &str = "\x1b[38;5;222m";
+    const SECTION: &str = "\x1b[38;5;244m";
+
+    let mut out = String::with_capacity(input.len() + 32);
+    for line in input.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.is_empty() {
+            out.push('\n');
+            continue;
+        }
+
+        let (prefix, label) = {
+            let prefix_len = line.len() - trimmed.len();
+            (&line[..prefix_len], trimmed)
+        };
+
+        let clean_label = label
+            .trim_start_matches("├─ ")
+            .trim_start_matches("└─ ")
+            .trim();
+
+        let color = if clean_label.starts_with("BlockStmt")
+            || clean_label.starts_with("LetStmt")
+            || clean_label.starts_with("List")
+            || clean_label.starts_with("ListIndex")
+            || clean_label.starts_with("ListAssign")
+        {
+            BLOCK
+        } else if clean_label.starts_with("FuncStmt") || clean_label.starts_with("FuncArg") {
+            FUNC
+        } else if clean_label.starts_with("IfStmt")
+            || clean_label.starts_with("WhileStmt")
+            || clean_label.starts_with("ForStmt")
+            || clean_label.starts_with("ReturnStmt")
+        {
+            FLOW
+        } else if clean_label.starts_with("Binary")
+            || clean_label.starts_with("Grouping")
+            || clean_label.starts_with("CallStmt")
+            || clean_label.starts_with("Print")
+            || clean_label.starts_with("Len")
+        {
+            OP
+        } else if clean_label.starts_with("Number")
+            || clean_label.starts_with("Number64")
+            || clean_label.starts_with("String")
+            || clean_label.starts_with("Bool")
+            || clean_label.starts_with("Nil")
+        {
+            LIT
+        } else if clean_label.starts_with("Variable") {
+            VAR
+        } else if clean_label == "Args"
+            || clean_label == "Body"
+            || clean_label == "Condition"
+            || clean_label == "Then"
+            || clean_label == "Else"
+            || clean_label == "Program"
+        {
+            SECTION
+        } else {
+            FLOW
+        };
+
+        out.push_str(prefix);
+        out.push_str(color);
+        out.push_str(label);
+        out.push_str(RESET);
+        out.push('\n');
+    }
+    out
+}
+
+fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut String) {
+    use Expression::*;
+    let branch = if is_last { "└─ " } else { "├─ " };
+    let next_prefix = if is_last { "   " } else { "│  " };
+
+    let label = match expr {
+        Number(n) => format!("Number({n})"),
+        Number64(n) => format!("Number64({n})"),
+        String(s) => format!("String({s})"),
+        Bool(b) => format!("Bool({b})"),
+        Nil => "Nil".to_string(),
+        Variable(name) => format!("Variable({name})"),
+        Binary(_, op, _) => format!("Binary({op})"),
+        Grouping(_) => "Grouping".to_string(),
+        LetStmt(name, ty, _) => format!("LetStmt({name}: {})", format_type(ty)),
+        BlockStmt(_) => "BlockStmt".to_string(),
+        FuncArg(name, ty) => format!("FuncArg({name}: {})", format_type(ty)),
+        FuncStmt(name, _, ret_ty, _) => format!("FuncStmt({name} -> {})", format_type(ret_ty)),
+        CallStmt(name, _) => format!("CallStmt({name})"),
+        IfStmt(_, _, _) => "IfStmt".to_string(),
+        WhileStmt(_, _) => "WhileStmt".to_string(),
+        ReturnStmt(_) => "ReturnStmt".to_string(),
+        ForStmt(name, start, end, step, _) => {
+            format!("ForStmt({name} = {start}..{end} step {step})")
+        }
+        Print(_) => "Print".to_string(),
+        Len(_) => "Len".to_string(),
+        List(_) => "List".to_string(),
+        ListIndex(_, _) => "ListIndex".to_string(),
+        ListAssign(name, _, _) => format!("ListAssign({name})"),
+    };
+
+    out.push_str(prefix);
+    out.push_str(branch);
+    out.push_str(&label);
+    out.push('\n');
+
+    let child_prefix = format!("{prefix}{next_prefix}");
+    match expr {
+        Binary(lhs, _, rhs) => {
+            format_expr_tree(lhs, &child_prefix, false, out);
+            format_expr_tree(rhs, &child_prefix, true, out);
+        }
+        Grouping(inner) => {
+            format_expr_tree(inner, &child_prefix, true, out);
+        }
+        LetStmt(_, _, value) => {
+            format_expr_tree(value, &child_prefix, true, out);
+        }
+        BlockStmt(stmts) => {
+            for (i, stmt) in stmts.iter().enumerate() {
+                let last = i + 1 == stmts.len();
+                format_expr_tree(stmt, &child_prefix, last, out);
+            }
+        }
+        FuncStmt(_, args, _, body) => {
+            out.push_str(&child_prefix);
+            out.push_str("├─ Args\n");
+            let args_prefix = format!("{child_prefix}│  ");
+            for (i, arg) in args.iter().enumerate() {
+                let last = i + 1 == args.len();
+                format_expr_tree(arg, &args_prefix, last, out);
+            }
+            out.push_str(&child_prefix);
+            out.push_str("└─ Body\n");
+            let body_prefix = format!("{child_prefix}   ");
+            format_expr_tree(body, &body_prefix, true, out);
+        }
+        CallStmt(_, args) => {
+            for (i, arg) in args.iter().enumerate() {
+                let last = i + 1 == args.len();
+                format_expr_tree(arg, &child_prefix, last, out);
+            }
+        }
+        IfStmt(cond, then_block, else_block) => {
+            out.push_str(&child_prefix);
+            out.push_str("├─ Condition\n");
+            let cond_prefix = format!("{child_prefix}│  ");
+            format_expr_tree(cond, &cond_prefix, true, out);
+
+            out.push_str(&child_prefix);
+            if else_block.is_some() {
+                out.push_str("├─ Then\n");
+                let then_prefix = format!("{child_prefix}│  ");
+                format_expr_tree(then_block, &then_prefix, true, out);
+
+                out.push_str(&child_prefix);
+                out.push_str("└─ Else\n");
+                let else_prefix = format!("{child_prefix}   ");
+                if let Some(else_expr) = else_block.as_ref() {
+                    format_expr_tree(else_expr, &else_prefix, true, out);
+                }
+            } else {
+                out.push_str("└─ Then\n");
+                let then_prefix = format!("{child_prefix}   ");
+                format_expr_tree(then_block, &then_prefix, true, out);
+            }
+        }
+        WhileStmt(cond, body) => {
+            out.push_str(&child_prefix);
+            out.push_str("├─ Condition\n");
+            let cond_prefix = format!("{child_prefix}│  ");
+            format_expr_tree(cond, &cond_prefix, true, out);
+
+            out.push_str(&child_prefix);
+            out.push_str("└─ Body\n");
+            let body_prefix = format!("{child_prefix}   ");
+            format_expr_tree(body, &body_prefix, true, out);
+        }
+        ReturnStmt(value) => {
+            format_expr_tree(value, &child_prefix, true, out);
+        }
+        ForStmt(_, _, _, _, body) => {
+            format_expr_tree(body, &child_prefix, true, out);
+        }
+        Print(expr) | Len(expr) => {
+            format_expr_tree(expr, &child_prefix, true, out);
+        }
+        List(values) => {
+            for (i, v) in values.iter().enumerate() {
+                let last = i + 1 == values.len();
+                format_expr_tree(v, &child_prefix, last, out);
+            }
+        }
+        ListIndex(list, index) => {
+            format_expr_tree(list, &child_prefix, false, out);
+            format_expr_tree(index, &child_prefix, true, out);
+        }
+        ListAssign(_, index, value) => {
+            format_expr_tree(index, &child_prefix, false, out);
+            format_expr_tree(value, &child_prefix, true, out);
+        }
+        _ => {}
+    }
+}
+
+fn format_type(ty: &parser::Type) -> String {
+    match ty {
+        parser::Type::None => "None".to_string(),
+        parser::Type::i32 => "i32".to_string(),
+        parser::Type::i64 => "i64".to_string(),
+        parser::Type::String => "string".to_string(),
+        parser::Type::Bool => "bool".to_string(),
+        parser::Type::List(inner) => format!("List<{}>", format_type(inner)),
+    }
 }
 
 fn extract_main_ir(module_ir: &str) -> Option<String> {

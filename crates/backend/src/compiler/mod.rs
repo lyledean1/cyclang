@@ -11,6 +11,7 @@ use codegen::code_generator::CodeGenerator;
 use parser::Expression;
 
 pub use codegen::CompileOptions;
+pub use desugar::desugar_program;
 
 pub fn compile(exprs: Vec<Expression>, options: Option<CompileOptions>) -> Result<String> {
     let exprs = desugar::desugar_program(exprs);
