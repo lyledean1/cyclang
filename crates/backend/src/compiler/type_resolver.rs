@@ -9,6 +9,7 @@ pub struct TypeResolver {
     symbol_table: HashMap<String, ResolvedType>,
     locals: HashMap<i32, Vec<String>>,
     depth: i32,
+    loop_depth: i32,
 }
 
 impl TypeResolver {
@@ -17,6 +18,7 @@ impl TypeResolver {
             symbol_table: HashMap::new(),
             locals: HashMap::new(),
             depth: 0,
+            loop_depth: 0,
         }
     }
 
@@ -202,6 +204,14 @@ impl TypeResolver {
                     value_ty,
                 ))
             }
+            Expression::BreakStmt => {
+                if self.loop_depth == 0 {
+                    return Err(anyhow::anyhow!(
+                        "break can only be used inside a loop"
+                    ));
+                }
+                Ok((TypedExpression::BreakStmt, ResolvedType::Void))
+            }
             Expression::CallStmt(name, args) => {
                 let mut typed_args = Vec::new();
                 for arg in args {
@@ -324,7 +334,9 @@ impl TypeResolver {
                 }
 
                 // Resolve body
+                self.loop_depth += 1;
                 let (typed_body, _body_type) = self.resolve_expression(body)?;
+                self.loop_depth -= 1;
 
                 Ok((
                     TypedExpression::WhileStmt {

@@ -368,7 +368,7 @@ fn highlight_line(line: &str) -> String {
             }
             let token = &line[start..i];
             let color = match token {
-                "fn" | "let" | "if" | "else" | "while" | "for" | "return" => KW,
+                "fn" | "let" | "if" | "else" | "while" | "for" | "return" | "break" => KW,
                 "print" | "len" => KW,
                 "true" | "false" | "nil" => STR,
                 "i32" | "i64" | "bool" | "string" | "List" => TY,
@@ -838,6 +838,7 @@ fn highlight_ast(input: &str) -> String {
             || clean_label.starts_with("WhileStmt")
             || clean_label.starts_with("ForStmt")
             || clean_label.starts_with("ReturnStmt")
+            || clean_label.starts_with("BreakStmt")
         {
             FLOW
         } else if clean_label.starts_with("Binary")
@@ -899,6 +900,7 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
         IfStmt(_, _, _) => "IfStmt".to_string(),
         WhileStmt(_, _) => "WhileStmt".to_string(),
         ReturnStmt(_) => "ReturnStmt".to_string(),
+        BreakStmt => "BreakStmt".to_string(),
         ForStmt(name, start, end, step, _) => {
             format!("ForStmt({name} = {start}..{end} step {step})")
         }
@@ -989,6 +991,7 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
         ReturnStmt(value) => {
             format_expr_tree(value, &child_prefix, true, out);
         }
+        BreakStmt => {}
         ForStmt(_, _, _, _, body) => {
             format_expr_tree(body, &child_prefix, true, out);
         }

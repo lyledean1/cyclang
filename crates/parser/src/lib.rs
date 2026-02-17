@@ -42,6 +42,7 @@ pub enum Expression {
     WhileStmt(Box<Expression>, Box<Expression>),
     ReturnStmt(Box<Expression>),
     ForStmt(String, i32, i32, i32, Box<Expression>),
+    BreakStmt,
     Print(Box<Expression>),
     Len(Box<Expression>),
 }
@@ -147,6 +148,10 @@ impl Expression {
 
     fn new_return_stmt(value: Expression) -> Self {
         Self::ReturnStmt(Box::new(value))
+    }
+
+    fn new_break_stmt() -> Self {
+        Self::BreakStmt
     }
 }
 
@@ -399,6 +404,7 @@ fn parse_expression(
             let expr = parse_expression(inner_pairs)?;
             Ok(Expression::new_return_stmt(expr))
         }
+        Rule::break_stmt => Ok(Expression::new_break_stmt()),
         Rule::while_stmt => {
             let mut inner_pairs = pair.into_inner();
             let cond = parse_expression(inner_pairs.next().unwrap())?;
@@ -606,6 +612,12 @@ mod test {
     #[test]
     fn test_parse_str_equals() {
         let input = r#""hello" == "hello";"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_break_stmt() {
+        let input = r#"while (true) { break; }"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 

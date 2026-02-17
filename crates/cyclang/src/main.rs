@@ -559,6 +559,20 @@ mod test {
     }
 
     #[test]
+    fn test_compile_while_stmt_break() {
+        let input = r#"
+            let val = 0;
+            while (true) {
+                val = val + 1;
+                break;
+            }
+            print(val);
+        "#;
+        let output = compile_output_from_string_test(add_into_main_func(input));
+        assert_eq!(output, "1\n");
+    }
+
+    #[test]
     fn test_compile_for_loop() {
         let input = r#"
         for (let i = 0; i < 10; i++)

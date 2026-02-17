@@ -23,6 +23,8 @@ pub struct CodeGenerator<'a> {
     depth: i32,
     // Track the previous function when entering a new function
     previous_block: Option<LLVMBasicBlockRef>,
+    // Track loop break targets (innermost last)
+    loop_break_stack: Vec<LLVMBasicBlockRef>,
 }
 
 #[derive(Clone)]
@@ -47,6 +49,7 @@ impl<'a> CodeGenerator<'a> {
             locals: HashMap::new(),
             depth: 0,
             previous_block: None,
+            loop_break_stack: Vec::new(),
         }
     }
 
@@ -93,6 +96,7 @@ impl<'a> CodeGenerator<'a> {
             TypedExpression::Variable { name } => self.generate_variable(name),
             TypedExpression::Print { value } => self.generate_print(value),
             TypedExpression::ReturnStmt { value } => self.generate_return(value),
+            TypedExpression::BreakStmt => self.generate_break(),
             TypedExpression::LetStmt {
                 name,
                 var_type,
@@ -449,6 +453,12 @@ impl<'a> CodeGenerator<'a> {
         self.incr_depth();
         let mut last_value = None;
         for stmt in statements {
+            if self
+                .builder
+                .block_has_terminator(self.builder.current_function.block)
+            {
+                break;
+            }
             last_value = Some(self.generate_expression(stmt)?);
         }
         self.decr_depth();
@@ -605,6 +615,31 @@ impl<'a> CodeGenerator<'a> {
         Ok(return_value)
     }
 
+    fn generate_break(&mut self) -> Result<GeneratedValue> {
+        let break_target = self
+            .loop_break_stack
+            .last()
+            .copied()
+            .ok_or_else(|| anyhow!("break used outside of loop"))?;
+
+        if !self
+            .builder
+            .block_has_terminator(self.builder.current_function.block)
+        {
+            self.builder.build_br(break_target);
+        }
+
+        let llvm_value = self
+            .builder
+            .const_int(int32_type(), 0 as c_ulonglong, 0);
+
+        Ok(GeneratedValue {
+            value: llvm_value,
+            pointer: None,
+            ty: ResolvedType::Void,
+        })
+    }
+
     fn generate_let_stmt(
         &mut self,
         name: &str,
@@ -714,8 +749,15 @@ impl<'a> CodeGenerator<'a> {
 
             // Generate loop body
             self.builder.set_current_block(loop_body_block);
+            self.loop_break_stack.push(loop_exit_block);
             self.generate_expression(body)?;
-            self.builder.build_br(loop_cond_block); // Jump back to condition
+            self.loop_break_stack.pop();
+            if !self
+                .builder
+                .block_has_terminator(self.builder.current_function.block)
+            {
+                self.builder.build_br(loop_cond_block); // Jump back to condition
+            }
 
             // Generate loop condition
             self.builder.set_current_block(loop_cond_block);

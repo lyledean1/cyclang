@@ -1,0 +1,8 @@
+for (let i = 0; i < 10; i++)
+{
+    let value = i * 100;
+    if (i == 5) {
+        break;
+    }
+    print(value);
+}

@@ -57,6 +57,7 @@ fn desugar_expr(expr: Expression) -> Expression {
         Expression::WhileStmt(cond, body) => {
             Expression::WhileStmt(Box::new(desugar_expr(*cond)), Box::new(desugar_expr(*body)))
         }
+        Expression::BreakStmt => Expression::BreakStmt,
         Expression::FuncStmt(name, args, return_type, body) => Expression::FuncStmt(
             name,
             args,
