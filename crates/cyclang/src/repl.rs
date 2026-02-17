@@ -368,7 +368,7 @@ fn highlight_line(line: &str) -> String {
             }
             let token = &line[start..i];
             let color = match token {
-                "fn" | "let" | "if" | "else" | "while" | "for" | "return" => KW,
+                "fn" | "let" | "if" | "else" | "while" | "for" | "return" | "break" => KW,
                 "print" | "len" => KW,
                 "true" | "false" | "nil" => STR,
                 "i32" | "i64" | "bool" | "string" | "List" => TY,
