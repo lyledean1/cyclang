@@ -57,6 +57,7 @@ impl SemanticAnalyzer {
             TypedExpression::Variable { name: _ } => Ok(()),
             TypedExpression::Print { value } => self.analyze(value),
             TypedExpression::ReturnStmt { value } => self.analyze(value),
+            TypedExpression::BreakStmt => Ok(()),
             TypedExpression::LetStmt {
                 name: _,
                 var_type: _,
