@@ -25,18 +25,44 @@ main() {
     PLATFORM="${OS}-${ARCH}"
     echo "Detected platform: $PLATFORM"
 
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/cyclang-${PLATFORM}.tar.gz"
-    echo "Downloading from: $DOWNLOAD_URL"
-
     TMP_DIR=$(mktemp -d)
     trap "rm -rf $TMP_DIR" EXIT
 
-    if command -v curl > /dev/null 2>&1; then
-        curl -fsSL "$DOWNLOAD_URL" | tar -xz -C "$TMP_DIR"
-    elif command -v wget > /dev/null 2>&1; then
-        wget -qO- "$DOWNLOAD_URL" | tar -xz -C "$TMP_DIR"
+    DOWNLOAD_URLS=()
+    if [ "$OS" = "macos" ] && [ "$ARCH" = "arm64" ]; then
+        # Prefer latest macOS runner asset name, fall back to generic name.
+        DOWNLOAD_URLS+=("https://github.com/${REPO}/releases/latest/download/cyclang-macos-15-arm64.tar.gz")
+        DOWNLOAD_URLS+=("https://github.com/${REPO}/releases/latest/download/cyclang-macos-arm64.tar.gz")
     else
-        echo "Error: Neither curl nor wget found. Please install one of them."
+        DOWNLOAD_URLS+=("https://github.com/${REPO}/releases/latest/download/cyclang-${PLATFORM}.tar.gz")
+    fi
+
+    download_success=0
+    for url in "${DOWNLOAD_URLS[@]}"; do
+        echo "Downloading from: $url"
+        if command -v curl > /dev/null 2>&1; then
+            if curl -fsSL "$url" | tar -xz -C "$TMP_DIR"; then
+                download_success=1
+                break
+            fi
+        elif command -v wget > /dev/null 2>&1; then
+            if wget -qO- "$url" | tar -xz -C "$TMP_DIR"; then
+                download_success=1
+                break
+            fi
+        else
+            echo "Error: Neither curl nor wget found. Please install one of them."
+            exit 1
+        fi
+    done
+
+    if [ "$download_success" -ne 1 ]; then
+        echo "Error: Failed to download a compatible release for $PLATFORM."
+        exit 1
+    fi
+
+    if [ ! -f "$TMP_DIR/bin/cyclang.real" ]; then
+        echo "Error: Downloaded archive is missing bin/cyclang.real."
         exit 1
     fi
 
