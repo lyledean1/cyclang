@@ -1,6 +1,6 @@
 # Cyclang
 
-A programming language I built in Rust - mainly for fun and my own learning! Uses PEG Parser in Rust for parsing and LLVM (llvm-sys) as the backend to compile to machine code binary. Check the [user guide](https://lyledean1.github.io/cyclang/overview.html) for a detailed overview of the language.
+Cyclang is a small programming language implemented in Rust. It parses with a PEG parser and compiles to native machine code via LLVM. See the [user guide](https://lyledean1.github.io/cyclang/overview.html) for the language overview.
 
 Try the Fibonacci example in `/examples/fib.cyc`
 
@@ -22,9 +22,9 @@ cyclang --file ./examples/fib.cyc
 
 This should output `6765`! 
 
-## Installing and Running
+## Install
 
-### Quick Install (No LLVM Required)
+### Quick Install (no LLVM required)
 
 Download and install the latest prebuilt binary:
 
@@ -32,17 +32,17 @@ Download and install the latest prebuilt binary:
 curl -fsSL https://raw.githubusercontent.com/lyledean1/cyclang/main/install.sh | bash
 ```
 
-### From Source (LLVM Required)
+### From source (LLVM required)
 
-You will need LLVM 21 installed before you install Cyclang, 
+Install LLVM 21 first.
 
-For MacOS run the following command
+MacOS:
 
 ```
 brew install llvm@21
 ```
 
-For Ubuntu install the following packages
+Ubuntu packages:
 
 ```
   llvm-21 
@@ -52,9 +52,10 @@ For Ubuntu install the following packages
   libpolly-21-dev
 ```
 
-And run `make set-llvm-sys-ffi-workaround`
+Then run `make set-llvm-sys-ffi-workaround`.
 
-Then the easiest way to install the binary currently is through the Rust package manager Cargo - see [Install Rust](https://www.rust-lang.org/tools/install). Once the step above is done, then run 
+Install with Cargo (requires Rust): [Install Rust](https://www.rust-lang.org/tools/install).
+Once LLVM is set up, run:
 ```
 cargo install cyclang
 ```
