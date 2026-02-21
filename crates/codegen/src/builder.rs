@@ -1,6 +1,6 @@
 use crate::context::{LLVMCallFn, LLVMFunction, LLVMFunctionCache};
 use crate::stdlib::list::load_list_helper_funcs;
-use crate::stdlib::load_bitcode_and_set_stdlib_funcs;
+use crate::stdlib::{link_bitcode_file, load_bitcode_and_set_stdlib_funcs};
 use crate::stdlib::string::load_string_helper_funcs;
 use crate::{
     cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type,
@@ -232,6 +232,10 @@ impl LLVMCodegenBuilder {
             // Global context is managed by LLVM; don't dispose it.
             self.emit_binary()
         }
+    }
+
+    pub fn link_bitcode_file(&mut self, path: &str) -> Result<()> {
+        unsafe { link_bitcode_file(self.context, self.module, path) }
     }
 
     fn orc_error_to_anyhow(err: LLVMErrorRef, context: &str) -> anyhow::Error {
@@ -950,12 +954,12 @@ impl LLVMCodegenBuilder {
 }
 
 fn extract_main_only_from_ir(module_ir: &str) -> Option<String> {
-    let mut lines = module_ir.lines();
+    let lines = module_ir.lines();
     let mut buf = String::new();
     let mut in_main = false;
     let mut brace_depth = 0i32;
 
-    while let Some(line) = lines.next() {
+    for line in lines {
         if !in_main {
             let trimmed = line.trim_start();
             if trimmed.starts_with("define ") && trimmed.contains("@main") {
@@ -1033,12 +1037,12 @@ fn collect_called_functions(ir: &str) -> std::collections::HashSet<String> {
 
 fn extract_function_def(module_ir: &str, name: &str) -> Option<String> {
     let needle = format!("@{name}");
-    let mut lines = module_ir.lines();
+    let lines = module_ir.lines();
     let mut buf = String::new();
     let mut in_fn = false;
     let mut brace_depth = 0i32;
 
-    while let Some(line) = lines.next() {
+    for line in lines {
         if !in_fn {
             let trimmed = line.trim_start();
             if trimmed.starts_with("define ") && trimmed.contains(&needle) {

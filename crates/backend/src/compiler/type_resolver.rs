@@ -7,6 +7,8 @@ pub struct TypeResolver {
     // Symbol table: variable name -> type
     // Maps to track scoping (depth -> list of variables at that depth)
     symbol_table: HashMap<String, ResolvedType>,
+    // Function table: function name -> (arg types, return type)
+    function_table: HashMap<String, (Vec<ResolvedType>, ResolvedType)>,
     locals: HashMap<i32, Vec<String>>,
     depth: i32,
     loop_depth: i32,
@@ -16,6 +18,7 @@ impl TypeResolver {
     pub fn new() -> Self {
         TypeResolver {
             symbol_table: HashMap::new(),
+            function_table: HashMap::new(),
             locals: HashMap::new(),
             depth: 0,
             loop_depth: 0,
@@ -32,6 +35,15 @@ impl TypeResolver {
 
     fn get_variable(&self, name: &str) -> Option<&ResolvedType> {
         self.symbol_table.get(name)
+    }
+
+    fn set_function(&mut self, name: &str, args: Vec<ResolvedType>, return_type: ResolvedType) {
+        self.function_table
+            .insert(name.to_string(), (args, return_type));
+    }
+
+    fn get_function(&self, name: &str) -> Option<&(Vec<ResolvedType>, ResolvedType)> {
+        self.function_table.get(name)
     }
 
     fn incr_depth(&mut self) {
@@ -117,10 +129,12 @@ impl TypeResolver {
             Expression::FuncStmt(name, args, return_type, body) => {
                 // Resolve argument types
                 let mut typed_args = Vec::new();
+                let mut resolved_arg_types = Vec::new();
                 for arg in args {
                     match arg {
                         Expression::FuncArg(arg_name, arg_type) => {
                             let resolved_arg_type = self.resolve_type(arg_type);
+                            resolved_arg_types.push(resolved_arg_type.clone());
                             typed_args.push((arg_name.clone(), resolved_arg_type));
                         }
                         _ => return Err(anyhow::anyhow!("Expected FuncArg in function arguments")),
@@ -129,6 +143,9 @@ impl TypeResolver {
 
                 // Resolve return type
                 let resolved_return_type = self.resolve_type(return_type);
+
+                // Register function signature before resolving body (allows recursion)
+                self.set_function(name, resolved_arg_types, resolved_return_type.clone());
 
                 // Create a new scope for the function body
                 self.incr_depth();
@@ -157,6 +174,49 @@ impl TypeResolver {
                         body: Box::new(typed_body),
                     },
                     func_type,
+                ))
+            }
+            Expression::ExternFuncStmt(name, args, return_type) => {
+                let mut typed_args = Vec::new();
+                let mut resolved_arg_types = Vec::new();
+                for arg in args {
+                    match arg {
+                        Expression::FuncArg(arg_name, arg_type) => {
+                            let resolved_arg_type = self.resolve_type(arg_type);
+                            resolved_arg_types.push(resolved_arg_type.clone());
+                            typed_args.push((arg_name.clone(), resolved_arg_type));
+                        }
+                        _ => {
+                            return Err(anyhow::anyhow!(
+                                "Expected FuncArg in extern function arguments"
+                            ))
+                        }
+                    }
+                }
+
+                let resolved_return_type = self.resolve_type(return_type);
+                self.set_function(name, resolved_arg_types, resolved_return_type.clone());
+
+                let func_type = ResolvedType::Function(
+                    typed_args.iter().map(|(_, ty)| ty.clone()).collect(),
+                    Box::new(resolved_return_type.clone()),
+                );
+
+                Ok((
+                    TypedExpression::ExternFuncStmt {
+                        name: name.clone(),
+                        args: typed_args,
+                        return_type: resolved_return_type,
+                    },
+                    func_type,
+                ))
+            }
+            Expression::ExternModule(path) => {
+                Ok((
+                    TypedExpression::ExternModule {
+                        path: path.clone(),
+                    },
+                    ResolvedType::Void,
                 ))
             }
             Expression::BlockStmt(statements) => {
@@ -219,12 +279,17 @@ impl TypeResolver {
                     typed_args.push(typed_arg);
                 }
 
+                let return_type = self
+                    .get_function(name)
+                    .map(|(_, ret)| ret.clone())
+                    .unwrap_or(ResolvedType::Void);
+
                 Ok((
                     TypedExpression::CallStmt {
                         callee: Box::new(TypedExpression::Variable { name: name.clone() }),
                         args: typed_args,
                     },
-                    ResolvedType::Void, // TODO: lookup function return type
+                    return_type,
                 ))
             }
             Expression::LetStmt(name, var_type, value) => {

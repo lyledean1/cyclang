@@ -1,0 +1,13 @@
+extern module "examples/native/sleep.c";
+extern fn sleep(i32 ms);
+
+fn main() {
+    let i = 0;
+    while (i < 5) {
+        print("tick");
+        sleep(500);
+        print("tock");
+        sleep(500);
+        i = i + 1;
+    }
+}

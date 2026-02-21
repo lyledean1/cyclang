@@ -48,6 +48,12 @@ impl SemanticAnalyzer {
                 self.analyze(body)?;
                 Ok(())
             }
+            TypedExpression::ExternFuncStmt {
+                name: _,
+                args: _,
+                return_type: _,
+            } => Ok(()),
+            TypedExpression::ExternModule { path: _ } => Ok(()),
             TypedExpression::BlockStmt { statements } => {
                 for stmt in statements {
                     self.analyze(stmt)?;

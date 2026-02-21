@@ -28,6 +28,14 @@ pub enum TypedExpression {
         return_type: ResolvedType,
         body: Box<TypedExpression>,
     },
+    ExternFuncStmt {
+        name: String,
+        args: Vec<(String, ResolvedType)>,
+        return_type: ResolvedType,
+    },
+    ExternModule {
+        path: String,
+    },
     BlockStmt {
         statements: Vec<TypedExpression>,
     },
