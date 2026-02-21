@@ -535,7 +535,7 @@ fn parse_and_compile_no_state(input: String) -> Result<String> {
     compiler::compile(exprs, compile_options)
 }
 
-fn parse_and_emit_ir(input: String, persisted: &mut Vec<String>) -> Result<String> {
+fn parse_and_emit_ir(input: String, persisted: &mut [String]) -> Result<String> {
     let joined = if persisted.is_empty() {
         String::new()
     } else {
@@ -554,7 +554,7 @@ fn parse_and_emit_ir(input: String, persisted: &mut Vec<String>) -> Result<Strin
     compiler::compile(exprs, compile_options)
 }
 
-fn parse_and_opt_ir(input: String, persisted: &mut Vec<String>) -> Result<String> {
+fn parse_and_opt_ir(input: String, persisted: &mut [String]) -> Result<String> {
     let joined = if persisted.is_empty() {
         String::new()
     } else {
@@ -574,7 +574,7 @@ fn parse_and_opt_ir(input: String, persisted: &mut Vec<String>) -> Result<String
     run_opt_on_ir(&module_ir)
 }
 
-fn parse_and_asm(input: String, persisted: &mut Vec<String>) -> Result<String> {
+fn parse_and_asm(input: String, persisted: &mut [String]) -> Result<String> {
     let joined = if persisted.is_empty() {
         String::new()
     } else {
@@ -594,7 +594,7 @@ fn parse_and_asm(input: String, persisted: &mut Vec<String>) -> Result<String> {
     run_llc_on_ir(&module_ir)
 }
 
-fn parse_and_ast(input: String, persisted: &mut Vec<String>) -> Result<String> {
+fn parse_and_ast(input: String, persisted: &mut [String]) -> Result<String> {
     let joined = if persisted.is_empty() {
         String::new()
     } else {
@@ -605,7 +605,7 @@ fn parse_and_ast(input: String, persisted: &mut Vec<String>) -> Result<String> {
     Ok(format_ast(&exprs))
 }
 
-fn parse_and_ast_desugar(input: String, persisted: &mut Vec<String>) -> Result<String> {
+fn parse_and_ast_desugar(input: String, persisted: &mut [String]) -> Result<String> {
     let joined = if persisted.is_empty() {
         String::new()
     } else {
@@ -670,10 +670,10 @@ fn run_llc_on_ir(ir: &str) -> Result<String> {
 }
 
 fn extract_main_asm(asm: &str) -> Option<String> {
-    let mut lines = asm.lines().peekable();
+    let lines = asm.lines().peekable();
     let mut buf = String::new();
     let mut in_fn = false;
-    while let Some(line) = lines.next() {
+    for line in lines {
         let trimmed = line.trim_start();
         if !in_fn {
             if trimmed.starts_with("_main:") || trimmed.starts_with("main:") {
@@ -1056,12 +1056,12 @@ fn extract_main_ir(module_ir: &str) -> Option<String> {
 }
 
 fn extract_main_only(module_ir: &str) -> Option<String> {
-    let mut lines = module_ir.lines();
+    let lines = module_ir.lines();
     let mut buf = String::new();
     let mut in_main = false;
     let mut brace_depth = 0i32;
 
-    while let Some(line) = lines.next() {
+    for line in lines {
         if !in_main {
             let trimmed = line.trim_start();
             if trimmed.starts_with("define ") && trimmed.contains("@main") {
@@ -1125,12 +1125,12 @@ fn collect_called_functions(ir: &str) -> HashSet<String> {
 
 fn extract_function_def(module_ir: &str, name: &str) -> Option<String> {
     let needle = format!("@{name}");
-    let mut lines = module_ir.lines();
+    let lines = module_ir.lines();
     let mut buf = String::new();
     let mut in_fn = false;
     let mut brace_depth = 0i32;
 
-    while let Some(line) = lines.next() {
+    for line in lines {
         if !in_fn {
             let trimmed = line.trim_start();
             if trimmed.starts_with("define ") && trimmed.contains(&needle) {
