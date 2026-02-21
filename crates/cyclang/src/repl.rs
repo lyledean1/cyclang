@@ -896,6 +896,10 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
         BlockStmt(_) => "BlockStmt".to_string(),
         FuncArg(name, ty) => format!("FuncArg({name}: {})", format_type(ty)),
         FuncStmt(name, _, ret_ty, _) => format!("FuncStmt({name} -> {})", format_type(ret_ty)),
+        ExternFuncStmt(name, _, ret_ty) => {
+            format!("ExternFuncStmt({name} -> {})", format_type(ret_ty))
+        }
+        ExternModule(path) => format!("ExternModule({path})"),
         CallStmt(name, _) => format!("CallStmt({name})"),
         IfStmt(_, _, _) => "IfStmt".to_string(),
         WhileStmt(_, _) => "WhileStmt".to_string(),
@@ -947,6 +951,16 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
             let body_prefix = format!("{child_prefix}   ");
             format_expr_tree(body, &body_prefix, true, out);
         }
+        ExternFuncStmt(_, args, _) => {
+            out.push_str(&child_prefix);
+            out.push_str("└─ Args\n");
+            let args_prefix = format!("{child_prefix}   ");
+            for (i, arg) in args.iter().enumerate() {
+                let last = i + 1 == args.len();
+                format_expr_tree(arg, &args_prefix, last, out);
+            }
+        }
+        ExternModule(_) => {}
         CallStmt(_, args) => {
             for (i, arg) in args.iter().enumerate() {
                 let last = i + 1 == args.len();

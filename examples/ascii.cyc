@@ -1,0 +1,29 @@
+extern module "examples/native/sleep.c";
+extern fn sleep(i32 ms);
+
+fn main() {
+    let i = 0;
+    let toggle = true;
+    while (i < 20) {
+        print("");
+        print("");
+        print("");
+        print("");
+        print("");
+
+        if (toggle) {
+            print("  o
+ /|\\
+ / \\");
+            toggle = false;
+        } else {
+            print(" \\o/
+  |
+ / \\");
+            toggle = true;
+        }
+
+        sleep(200);
+        i = i + 1;
+    }
+}

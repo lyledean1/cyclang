@@ -64,6 +64,10 @@ fn desugar_expr(expr: Expression) -> Expression {
             return_type,
             Box::new(desugar_expr(*body)),
         ),
+        Expression::ExternFuncStmt(name, args, return_type) => {
+            Expression::ExternFuncStmt(name, args, return_type)
+        }
+        Expression::ExternModule(path) => Expression::ExternModule(path),
         other => other,
     }
 }

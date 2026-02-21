@@ -37,6 +37,8 @@ pub enum Expression {
     BlockStmt(Vec<Expression>),
     FuncArg(String, Type),
     FuncStmt(String, Vec<Expression>, Type, Box<Expression>),
+    ExternFuncStmt(String, Vec<Expression>, Type),
+    ExternModule(String),
     CallStmt(String, Vec<Expression>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
     WhileStmt(Box<Expression>, Box<Expression>),
@@ -128,6 +130,14 @@ impl Expression {
         body: Expression,
     ) -> Self {
         Self::FuncStmt(name, args, return_type, Box::new(body))
+    }
+
+    fn new_extern_func_stmt(name: String, args: Vec<Expression>, return_type: Type) -> Self {
+        Self::ExternFuncStmt(name, args, return_type)
+    }
+
+    fn new_extern_module(path: String) -> Self {
+        Self::ExternModule(path)
     }
 
     fn new_func_arg(name: String, arg_type: Type) -> Self {
@@ -296,6 +306,36 @@ fn parse_expression(
             let func = Expression::new_func_stmt(name, func_args, func_type, body);
             Ok(func)
         }
+        Rule::extern_func_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let name = inner_pairs.next().unwrap().as_str().to_string();
+
+            let mut func_args = vec![];
+            while inner_pairs
+                .peek()
+                .is_some_and(|p| p.as_rule() == Rule::func_arg)
+            {
+                let args: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
+                func_args.push(parse_expression(args)?);
+            }
+
+            let mut func_type = Type::None;
+            while inner_pairs
+                .peek()
+                .is_some_and(|p| p.as_rule() == Rule::type_name || p.as_rule() == Rule::arrow)
+            {
+                let next: pest::iterators::Pair<'_, Rule> = inner_pairs.next().unwrap();
+                if next.as_rule() == Rule::type_name {
+                    func_type = get_type(next);
+                }
+            }
+
+            Ok(Expression::new_extern_func_stmt(
+                name,
+                func_args,
+                func_type,
+            ))
+        }
         Rule::func_arg => {
             let mut inner_pairs = pair.clone().into_inner();
             while inner_pairs.peek().is_some_and(|p| {
@@ -344,6 +384,14 @@ fn parse_expression(
                 }
             }
             let call = Expression::new_call_stmt(name, args);
+            if let Expression::CallStmt(call_name, call_args) = &call {
+                if call_name == "extern_module" && call_args.len() == 1 {
+                    if let Expression::String(path) = &call_args[0] {
+                        let path = path.replace('"', "");
+                        return Ok(Expression::new_extern_module(path));
+                    }
+                }
+            }
             Ok(call)
         }
         Rule::block_stmt => {
@@ -480,7 +528,8 @@ fn parse_program(
 }
 
 pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::error::Error<Rule>>> {
-    match CycloParser::parse(Rule::expression_list, input) {
+    let input = preprocess_extern_modules(input);
+    match CycloParser::parse(Rule::expression_list, &input) {
         Ok(mut pairs) => {
             // TODO: only returns first pair
             // should this iterate through all pairs?
@@ -491,6 +540,39 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
         Err(e) => return Err(Box::new(e)),
     };
     unreachable!("parse function program")
+}
+
+fn preprocess_extern_modules(input: &str) -> String {
+    let mut out = String::new();
+    for chunk in input.split_inclusive('\n') {
+        let (line, newline) = if let Some(stripped) = chunk.strip_suffix('\n') {
+            (stripped, "\n")
+        } else {
+            (chunk, "")
+        };
+
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("extern module") {
+            let indent_len = line.len() - trimmed.len();
+            let indent = &line[..indent_len];
+            if let Some(start) = trimmed.find('"') {
+                let rest = &trimmed[start + 1..];
+                if let Some(end) = rest.find('"') {
+                    let path = &rest[..end];
+                    out.push_str(indent);
+                    out.push_str("extern_module(\"");
+                    out.push_str(path);
+                    out.push_str("\");");
+                    out.push_str(newline);
+                    continue;
+                }
+            }
+        }
+
+        out.push_str(line);
+        out.push_str(newline);
+    }
+    out
 }
 
 #[cfg(test)]
@@ -826,6 +908,42 @@ mod test {
     fn test_parse_print_stmt_bool_assign() {
         let input = r#"print(other_value == first_value);"#;
         assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_extern_fn() {
+        let input = r#"extern fn sleep(i32 ms);"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_extern_fn_rule() {
+        let input = r#"extern fn sleep(i32 ms);"#;
+        let res = CycloParser::parse(Rule::extern_func_stmt, input);
+        assert!(res.is_ok(), "{:?}", res.unwrap_err());
+    }
+
+    #[test]
+    fn test_parse_extern_module() {
+        let input = r#"extern module "native/sleep.c";"#;
+        let res = parse_cyclo_program(input);
+        assert!(res.is_ok(), "{}", res.unwrap_err());
+    }
+
+    #[test]
+    fn test_parse_extern_module_and_fn_program() {
+        let input = r#"
+extern module "examples/native/sleep.c";
+extern fn sleep_ms(i32 ms);
+
+fn main() {
+    sleep_ms(1);
+}
+"#;
+        let res = parse_cyclo_program(input).unwrap();
+        assert!(matches!(res.get(0), Some(Expression::ExternModule(_))));
+        assert!(matches!(res.get(1), Some(Expression::ExternFuncStmt(_, _, _))));
+        assert!(matches!(res.get(2), Some(Expression::FuncStmt(_, _, _, _))));
     }
 
     // todo: fix

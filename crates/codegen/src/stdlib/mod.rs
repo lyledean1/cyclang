@@ -56,3 +56,33 @@ pub unsafe fn load_bitcode_and_set_stdlib_funcs(
     }
     Ok(func_cache)
 }
+
+/// # Safety
+///
+/// Links an external bitcode file into the given LLVM module.
+pub unsafe fn link_bitcode_file(
+    context: LLVMContextRef,
+    module: LLVMModuleRef,
+    path: &str,
+) -> Result<()> {
+    let mut module_std: LLVMModuleRef = ptr::null_mut();
+    let mut buffer: LLVMMemoryBufferRef = ptr::null_mut();
+    let mut error: *mut i8 = ptr::null_mut();
+
+    let c_path = CString::new(path)?;
+    let fail = LLVMCreateMemoryBufferWithContentsOfFile(c_path.as_ptr(), &mut buffer, &mut error);
+    if fail != 0 {
+        return Err(anyhow!("error loading bitcode file at {}", path));
+    }
+
+    let fail = LLVMParseBitcodeInContext2(context, buffer, &mut module_std);
+    if fail != 0 {
+        return Err(anyhow!("error parsing bitcode at {}", path));
+    }
+
+    let result = LLVMLinkModules2(module, module_std);
+    if result != 0 {
+        return Err(anyhow!("error linking bitcode at {}", path));
+    }
+    Ok(())
+}

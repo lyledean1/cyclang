@@ -5,12 +5,14 @@ use crate::{
 use crate::typed_ast::{ResolvedType, TypedExpression};
 use anyhow::{anyhow, Result};
 use llvm_sys::core::{
-    LLVMAddFunction, LLVMConstStringInContext2, LLVMFunctionType, LLVMGetParam, LLVMVoidType,
+    LLVMAddFunction, LLVMConstStringInContext2, LLVMFunctionType, LLVMGetNamedFunction,
+    LLVMGetParam, LLVMVoidType,
 };
 use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMTypeRef, LLVMValueRef};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::os::raw::c_ulonglong;
+use std::ptr;
 
 pub struct CodeGenerator<'a> {
     builder: &'a mut LLVMCodegenBuilder,
@@ -92,6 +94,16 @@ impl<'a> CodeGenerator<'a> {
                 return_type,
                 body,
             } => self.generate_function(name, args, return_type, body),
+            TypedExpression::ExternFuncStmt {
+                name,
+                args,
+                return_type,
+            } => self.generate_extern_function(name, args, return_type),
+            TypedExpression::ExternModule { path: _ } => Ok(GeneratedValue {
+                value: ptr::null_mut(),
+                pointer: None,
+                ty: ResolvedType::Void,
+            }),
             TypedExpression::BlockStmt { statements } => self.generate_block(statements),
             TypedExpression::Variable { name } => self.generate_variable(name),
             TypedExpression::Print { value } => self.generate_print(value),
@@ -438,6 +450,54 @@ impl<'a> CodeGenerator<'a> {
             }
 
             // Return function as a value
+            Ok(GeneratedValue {
+                value: function,
+                pointer: None,
+                ty: ResolvedType::Function(
+                    args.iter().map(|(_, ty)| ty.clone()).collect(),
+                    Box::new(return_type.clone()),
+                ),
+            })
+        }
+    }
+
+    fn generate_extern_function(
+        &mut self,
+        name: &str,
+        args: &[(String, ResolvedType)],
+        return_type: &ResolvedType,
+    ) -> Result<GeneratedValue> {
+        unsafe {
+            let mut param_types: Vec<LLVMTypeRef> = args
+                .iter()
+                .map(|(_, ty)| self.resolved_type_to_llvm(ty))
+                .collect();
+
+            let ret_type = self.resolved_type_to_llvm(return_type);
+            let function_type =
+                LLVMFunctionType(ret_type, param_types.as_mut_ptr(), args.len() as u32, 0);
+
+            let existing =
+                LLVMGetNamedFunction(self.builder.module, cstr_from_string(name).as_ptr());
+            let function = if existing.is_null() {
+                LLVMAddFunction(
+                    self.builder.module,
+                    cstr_from_string(name).as_ptr(),
+                    function_type,
+                )
+            } else {
+                existing
+            };
+
+            self.function_cache.insert(
+                name.to_owned(),
+                FunctionInfo {
+                    function,
+                    func_type: function_type,
+                    return_type: return_type.clone(),
+                },
+            );
+
             Ok(GeneratedValue {
                 value: function,
                 pointer: None,

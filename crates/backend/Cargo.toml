@@ -15,3 +15,4 @@ categories.workspace = true
 anyhow = "1.0.81"
 codegen = { path = "../codegen" }
 parser = { workspace = true }
+tempfile = "3.10.1"

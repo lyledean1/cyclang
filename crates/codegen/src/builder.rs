@@ -1,6 +1,6 @@
 use crate::context::{LLVMCallFn, LLVMFunction, LLVMFunctionCache};
 use crate::stdlib::list::load_list_helper_funcs;
-use crate::stdlib::load_bitcode_and_set_stdlib_funcs;
+use crate::stdlib::{link_bitcode_file, load_bitcode_and_set_stdlib_funcs};
 use crate::stdlib::string::load_string_helper_funcs;
 use crate::{
     cstr_from_string, int1_type, int32_ptr_type, int32_type, int64_type, int8_ptr_type,
@@ -232,6 +232,10 @@ impl LLVMCodegenBuilder {
             // Global context is managed by LLVM; don't dispose it.
             self.emit_binary()
         }
+    }
+
+    pub fn link_bitcode_file(&mut self, path: &str) -> Result<()> {
+        unsafe { link_bitcode_file(self.context, self.module, path) }
     }
 
     fn orc_error_to_anyhow(err: LLVMErrorRef, context: &str) -> anyhow::Error {
