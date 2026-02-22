@@ -357,11 +357,15 @@ impl LLVMCodegenBuilder {
 
     pub fn emit_binary(&self) -> Result<String> {
         if !self.is_execution_engine {
-            Command::new("clang")
+            let compile_out = Command::new("clang")
                 .arg("bin/main.ll")
                 .arg("-o")
                 .arg("bin/main")
                 .output()?;
+            if !compile_out.status.success() {
+                let stderr = String::from_utf8_lossy(&compile_out.stderr);
+                return Err(anyhow!("clang failed: {}", stderr));
+            }
             let output = Command::new("bin/main").output()?;
             return Ok(String::from_utf8_lossy(&output.stdout).to_string());
         }
@@ -881,6 +885,58 @@ impl LLVMCodegenBuilder {
                     })
                 }
             },
+            // I64 arithmetic
+            (ResolvedType::I64, ResolvedType::I64) => {
+                let lhs_val = match lhs.pointer {
+                    Some(ptr) => self.build_load(ptr, int64_type(), "lhs"),
+                    None => lhs.value,
+                };
+                let rhs_val = match rhs.pointer {
+                    Some(ptr) => self.build_load(ptr, int64_type(), "rhs"),
+                    None => rhs.value,
+                };
+                let result = self.llvm_build_fn(lhs_val, rhs_val, op.to_string());
+                Ok(GeneratedValue {
+                    value: result,
+                    pointer: None,
+                    ty: ResolvedType::I64,
+                })
+            }
+            // Mixed I32/I64 arithmetic (promote to I64)
+            (ResolvedType::I32, ResolvedType::I64) | (ResolvedType::I64, ResolvedType::I32) => {
+                let lhs_val = match lhs.pointer {
+                    Some(ptr) => match lhs.ty {
+                        ResolvedType::I64 => self.build_load(ptr, int64_type(), "lhs"),
+                        _ => self.build_load(ptr, int32_type(), "lhs"),
+                    },
+                    None => lhs.value,
+                };
+                let rhs_val = match rhs.pointer {
+                    Some(ptr) => match rhs.ty {
+                        ResolvedType::I64 => self.build_load(ptr, int64_type(), "rhs"),
+                        _ => self.build_load(ptr, int32_type(), "rhs"),
+                    },
+                    None => rhs.value,
+                };
+
+                let lhs_val = if lhs.ty == ResolvedType::I32 {
+                    self.cast_i32_to_i64(lhs_val, rhs_val)
+                } else {
+                    lhs_val
+                };
+                let rhs_val = if rhs.ty == ResolvedType::I32 {
+                    self.cast_i32_to_i64(rhs_val, lhs_val)
+                } else {
+                    rhs_val
+                };
+
+                let result = self.llvm_build_fn(lhs_val, rhs_val, op.to_string());
+                Ok(GeneratedValue {
+                    value: result,
+                    pointer: None,
+                    ty: ResolvedType::I64,
+                })
+            }
             _ => Err(anyhow!(
                 "Unsupported arithmetic operation {} for types {:?} and {:?}",
                 op,

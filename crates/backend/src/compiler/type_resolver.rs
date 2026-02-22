@@ -219,6 +219,7 @@ impl TypeResolver {
                     ResolvedType::Void,
                 ))
             }
+            Expression::ImportStmt(_module) => Ok((TypedExpression::BreakStmt, ResolvedType::Void)),
             Expression::BlockStmt(statements) => {
                 self.incr_depth();
                 let mut typed_statements = Vec::new();

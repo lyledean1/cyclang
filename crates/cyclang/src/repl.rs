@@ -900,6 +900,7 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
             format!("ExternFuncStmt({name} -> {})", format_type(ret_ty))
         }
         ExternModule(path) => format!("ExternModule({path})"),
+        ImportStmt(module) => format!("ImportStmt({module})"),
         CallStmt(name, _) => format!("CallStmt({name})"),
         IfStmt(_, _, _) => "IfStmt".to_string(),
         WhileStmt(_, _) => "WhileStmt".to_string(),
