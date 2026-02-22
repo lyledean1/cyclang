@@ -543,6 +543,37 @@ mod test {
     }
 
     #[test]
+    fn test_compile_continue_stmt() {
+        let input = r#"
+        let i: i32 = 0;
+        while (true) {
+            i = i + 1;
+            if (i == 2) {
+                continue;
+            }
+            print(i);
+            if (i == 3) {
+                break;
+            }
+        }
+        "#;
+        let output = compile_output_from_string_test(add_into_main_func(input));
+        assert_eq!(output, "1\n3\n");
+    }
+
+    #[test]
+    fn test_compile_return_void() {
+        let input = r#"
+        if (true) {
+            return;
+        }
+        print("nope");
+        "#;
+        let output = compile_output_from_string_test(add_into_main_func(input));
+        assert_eq!(output, "");
+    }
+
+    #[test]
     fn test_compile_while_stmt_false() {
         let input = r#"
         let value = false;

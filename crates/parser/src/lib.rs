@@ -43,9 +43,10 @@ pub enum Expression {
     CallStmt(String, Vec<Expression>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
     WhileStmt(Box<Expression>, Box<Expression>),
-    ReturnStmt(Box<Expression>),
+    ReturnStmt(Option<Box<Expression>>),
     ForStmt(String, i32, i32, i32, Box<Expression>),
     BreakStmt,
+    ContinueStmt,
     Print(Box<Expression>),
     Len(Box<Expression>),
 }
@@ -161,12 +162,16 @@ impl Expression {
         Self::Len(Box::new(value))
     }
 
-    fn new_return_stmt(value: Expression) -> Self {
-        Self::ReturnStmt(Box::new(value))
+    fn new_return_stmt(value: Option<Expression>) -> Self {
+        Self::ReturnStmt(value.map(Box::new))
     }
 
     fn new_break_stmt() -> Self {
         Self::BreakStmt
+    }
+
+    fn new_continue_stmt() -> Self {
+        Self::ContinueStmt
     }
 }
 
@@ -215,7 +220,7 @@ fn parse_expression(
             Ok(Expression::new_variable(s))
         }
         Rule::string => {
-            let s = pair.as_str().to_string();
+            let s = unescape_string_literal(pair.as_str())?;
             Ok(Expression::new_string(s))
         }
         Rule::bool => match pair.as_str() {
@@ -464,11 +469,23 @@ fn parse_expression(
             ))
         }
         Rule::return_stmt => {
-            let inner_pairs = pair.into_inner().next().unwrap();
-            let expr = parse_expression(inner_pairs)?;
-            Ok(Expression::new_return_stmt(expr))
+            let mut inner_pairs = pair.into_inner();
+            let mut expr_pair = None;
+            while let Some(inner) = inner_pairs.next() {
+                if inner.as_rule() != Rule::semicolon {
+                    expr_pair = Some(inner);
+                    break;
+                }
+            }
+            if let Some(inner) = expr_pair {
+                let expr = parse_expression(inner)?;
+                Ok(Expression::new_return_stmt(Some(expr)))
+            } else {
+                Ok(Expression::new_return_stmt(None))
+            }
         }
         Rule::break_stmt => Ok(Expression::new_break_stmt()),
+        Rule::continue_stmt => Ok(Expression::new_continue_stmt()),
         Rule::while_stmt => {
             let mut inner_pairs = pair.into_inner();
             let cond = parse_expression(inner_pairs.next().unwrap())?;
@@ -543,8 +560,49 @@ fn parse_program(
     Ok(expr_vec)
 }
 
+fn unescape_string_literal(input: &str) -> Result<String, Box<pest::error::Error<Rule>>> {
+    let mut chars = input.chars();
+    let first = chars.next();
+    let last = input.chars().last();
+    if first != Some('"') || last != Some('"') || input.len() < 2 {
+        return Err(Box::new(pest::error::Error::new_from_span(
+            pest::error::ErrorVariant::CustomError {
+                message: "Invalid string literal".to_string(),
+            },
+            pest::Span::new(input, 0, input.len()).unwrap(),
+        )));
+    }
+
+    let mut out = String::new();
+    let mut iter = input[1..input.len() - 1].chars();
+    while let Some(ch) = iter.next() {
+        if ch != '\\' {
+            out.push(ch);
+            continue;
+        }
+
+        match iter.next() {
+            Some('n') => out.push('\n'),
+            Some('r') => out.push('\r'),
+            Some('t') => out.push('\t'),
+            Some('"') => out.push('"'),
+            Some('\\') => out.push('\\'),
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
+            None => {
+                out.push('\\');
+            }
+        }
+    }
+
+    Ok(out)
+}
+
 pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::error::Error<Rule>>> {
-    let input = preprocess_imports(input);
+    let input = preprocess_comments(input);
+    let input = preprocess_imports(&input);
     let input = preprocess_extern_modules(&input);
     match CycloParser::parse(Rule::expression_list, &input) {
         Ok(mut pairs) => {
@@ -557,6 +615,52 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
         Err(e) => return Err(Box::new(e)),
     };
     unreachable!("parse function program")
+}
+
+fn preprocess_comments(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for chunk in input.split_inclusive('\n') {
+        let (line, newline) = if let Some(stripped) = chunk.strip_suffix('\n') {
+            (stripped, "\n")
+        } else {
+            (chunk, "")
+        };
+
+        let mut chars = line.chars().peekable();
+        let mut in_string = false;
+        let mut escape = false;
+        while let Some(ch) = chars.next() {
+            if in_string {
+                out.push(ch);
+                if escape {
+                    escape = false;
+                    continue;
+                }
+                if ch == '\\' {
+                    escape = true;
+                } else if ch == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
+
+            if ch == '"' {
+                in_string = true;
+                out.push(ch);
+                continue;
+            }
+
+            if ch == '/' && chars.peek() == Some(&'/') {
+                // strip the rest of the line as a comment
+                break;
+            }
+
+            out.push(ch);
+        }
+
+        out.push_str(newline);
+    }
+    out
 }
 
 fn preprocess_imports(input: &str) -> String {
@@ -759,6 +863,12 @@ mod test {
     }
 
     #[test]
+    fn test_parse_continue_stmt() {
+        let input = r#"while (true) { continue; }"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
     fn test_parse_number_equals_digit() {
         let input = r#"5 == 5;"#;
         if let Err(e) = parse_cyclo_program(input) {
@@ -893,10 +1003,10 @@ mod test {
         let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
             parse_cyclo_program(input);
         let list_expr = Expression::List(vec![
-            Expression::String("\"1\"".to_string()),
-            Expression::String("\"2\"".to_string()),
-            Expression::String("\"3\"".to_string()),
-            Expression::String("\"4\"".to_string()),
+            Expression::String("1".to_string()),
+            Expression::String("2".to_string()),
+            Expression::String("3".to_string()),
+            Expression::String("4".to_string()),
         ]);
         let list_type = Type::List(Box::new(Type::String));
         let let_stmt_expr =
@@ -1093,7 +1203,7 @@ fn main() {
             "get_ten".into(),
             [].to_vec(),
             Type::i32,
-            vec![Expression::ReturnStmt(Box::new(Expression::Number(10)))],
+            vec![Expression::ReturnStmt(Some(Box::new(Expression::Number(10))))],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
@@ -1112,9 +1222,9 @@ fn main() {
             "get_value".into(),
             [FuncArg("value".into(), Type::i32)].to_vec(),
             Type::i32,
-            vec![Expression::ReturnStmt(Box::new(Expression::Variable(
+            vec![Expression::ReturnStmt(Some(Box::new(Expression::Variable(
                 "value".into(),
-            )))],
+            ))))],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
@@ -1133,9 +1243,9 @@ fn main() {
             "get_value".into(),
             [FuncArg("value".into(), Type::String)].to_vec(),
             Type::String,
-            vec![Expression::ReturnStmt(Box::new(Expression::Variable(
+            vec![Expression::ReturnStmt(Some(Box::new(Expression::Variable(
                 "value".into(),
-            )))],
+            ))))],
         );
         assert!(output.is_ok());
         // Return stmt not returning correct ast
@@ -1161,11 +1271,11 @@ fn main() {
             ]
             .to_vec(),
             Type::i32,
-            vec![Expression::ReturnStmt(Box::new(Expression::Binary(
+            vec![Expression::ReturnStmt(Some(Box::new(Expression::Binary(
                 Box::new(Variable("x".into())),
                 "+".into(),
                 Box::new(Variable("y".into())),
-            )))],
+            ))))],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
@@ -1196,9 +1306,9 @@ fn main() {
             "hello_world".into(),
             [].to_vec(),
             Type::String,
-            vec![Expression::ReturnStmt(Box::new(Expression::String(
-                "\"hello world\"".into(),
-            )))],
+            vec![Expression::ReturnStmt(Some(Box::new(Expression::String(
+                "hello world".into(),
+            ))))],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
@@ -1218,7 +1328,26 @@ fn main() {
             "hello_bool".into(),
             [].to_vec(),
             Type::Bool,
-            vec![Expression::ReturnStmt(Box::new(Expression::Bool(true)))],
+            vec![Expression::ReturnStmt(Some(Box::new(Expression::Bool(true))))],
+        );
+        assert!(output.is_ok());
+        assert!(output.unwrap().contains(&func_expr))
+    }
+
+    #[test]
+    fn test_fn_return_void() {
+        let input = r#"
+        fn do_nothing() {
+            return;
+        }
+        "#;
+        let output: Result<Vec<Expression>, Box<pest::error::Error<Rule>>> =
+            parse_cyclo_program(input);
+        let func_expr = build_basic_func_ast(
+            "do_nothing".into(),
+            [].to_vec(),
+            Type::None,
+            vec![Expression::ReturnStmt(None)],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr))
@@ -1242,7 +1371,7 @@ fn main() {
             ]
             .to_vec(),
             Type::i32,
-            vec![Expression::ReturnStmt(Box::new(Expression::Binary(
+            vec![Expression::ReturnStmt(Some(Box::new(Expression::Binary(
                 Box::new(Expression::CallStmt(
                     "square".into(),
                     vec![Variable("x".into())],
@@ -1252,7 +1381,7 @@ fn main() {
                     "square".into(),
                     vec![Variable("y".into())],
                 )),
-            )))],
+            ))))],
         );
         assert!(output.is_ok());
         assert!(output.unwrap().contains(&func_expr));

@@ -1,0 +1,32 @@
+import Net;
+import System;
+
+fn main() {
+    let server: i32 = Net.listen(3000);
+    if (server < 0) {
+        print("listen failed");
+        print(server);
+        print(Net.errno());
+        return;
+    }
+    print("Serving on http://localhost:3000");
+    let response: string = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: 15\r\n\r\n{\"status\":\"ok\"}";
+    let client: i32 = 0;
+    let bytes: i32 = 0;
+    while (true) {
+        client = Net.accept(server);
+        if (client < 0) {
+            print("accept failed");
+            print(client);
+            print(Net.errno());
+            System.sleep(100);
+            continue;
+        }
+        bytes = Net.write(client, response);
+        if (bytes < 0) {
+            print(Net.errno());
+        }
+        Net.close(client);
+    }
+
+}

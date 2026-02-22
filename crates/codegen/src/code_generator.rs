@@ -5,7 +5,7 @@ use crate::{
 use crate::typed_ast::{ResolvedType, TypedExpression};
 use anyhow::{anyhow, Result};
 use llvm_sys::core::{
-    LLVMAddFunction, LLVMConstStringInContext2, LLVMFunctionType, LLVMGetNamedFunction,
+    LLVMAddFunction, LLVMBuildGlobalStringPtr, LLVMFunctionType, LLVMGetNamedFunction,
     LLVMGetParam, LLVMVoidType,
 };
 use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMTypeRef, LLVMValueRef};
@@ -27,6 +27,9 @@ pub struct CodeGenerator<'a> {
     previous_block: Option<LLVMBasicBlockRef>,
     // Track loop break targets (innermost last)
     loop_break_stack: Vec<LLVMBasicBlockRef>,
+    // Track loop continue targets (innermost last)
+    loop_continue_stack: Vec<LLVMBasicBlockRef>,
+    string_counter: u64,
 }
 
 #[derive(Clone)]
@@ -52,6 +55,8 @@ impl<'a> CodeGenerator<'a> {
             depth: 0,
             previous_block: None,
             loop_break_stack: Vec::new(),
+            loop_continue_stack: Vec::new(),
+            string_counter: 0,
         }
     }
 
@@ -109,6 +114,7 @@ impl<'a> CodeGenerator<'a> {
             TypedExpression::Print { value } => self.generate_print(value),
             TypedExpression::ReturnStmt { value } => self.generate_return(value),
             TypedExpression::BreakStmt => self.generate_break(),
+            TypedExpression::ContinueStmt => self.generate_continue(),
             TypedExpression::LetStmt {
                 name,
                 var_type,
@@ -167,22 +173,15 @@ impl<'a> CodeGenerator<'a> {
 
     fn generate_string(&mut self, value: &str) -> Result<GeneratedValue> {
         unsafe {
-            // Remove quotes from string
-            let val = value.replace('"', "");
-            let string = CString::new(val.clone()).unwrap();
+            let string = CString::new(value).unwrap();
+            let name = format!("str_lit_{}", self.string_counter);
+            self.string_counter += 1;
 
-            // Create LLVM constant string
-            let llvm_string = LLVMConstStringInContext2(
-                self.builder.context,
+            let string_ptr = LLVMBuildGlobalStringPtr(
+                self.builder.builder,
                 string.as_ptr(),
-                string.as_bytes().len(),
-                0,
+                cstr_from_string(&name).as_ptr(),
             );
-
-            // Allocate and store the string
-            let string_ptr =
-                self.builder
-                    .build_alloca_store(llvm_string, int8_ptr_type(), "string_ptr");
 
             // Call stringInit helper function to create a proper string object
             let string_init_func = self
@@ -193,7 +192,7 @@ impl<'a> CodeGenerator<'a> {
 
             let return_value =
                 self.builder
-                    .build_call(string_init_func, vec![string_ptr], 1, "string_init_call");
+                .build_call(string_init_func, vec![string_ptr], 1, "string_init_call");
 
             Ok(GeneratedValue {
                 value: return_value,
@@ -669,10 +668,19 @@ impl<'a> CodeGenerator<'a> {
         })
     }
 
-    fn generate_return(&mut self, value: &TypedExpression) -> Result<GeneratedValue> {
-        let return_value = self.generate_expression(value)?;
-        self.builder.build_ret(return_value.value);
-        Ok(return_value)
+    fn generate_return(&mut self, value: &Option<Box<TypedExpression>>) -> Result<GeneratedValue> {
+        if let Some(inner) = value {
+            let return_value = self.generate_expression(inner)?;
+            self.builder.build_ret(return_value.value);
+            Ok(return_value)
+        } else {
+            self.builder.build_ret_void();
+            Ok(GeneratedValue {
+                value: self.builder.const_int(int32_type(), 0 as c_ulonglong, 0),
+                pointer: None,
+                ty: ResolvedType::Void,
+            })
+        }
     }
 
     fn generate_break(&mut self) -> Result<GeneratedValue> {
@@ -687,6 +695,31 @@ impl<'a> CodeGenerator<'a> {
             .block_has_terminator(self.builder.current_function.block)
         {
             self.builder.build_br(break_target);
+        }
+
+        let llvm_value = self
+            .builder
+            .const_int(int32_type(), 0 as c_ulonglong, 0);
+
+        Ok(GeneratedValue {
+            value: llvm_value,
+            pointer: None,
+            ty: ResolvedType::Void,
+        })
+    }
+
+    fn generate_continue(&mut self) -> Result<GeneratedValue> {
+        let continue_target = self
+            .loop_continue_stack
+            .last()
+            .copied()
+            .ok_or_else(|| anyhow!("continue used outside of loop"))?;
+
+        if !self
+            .builder
+            .block_has_terminator(self.builder.current_function.block)
+        {
+            self.builder.build_br(continue_target);
         }
 
         let llvm_value = self
@@ -810,7 +843,9 @@ impl<'a> CodeGenerator<'a> {
             // Generate loop body
             self.builder.set_current_block(loop_body_block);
             self.loop_break_stack.push(loop_exit_block);
+            self.loop_continue_stack.push(loop_cond_block);
             self.generate_expression(body)?;
+            self.loop_continue_stack.pop();
             self.loop_break_stack.pop();
             if !self
                 .builder

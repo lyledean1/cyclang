@@ -62,8 +62,14 @@ impl SemanticAnalyzer {
             }
             TypedExpression::Variable { name: _ } => Ok(()),
             TypedExpression::Print { value } => self.analyze(value),
-            TypedExpression::ReturnStmt { value } => self.analyze(value),
+            TypedExpression::ReturnStmt { value } => {
+                if let Some(inner) = value {
+                    self.analyze(inner)?;
+                }
+                Ok(())
+            }
             TypedExpression::BreakStmt => Ok(()),
+            TypedExpression::ContinueStmt => Ok(()),
             TypedExpression::LetStmt {
                 name: _,
                 var_type: _,

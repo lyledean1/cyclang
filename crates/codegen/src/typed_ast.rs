@@ -46,9 +46,10 @@ pub enum TypedExpression {
         value: Box<TypedExpression>,
     },
     ReturnStmt {
-        value: Box<TypedExpression>,
+        value: Option<Box<TypedExpression>>,
     },
     BreakStmt,
+    ContinueStmt,
     LetStmt {
         name: String,
         var_type: Option<ResolvedType>,

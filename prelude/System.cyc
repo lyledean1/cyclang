@@ -1,0 +1,4 @@
+extern module "./native/system.c";
+
+extern fn sleep(i32 ms);
+extern fn unix() -> i64;

@@ -74,18 +74,24 @@ fn extract_extern_modules(exprs: Vec<Expression>) -> (Vec<String>, Vec<Expressio
 fn apply_imports(mut exprs: Vec<Expression>, imports: &[String]) -> Result<Vec<Expression>> {
     let mut prelude_exprs = Vec::new();
     let mut system_imported = false;
+    let mut net_imported = false;
     for module in imports {
-        if module == "System" {
-            system_imported = true;
-            prelude_exprs.extend(load_system_prelude()?);
-        } else {
-            return Err(anyhow::anyhow!("Unknown import module: {}", module));
+        match module.as_str() {
+            "System" => {
+                system_imported = true;
+                prelude_exprs.extend(load_prelude("System")?);
+            }
+            "Net" => {
+                net_imported = true;
+                prelude_exprs.extend(load_prelude("Net")?);
+            }
+            _ => return Err(anyhow::anyhow!("Unknown import module: {}", module)),
         }
     }
 
-    if system_imported {
+    if system_imported || net_imported {
         for expr in &mut exprs {
-            rewrite_system_calls(expr);
+            rewrite_import_calls(expr);
         }
     }
 
@@ -97,21 +103,23 @@ fn apply_imports(mut exprs: Vec<Expression>, imports: &[String]) -> Result<Vec<E
     }
 }
 
-fn load_system_prelude() -> Result<Vec<Expression>> {
+fn load_prelude(module: &str) -> Result<Vec<Expression>> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..");
-    let prelude_path = root.join("preludes/System.cyc");
+    let prelude_path = root.join("prelude").join(format!("{}.cyc", module));
     let prelude_src = fs::read_to_string(&prelude_path).with_context(|| {
         format!(
-            "failed to read System prelude file at {}",
+            "failed to read {} prelude file at {}",
+            module,
             prelude_path.display()
         )
     })?;
 
     let mut exprs = parser::parse_cyclo_program(&prelude_src).map_err(|e| {
         anyhow::anyhow!(
-            "failed to parse System prelude {}: {}",
+            "failed to parse {} prelude {}: {}",
+            module,
             prelude_path.display(),
             e
         )
@@ -135,55 +143,61 @@ fn rewrite_prelude_paths(exprs: &mut [Expression], base_dir: &Path) {
     }
 }
 
-fn rewrite_system_calls(expr: &mut Expression) {
+fn rewrite_import_calls(expr: &mut Expression) {
     match expr {
         Expression::CallStmt(name, args) => {
             if let Some(stripped) = name.strip_prefix("System.") {
                 *name = stripped.to_string();
+            } else if let Some(stripped) = name.strip_prefix("Net.") {
+                *name = format!("cyc_net_{}", stripped);
             }
             for arg in args {
-                rewrite_system_calls(arg);
+                rewrite_import_calls(arg);
             }
         }
         Expression::Binary(lhs, _, rhs) => {
-            rewrite_system_calls(lhs);
-            rewrite_system_calls(rhs);
+            rewrite_import_calls(lhs);
+            rewrite_import_calls(rhs);
         }
-        Expression::Grouping(inner) => rewrite_system_calls(inner),
-        Expression::LetStmt(_, _, value) => rewrite_system_calls(value),
+        Expression::Grouping(inner) => rewrite_import_calls(inner),
+        Expression::LetStmt(_, _, value) => rewrite_import_calls(value),
         Expression::BlockStmt(stmts) => {
             for stmt in stmts {
-                rewrite_system_calls(stmt);
+                rewrite_import_calls(stmt);
             }
         }
-        Expression::FuncStmt(_, _, _, body) => rewrite_system_calls(body),
+        Expression::FuncStmt(_, _, _, body) => rewrite_import_calls(body),
         Expression::IfStmt(cond, then_branch, else_branch) => {
-            rewrite_system_calls(cond);
-            rewrite_system_calls(then_branch);
+            rewrite_import_calls(cond);
+            rewrite_import_calls(then_branch);
             if let Some(else_expr) = else_branch.as_mut().as_mut() {
-                rewrite_system_calls(else_expr);
+                rewrite_import_calls(else_expr);
             }
         }
         Expression::WhileStmt(cond, body) => {
-            rewrite_system_calls(cond);
-            rewrite_system_calls(body);
+            rewrite_import_calls(cond);
+            rewrite_import_calls(body);
         }
-        Expression::ReturnStmt(value) => rewrite_system_calls(value),
-        Expression::ForStmt(_, _, _, _, body) => rewrite_system_calls(body),
-        Expression::Print(value) => rewrite_system_calls(value),
-        Expression::Len(value) => rewrite_system_calls(value),
+        Expression::ReturnStmt(value) => {
+            if let Some(inner) = value.as_mut() {
+                rewrite_import_calls(inner);
+            }
+        }
+        Expression::ForStmt(_, _, _, _, body) => rewrite_import_calls(body),
+        Expression::Print(value) => rewrite_import_calls(value),
+        Expression::Len(value) => rewrite_import_calls(value),
         Expression::List(values) => {
             for v in values {
-                rewrite_system_calls(v);
+                rewrite_import_calls(v);
             }
         }
         Expression::ListIndex(list, index) => {
-            rewrite_system_calls(list);
-            rewrite_system_calls(index);
+            rewrite_import_calls(list);
+            rewrite_import_calls(index);
         }
         Expression::ListAssign(_, index, value) => {
-            rewrite_system_calls(index);
-            rewrite_system_calls(value);
+            rewrite_import_calls(index);
+            rewrite_import_calls(value);
         }
         _ => {}
     }
