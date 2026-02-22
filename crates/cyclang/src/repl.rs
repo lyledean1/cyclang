@@ -915,6 +915,10 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
         List(_) => "List".to_string(),
         ListIndex(_, _) => "ListIndex".to_string(),
         ListAssign(name, _, _) => format!("ListAssign({name})"),
+        StructStmt(name, _) => format!("StructStmt({name})"),
+        StructInit(name, _) => format!("StructInit({name})"),
+        FieldAccess(_, field) => format!("FieldAccess({field})"),
+        FieldAssign(_, field, _) => format!("FieldAssign({field})"),
     };
 
     out.push_str(prefix);
@@ -1030,6 +1034,19 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
             format_expr_tree(index, &child_prefix, false, out);
             format_expr_tree(value, &child_prefix, true, out);
         }
+        StructInit(_, fields) => {
+            for (i, (_, expr)) in fields.iter().enumerate() {
+                let last = i + 1 == fields.len();
+                format_expr_tree(expr, &child_prefix, last, out);
+            }
+        }
+        FieldAccess(base, _) => {
+            format_expr_tree(base, &child_prefix, true, out);
+        }
+        FieldAssign(base, _, value) => {
+            format_expr_tree(base, &child_prefix, false, out);
+            format_expr_tree(value, &child_prefix, true, out);
+        }
         _ => {}
     }
 }
@@ -1042,6 +1059,7 @@ fn format_type(ty: &parser::Type) -> String {
         parser::Type::String => "string".to_string(),
         parser::Type::Bool => "bool".to_string(),
         parser::Type::List(inner) => format!("List<{}>", format_type(inner)),
+        parser::Type::Struct(name) => name.clone(),
     }
 }
 

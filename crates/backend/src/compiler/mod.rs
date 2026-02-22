@@ -273,6 +273,18 @@ fn rewrite_import_calls(expr: &mut Expression) {
             rewrite_import_calls(index);
             rewrite_import_calls(value);
         }
+        Expression::StructInit(_, fields) => {
+            for (_, expr) in fields {
+                rewrite_import_calls(expr);
+            }
+        }
+        Expression::FieldAccess(base, _) => {
+            rewrite_import_calls(base);
+        }
+        Expression::FieldAssign(base, _, value) => {
+            rewrite_import_calls(base);
+            rewrite_import_calls(value);
+        }
         _ => {}
     }
 }

@@ -107,6 +107,25 @@ bool isStringEqual(StringType *stringOne, StringType* stringTwo) {
     return true;
 }
 
+int32_t stringLen(StringType *str) {
+    if (str == NULL) {
+        return 0;
+    }
+    return str->length;
+}
+
+StringType* int32ToString(int32_t value) {
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%d", value);
+    return stringInit(buffer);
+}
+
+StringType* int64ToString(int64_t value) {
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%lld", (long long)value);
+    return stringInit(buffer);
+}
+
 // * LIST IMPLEMENTATION * //
 int32_t lenInt32List(int32_t* arr) {
     int i = 0;

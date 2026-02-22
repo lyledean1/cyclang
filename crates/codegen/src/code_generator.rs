@@ -5,8 +5,9 @@ use crate::{
 use crate::typed_ast::{ResolvedType, TypedExpression};
 use anyhow::{anyhow, Result};
 use llvm_sys::core::{
-    LLVMAddFunction, LLVMBuildGlobalStringPtr, LLVMFunctionType, LLVMGetNamedFunction,
-    LLVMGetParam, LLVMVoidType,
+    LLVMAddFunction, LLVMBuildGlobalStringPtr, LLVMBuildInsertValue, LLVMConstNull,
+    LLVMFunctionType, LLVMGetNamedFunction, LLVMGetParam, LLVMGetUndef, LLVMIsOpaqueStruct,
+    LLVMStructCreateNamed, LLVMStructSetBody, LLVMVoidType,
 };
 use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMTypeRef, LLVMValueRef};
 use std::collections::HashMap;
@@ -30,6 +31,8 @@ pub struct CodeGenerator<'a> {
     // Track loop continue targets (innermost last)
     loop_continue_stack: Vec<LLVMBasicBlockRef>,
     string_counter: u64,
+    struct_defs: HashMap<String, StructDef>,
+    struct_types: HashMap<String, LLVMTypeRef>,
 }
 
 #[derive(Clone)]
@@ -37,6 +40,13 @@ pub struct FunctionInfo {
     pub function: LLVMValueRef,
     pub func_type: LLVMTypeRef,
     pub return_type: ResolvedType,
+}
+
+#[derive(Clone)]
+struct StructDef {
+    fields: Vec<(String, ResolvedType)>,
+    field_indices: HashMap<String, usize>,
+    llvm_type: LLVMTypeRef,
 }
 
 pub struct GeneratedValue {
@@ -57,6 +67,8 @@ impl<'a> CodeGenerator<'a> {
             loop_break_stack: Vec::new(),
             loop_continue_stack: Vec::new(),
             string_counter: 0,
+            struct_defs: HashMap::new(),
+            struct_types: HashMap::new(),
         }
     }
 
@@ -144,6 +156,12 @@ impl<'a> CodeGenerator<'a> {
                 self.generate_list_assign(name, index, value)
             }
             TypedExpression::Len { value } => self.generate_len(value),
+            TypedExpression::StructStmt { name, fields } => self.generate_struct_stmt(name, fields),
+            TypedExpression::StructInit { name, fields } => self.generate_struct_init(name, fields),
+            TypedExpression::FieldAccess { base, field } => self.generate_field_access(base, field),
+            TypedExpression::FieldAssign { base, field, value } => {
+                self.generate_field_assign(base, field, value)
+            }
         }
     }
 
@@ -294,6 +312,10 @@ impl<'a> CodeGenerator<'a> {
             _ => return Err(anyhow!("Callee must be a variable (function name)")),
         };
 
+        if func_name == "str" {
+            return self.generate_builtin_str(args);
+        }
+
         // Look up the function in the cache
         let func_info = self
             .function_cache
@@ -334,7 +356,35 @@ impl<'a> CodeGenerator<'a> {
         })
     }
 
-    fn resolved_type_to_llvm(&self, ty: &ResolvedType) -> LLVMTypeRef {
+    fn generate_builtin_str(&mut self, args: &Vec<TypedExpression>) -> Result<GeneratedValue> {
+        if args.len() != 1 {
+            return Err(anyhow!("str() expects 1 argument"));
+        }
+        let arg = self.generate_expression(&args[0])?;
+        let func_name = match arg.ty {
+            ResolvedType::I32 => "int32ToString",
+            ResolvedType::I64 => "int64ToString",
+            _ => return Err(anyhow!("str() only supports i32 or i64")),
+        };
+
+        let func = self
+            .builder
+            .llvm_func_cache
+            .get(func_name)
+            .ok_or_else(|| anyhow!("{} function not found in cache", func_name))?;
+
+        let result = self
+            .builder
+            .build_call(func, vec![arg.value], 1, "str_call");
+
+        Ok(GeneratedValue {
+            value: result,
+            pointer: Some(result),
+            ty: ResolvedType::String,
+        })
+    }
+
+    fn resolved_type_to_llvm(&mut self, ty: &ResolvedType) -> LLVMTypeRef {
         unsafe {
             use llvm_sys::core::{LLVMGetTypeByName2, LLVMPointerType};
 
@@ -355,6 +405,25 @@ impl<'a> CodeGenerator<'a> {
                     // Lists are represented as pointers (i32* for i32 lists, struct.StringType** for string lists)
                     // We'll use int8_ptr_type() as a generic pointer type since lists are opaque pointers
                     int8_ptr_type()
+                }
+                ResolvedType::Struct(name) => {
+                    if let Some(ty) = self.struct_types.get(name) {
+                        *ty
+                    } else {
+                        let llvm_name = format!("struct.{}", name);
+                        let type_name =
+                            CString::new(llvm_name).expect("CString::new failed");
+                        let existing = LLVMGetTypeByName2(self.builder.context, type_name.as_ptr());
+                        if !existing.is_null() {
+                            self.struct_types.insert(name.clone(), existing);
+                            existing
+                        } else {
+                            let created =
+                                LLVMStructCreateNamed(self.builder.context, type_name.as_ptr());
+                            self.struct_types.insert(name.clone(), created);
+                            created
+                        }
+                    }
                 }
                 _ => unimplemented!("Type conversion not implemented for {:?}", ty),
             }
@@ -417,11 +486,10 @@ impl<'a> CodeGenerator<'a> {
             self.incr_depth();
             for (i, (arg_name, arg_type)) in args.iter().enumerate() {
                 let param_value = LLVMGetParam(function, i as u32);
-                let param_ptr = self.builder.build_alloca_store(
-                    param_value,
-                    self.resolved_type_to_llvm(arg_type),
-                    &format!("{}_ptr", arg_name),
-                );
+                let llvm_ty = self.resolved_type_to_llvm(arg_type);
+                let param_ptr = self
+                    .builder
+                    .build_alloca_store(param_value, llvm_ty, &format!("{}_ptr", arg_name));
 
                 self.set_variable(
                     arg_name,
@@ -526,31 +594,34 @@ impl<'a> CodeGenerator<'a> {
     }
 
     fn generate_variable(&mut self, name: &String) -> Result<GeneratedValue> {
-        let var = self
-            .get_variable(name)
-            .ok_or_else(|| anyhow!("Undefined variable: {}", name))?;
+        let (var_value, var_pointer, var_ty) = {
+            let var = self
+                .get_variable(name)
+                .ok_or_else(|| anyhow!("Undefined variable: {}", name))?;
+            (var.value, var.pointer, var.ty.clone())
+        };
 
         // If the variable has a pointer, we need to load the current value from memory
         // This is important for variable reassignment to work correctly
         // Exception: Lists and Strings are already pointers, so we don't load them
-        let current_value = match (&var.ty, var.pointer) {
+        let current_value = match (&var_ty, var_pointer) {
             (ResolvedType::List(_), _) | (ResolvedType::String, _) => {
                 // Lists and Strings are already pointer values, don't load
-                var.value
+                var_value
             }
             (_, Some(ptr)) => {
                 // Load the current value from the pointer
-                let llvm_type = self.resolved_type_to_llvm(&var.ty);
+                let llvm_type = self.resolved_type_to_llvm(&var_ty);
                 self.builder
                     .build_load(ptr, llvm_type, &format!("{}_load", name))
             }
-            (_, None) => var.value,
+            (_, None) => var_value,
         };
 
         Ok(GeneratedValue {
             value: current_value,
-            pointer: var.pointer,
-            ty: var.ty.clone(),
+            pointer: var_pointer,
+            ty: var_ty,
         })
     }
 
@@ -681,6 +752,228 @@ impl<'a> CodeGenerator<'a> {
                 ty: ResolvedType::Void,
             })
         }
+    }
+
+    fn generate_struct_stmt(
+        &mut self,
+        name: &str,
+        fields: &Vec<(String, ResolvedType)>,
+    ) -> Result<GeneratedValue> {
+        self.define_struct(name, fields)?;
+        Ok(GeneratedValue {
+            value: ptr::null_mut(),
+            pointer: None,
+            ty: ResolvedType::Void,
+        })
+    }
+
+    fn generate_struct_init(
+        &mut self,
+        name: &str,
+        fields: &Vec<(String, TypedExpression)>,
+    ) -> Result<GeneratedValue> {
+        let def = self
+            .struct_defs
+            .get(name)
+            .ok_or_else(|| anyhow!("Unknown struct type: {}", name))?
+            .clone();
+
+        let struct_type = self.resolved_type_to_llvm(&ResolvedType::Struct(name.to_string()));
+
+        let mut init_map: HashMap<String, &TypedExpression> = HashMap::new();
+        for (field_name, expr) in fields {
+            init_map.insert(field_name.clone(), expr);
+        }
+
+        let mut value = unsafe { LLVMGetUndef(struct_type) };
+        for (idx, (field_name, field_ty)) in def.fields.iter().enumerate() {
+            let field_value = if let Some(expr) = init_map.get(field_name) {
+                self.generate_expression(expr)?
+            } else {
+                let zero = self.zero_value(field_ty);
+                GeneratedValue {
+                    value: zero,
+                    pointer: None,
+                    ty: field_ty.clone(),
+                }
+            };
+
+            let name_hint = format!("{}_set", field_name);
+            value = unsafe {
+                LLVMBuildInsertValue(
+                    self.builder.builder,
+                    value,
+                    field_value.value,
+                    idx as u32,
+                    cstr_from_string(&name_hint).as_ptr(),
+                )
+            };
+        }
+
+        Ok(GeneratedValue {
+            value,
+            pointer: None,
+            ty: ResolvedType::Struct(name.to_string()),
+        })
+    }
+
+    fn generate_field_access(
+        &mut self,
+        base: &TypedExpression,
+        field: &str,
+    ) -> Result<GeneratedValue> {
+        let base_value = self.generate_expression(base)?;
+        let struct_name = match &base_value.ty {
+            ResolvedType::Struct(name) => name.clone(),
+            _ => return Err(anyhow!("Field access on non-struct type: {:?}", base_value.ty)),
+        };
+
+        let field_ptr = self.struct_field_ptr(&base_value, &struct_name, field)?;
+        let field_ty = self
+            .struct_defs
+            .get(&struct_name)
+            .and_then(|def| {
+                def.field_indices
+                    .get(field)
+                    .and_then(|idx| def.fields.get(*idx))
+            })
+            .map(|(_, ty)| ty.clone())
+            .ok_or_else(|| anyhow!("Unknown field '{}' for struct {}", field, struct_name))?;
+
+        let llvm_field_type = self.resolved_type_to_llvm(&field_ty);
+        let loaded = self
+            .builder
+            .build_load(field_ptr, llvm_field_type, &format!("{}_load", field));
+
+        Ok(GeneratedValue {
+            value: loaded,
+            pointer: Some(field_ptr),
+            ty: field_ty,
+        })
+    }
+
+    fn generate_field_assign(
+        &mut self,
+        base: &TypedExpression,
+        field: &str,
+        value: &TypedExpression,
+    ) -> Result<GeneratedValue> {
+        let base_value = self.generate_expression(base)?;
+        let struct_name = match &base_value.ty {
+            ResolvedType::Struct(name) => name.clone(),
+            _ => return Err(anyhow!("Field assignment on non-struct type: {:?}", base_value.ty)),
+        };
+
+        let field_ptr = self.struct_field_ptr(&base_value, &struct_name, field)?;
+        let new_value = self.generate_expression(value)?;
+        self.builder.build_store(new_value.value, field_ptr);
+
+        Ok(GeneratedValue {
+            value: new_value.value,
+            pointer: None,
+            ty: ResolvedType::Void,
+        })
+    }
+
+    fn zero_value(&mut self, ty: &ResolvedType) -> LLVMValueRef {
+        let llvm_ty = self.resolved_type_to_llvm(ty);
+        unsafe { LLVMConstNull(llvm_ty) }
+    }
+
+    fn define_struct(
+        &mut self,
+        name: &str,
+        fields: &Vec<(String, ResolvedType)>,
+    ) -> Result<LLVMTypeRef> {
+        if let Some(def) = self.struct_defs.get(name) {
+            return Ok(def.llvm_type);
+        }
+
+        let llvm_name = format!("struct.{}", name);
+        let type_name = CString::new(llvm_name).expect("CString::new failed");
+
+        let struct_type = self
+            .struct_types
+            .get(name)
+            .copied()
+            .unwrap_or_else(|| unsafe {
+                LLVMStructCreateNamed(self.builder.context, type_name.as_ptr())
+            });
+        self.struct_types.insert(name.to_string(), struct_type);
+
+        let mut field_types: Vec<LLVMTypeRef> = fields
+            .iter()
+            .map(|(_, ty)| self.resolved_type_to_llvm(ty))
+            .collect();
+
+        unsafe {
+            if LLVMIsOpaqueStruct(struct_type) != 0 {
+                LLVMStructSetBody(
+                    struct_type,
+                    field_types.as_mut_ptr(),
+                    field_types.len() as u32,
+                    0,
+                );
+            }
+        }
+
+        let mut field_indices = HashMap::new();
+        for (idx, (field_name, _)) in fields.iter().enumerate() {
+            field_indices.insert(field_name.clone(), idx);
+        }
+
+        self.struct_defs.insert(
+            name.to_string(),
+            StructDef {
+                fields: fields.clone(),
+                field_indices,
+                llvm_type: struct_type,
+            },
+        );
+
+        Ok(struct_type)
+    }
+
+    fn struct_field_ptr(
+        &mut self,
+        base_value: &GeneratedValue,
+        struct_name: &str,
+        field: &str,
+    ) -> Result<LLVMValueRef> {
+        let struct_type = self.resolved_type_to_llvm(&ResolvedType::Struct(struct_name.to_string()));
+        let struct_ptr = match base_value.pointer {
+            Some(ptr) => ptr,
+            None => {
+                let temp_ptr = self
+                    .builder
+                    .build_alloca_store(base_value.value, struct_type, "struct_tmp");
+                temp_ptr
+            }
+        };
+
+        let def = self
+            .struct_defs
+            .get(struct_name)
+            .ok_or_else(|| anyhow!("Unknown struct type: {}", struct_name))?;
+        let field_index = def
+            .field_indices
+            .get(field)
+            .copied()
+            .ok_or_else(|| anyhow!("Unknown field '{}' for struct {}", field, struct_name))?;
+
+        let mut indices = vec![
+            self.builder.const_int(int32_type(), 0 as c_ulonglong, 0),
+            self.builder
+                .const_int(int32_type(), field_index as c_ulonglong, 0),
+        ];
+        let field_ptr = self.builder.build_gep(
+            struct_type,
+            struct_ptr,
+            indices.as_mut_ptr(),
+            indices.len() as u32,
+            cstr_from_string(&format!("{}_ptr", field)).as_ptr(),
+        );
+        Ok(field_ptr)
     }
 
     fn generate_break(&mut self) -> Result<GeneratedValue> {
@@ -1098,22 +1391,23 @@ impl<'a> CodeGenerator<'a> {
         // Generate the list expression
         let list_value = self.generate_expression(value)?;
 
-        // Extract element type from list
-        let element_type = match &list_value.ty {
-            ResolvedType::List(inner) => inner.as_ref().clone(),
-            _ => return Err(anyhow!("len() requires a list argument")),
-        };
-
-        // Call the appropriate len function based on element type
-        let len_func_name = match element_type {
-            ResolvedType::I32 => "lenInt32List",
-            ResolvedType::String => "lenStringList",
-            _ => {
-                return Err(anyhow!(
-                    "len() for type {:?} not yet supported",
-                    element_type
-                ))
+        let (len_func_name, len_arg) = match &list_value.ty {
+            ResolvedType::List(inner) => {
+                let element_type = inner.as_ref().clone();
+                let func_name = match element_type {
+                    ResolvedType::I32 => "lenInt32List",
+                    ResolvedType::String => "lenStringList",
+                    _ => {
+                        return Err(anyhow!(
+                            "len() for type {:?} not yet supported",
+                            element_type
+                        ))
+                    }
+                };
+                (func_name, list_value.value)
             }
+            ResolvedType::String => ("stringLen", list_value.value),
+            _ => return Err(anyhow!("len() requires a list or string argument")),
         };
 
         let len_func = self
@@ -1122,10 +1416,10 @@ impl<'a> CodeGenerator<'a> {
             .get(len_func_name)
             .ok_or_else(|| anyhow!("{} function not found in cache", len_func_name))?;
 
-        // Call len function: len_func(list_ptr)
+        // Call len function
         let result = self
             .builder
-            .build_call(len_func, vec![list_value.value], 1, "list_len");
+            .build_call(len_func, vec![len_arg], 1, "len_call");
 
         Ok(GeneratedValue {
             value: result,

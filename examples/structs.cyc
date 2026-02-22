@@ -1,0 +1,8 @@
+struct Name { name: string; }
+struct Person { age: i32; name: Name; }
+
+fn main() {
+    let n: Name = Name { name: "Ada"; };
+    let p: Person = Person { age: 12; name: n; };
+    print(p.name.name);
+}

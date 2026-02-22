@@ -140,6 +140,58 @@ mod test {
     }
 
     #[test]
+    fn test_compile_struct_init_and_access() {
+        let input = r#"
+        struct Person { age: i32; name: string; }
+        fn main() {
+            let p: Person = Person { age: 12; name: "Ada"; };
+            print(p.age);
+        }
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "12\n");
+    }
+
+    #[test]
+    fn test_compile_nested_structs() {
+        let input = r#"
+        struct Name { name: string; }
+        struct Person { age: i32; name: Name; }
+        fn main() {
+            let n: Name = Name { name: "Ada"; };
+            let p: Person = Person { age: 12; name: n; };
+            print(p.name.name);
+        }
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "\"Ada\"\n");
+    }
+
+    #[test]
+    fn test_compile_len_string() {
+        let input = r#"
+        fn main() {
+            let s: string = "abcd";
+            print(len(s));
+        }
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "4\n");
+    }
+
+    #[test]
+    fn test_compile_str_i32() {
+        let input = r#"
+        fn main() {
+            let n: i32 = 42;
+            print(str(n));
+        }
+        "#;
+        let output = compile_output_from_string_test(input.to_string());
+        assert_eq!(output, "\"42\"\n");
+    }
+
+    #[test]
     fn test_compile_variable_bool() {
         let input = r#"
         let variable = true;
