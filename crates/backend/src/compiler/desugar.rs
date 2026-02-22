@@ -68,6 +68,7 @@ fn desugar_expr(expr: Expression) -> Expression {
             Expression::ExternFuncStmt(name, args, return_type)
         }
         Expression::ExternModule(path) => Expression::ExternModule(path),
+        Expression::ImportStmt(module) => Expression::ImportStmt(module),
         other => other,
     }
 }

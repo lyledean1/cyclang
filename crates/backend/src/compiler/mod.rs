@@ -5,18 +5,21 @@ mod desugar;
 
 use crate::compiler::semantic_analyzer::SemanticAnalyzer;
 use crate::compiler::type_resolver::TypeResolver;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use codegen::builder::LLVMCodegenBuilder;
 use codegen::code_generator::CodeGenerator;
 use parser::Expression;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::NamedTempFile;
+use std::fs;
 
 pub use codegen::CompileOptions;
 pub use desugar::desugar_program;
 
 pub fn compile(exprs: Vec<Expression>, options: Option<CompileOptions>) -> Result<String> {
+    let (imports, exprs) = extract_imports(exprs);
+    let exprs = apply_imports(exprs, &imports)?;
     let (extern_modules, exprs) = extract_extern_modules(exprs);
     let exprs = desugar::desugar_program(exprs);
     let mut type_resolver = TypeResolver::new();
@@ -44,6 +47,18 @@ pub fn compile(exprs: Vec<Expression>, options: Option<CompileOptions>) -> Resul
     codegen_builder.dispose_and_get_module_str()
 }
 
+fn extract_imports(exprs: Vec<Expression>) -> (Vec<String>, Vec<Expression>) {
+    let mut imports = Vec::new();
+    let mut filtered = Vec::new();
+    for expr in exprs {
+        match expr {
+            Expression::ImportStmt(module) => imports.push(module),
+            other => filtered.push(other),
+        }
+    }
+    (imports, filtered)
+}
+
 fn extract_extern_modules(exprs: Vec<Expression>) -> (Vec<String>, Vec<Expression>) {
     let mut modules = Vec::new();
     let mut filtered = Vec::new();
@@ -54,6 +69,124 @@ fn extract_extern_modules(exprs: Vec<Expression>) -> (Vec<String>, Vec<Expressio
         }
     }
     (modules, filtered)
+}
+
+fn apply_imports(mut exprs: Vec<Expression>, imports: &[String]) -> Result<Vec<Expression>> {
+    let mut prelude_exprs = Vec::new();
+    let mut system_imported = false;
+    for module in imports {
+        if module == "System" {
+            system_imported = true;
+            prelude_exprs.extend(load_system_prelude()?);
+        } else {
+            return Err(anyhow::anyhow!("Unknown import module: {}", module));
+        }
+    }
+
+    if system_imported {
+        for expr in &mut exprs {
+            rewrite_system_calls(expr);
+        }
+    }
+
+    if !prelude_exprs.is_empty() {
+        prelude_exprs.extend(exprs);
+        Ok(prelude_exprs)
+    } else {
+        Ok(exprs)
+    }
+}
+
+fn load_system_prelude() -> Result<Vec<Expression>> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..");
+    let prelude_path = root.join("preludes/System.cyc");
+    let prelude_src = fs::read_to_string(&prelude_path).with_context(|| {
+        format!(
+            "failed to read System prelude file at {}",
+            prelude_path.display()
+        )
+    })?;
+
+    let mut exprs = parser::parse_cyclo_program(&prelude_src).map_err(|e| {
+        anyhow::anyhow!(
+            "failed to parse System prelude {}: {}",
+            prelude_path.display(),
+            e
+        )
+    })?;
+
+    let base_dir = prelude_path.parent().unwrap_or(Path::new("."));
+    rewrite_prelude_paths(&mut exprs, base_dir);
+
+    Ok(exprs)
+}
+
+fn rewrite_prelude_paths(exprs: &mut [Expression], base_dir: &Path) {
+    for expr in exprs {
+        if let Expression::ExternModule(path) = expr {
+            let path_buf = PathBuf::from(path.as_str());
+            if path_buf.is_relative() {
+                let full_path = base_dir.join(path_buf);
+                *path = full_path.to_string_lossy().to_string();
+            }
+        }
+    }
+}
+
+fn rewrite_system_calls(expr: &mut Expression) {
+    match expr {
+        Expression::CallStmt(name, args) => {
+            if let Some(stripped) = name.strip_prefix("System.") {
+                *name = stripped.to_string();
+            }
+            for arg in args {
+                rewrite_system_calls(arg);
+            }
+        }
+        Expression::Binary(lhs, _, rhs) => {
+            rewrite_system_calls(lhs);
+            rewrite_system_calls(rhs);
+        }
+        Expression::Grouping(inner) => rewrite_system_calls(inner),
+        Expression::LetStmt(_, _, value) => rewrite_system_calls(value),
+        Expression::BlockStmt(stmts) => {
+            for stmt in stmts {
+                rewrite_system_calls(stmt);
+            }
+        }
+        Expression::FuncStmt(_, _, _, body) => rewrite_system_calls(body),
+        Expression::IfStmt(cond, then_branch, else_branch) => {
+            rewrite_system_calls(cond);
+            rewrite_system_calls(then_branch);
+            if let Some(else_expr) = else_branch.as_mut().as_mut() {
+                rewrite_system_calls(else_expr);
+            }
+        }
+        Expression::WhileStmt(cond, body) => {
+            rewrite_system_calls(cond);
+            rewrite_system_calls(body);
+        }
+        Expression::ReturnStmt(value) => rewrite_system_calls(value),
+        Expression::ForStmt(_, _, _, _, body) => rewrite_system_calls(body),
+        Expression::Print(value) => rewrite_system_calls(value),
+        Expression::Len(value) => rewrite_system_calls(value),
+        Expression::List(values) => {
+            for v in values {
+                rewrite_system_calls(v);
+            }
+        }
+        Expression::ListIndex(list, index) => {
+            rewrite_system_calls(list);
+            rewrite_system_calls(index);
+        }
+        Expression::ListAssign(_, index, value) => {
+            rewrite_system_calls(index);
+            rewrite_system_calls(value);
+        }
+        _ => {}
+    }
 }
 
 fn link_extern_modules(

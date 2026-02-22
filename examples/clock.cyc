@@ -1,0 +1,10 @@
+import System;
+
+fn main() {
+    let t0: i64 = System.unix();
+    print(t0);
+    System.sleep(200);
+    let t1: i64 = System.unix();
+    print(t1);
+    print(t1 - t0);
+}

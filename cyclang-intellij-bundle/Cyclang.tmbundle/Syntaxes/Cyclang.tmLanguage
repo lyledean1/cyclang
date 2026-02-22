@@ -71,13 +71,19 @@
 					<key>name</key>
 					<string>keyword.control.cyclang</string>
 					<key>match</key>
-					<string>\b(if|else|while|for|return)\b</string>
+					<string>\b(if|else|while|for|return|break)\b</string>
 				</dict>
 				<dict>
 					<key>name</key>
 					<string>keyword.other.cyclang</string>
 					<key>match</key>
-					<string>\b(fn|let)\b</string>
+					<string>\b(fn|let|extern|module|import)\b</string>
+				</dict>
+				<dict>
+					<key>name</key>
+					<string>entity.name.namespace.cyclang</string>
+					<key>match</key>
+					<string>\bimport\b\s+([A-Za-z_][A-Za-z0-9_]*)</string>
 				</dict>
 				<dict>
 					<key>name</key>
@@ -95,7 +101,7 @@
 					<key>name</key>
 					<string>support.function.builtin.cyclang</string>
 					<key>match</key>
-					<string>\b(print|len)\b</string>
+					<string>\b(print|len|sleep|clock_ms|unix_ms)\b</string>
 				</dict>
 				<dict>
 					<key>name</key>

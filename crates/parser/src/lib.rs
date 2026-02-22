@@ -39,6 +39,7 @@ pub enum Expression {
     FuncStmt(String, Vec<Expression>, Type, Box<Expression>),
     ExternFuncStmt(String, Vec<Expression>, Type),
     ExternModule(String),
+    ImportStmt(String),
     CallStmt(String, Vec<Expression>),
     IfStmt(Box<Expression>, Box<Expression>, Box<Option<Expression>>),
     WhileStmt(Box<Expression>, Box<Expression>),
@@ -138,6 +139,10 @@ impl Expression {
 
     fn new_extern_module(path: String) -> Self {
         Self::ExternModule(path)
+    }
+
+    fn new_import_stmt(module: String) -> Self {
+        Self::ImportStmt(module)
     }
 
     fn new_func_arg(name: String, arg_type: Type) -> Self {
@@ -336,6 +341,11 @@ fn parse_expression(
                 func_type,
             ))
         }
+        Rule::import_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let module = inner_pairs.next().unwrap().as_str().to_string();
+            Ok(Expression::new_import_stmt(module))
+        }
         Rule::func_arg => {
             let mut inner_pairs = pair.clone().into_inner();
             while inner_pairs.peek().is_some_and(|p| {
@@ -389,6 +399,12 @@ fn parse_expression(
                     if let Expression::String(path) = &call_args[0] {
                         let path = path.replace('"', "");
                         return Ok(Expression::new_extern_module(path));
+                    }
+                }
+                if call_name == "import_stmt" && call_args.len() == 1 {
+                    if let Expression::String(module) = &call_args[0] {
+                        let module = module.replace('"', "");
+                        return Ok(Expression::new_import_stmt(module));
                     }
                 }
             }
@@ -528,7 +544,8 @@ fn parse_program(
 }
 
 pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::error::Error<Rule>>> {
-    let input = preprocess_extern_modules(input);
+    let input = preprocess_imports(input);
+    let input = preprocess_extern_modules(&input);
     match CycloParser::parse(Rule::expression_list, &input) {
         Ok(mut pairs) => {
             // TODO: only returns first pair
@@ -541,6 +558,38 @@ pub fn parse_cyclo_program(input: &str) -> Result<Vec<Expression>, Box<pest::err
     };
     unreachable!("parse function program")
 }
+
+fn preprocess_imports(input: &str) -> String {
+    let mut out = String::new();
+    for chunk in input.split_inclusive('\n') {
+        let (line, newline) = if let Some(stripped) = chunk.strip_suffix('\n') {
+            (stripped, "\n")
+        } else {
+            (chunk, "")
+        };
+
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("import ") {
+            let indent_len = line.len() - trimmed.len();
+            let indent = &line[..indent_len];
+            let rest = trimmed.trim_start_matches("import").trim();
+            let rest = rest.strip_suffix(';').unwrap_or(rest).trim();
+            if !rest.is_empty() {
+                out.push_str(indent);
+                out.push_str("import_stmt(\"");
+                out.push_str(rest);
+                out.push_str("\");");
+                out.push_str(newline);
+                continue;
+            }
+        }
+
+        out.push_str(line);
+        out.push_str(newline);
+    }
+    out
+}
+
 
 fn preprocess_extern_modules(input: &str) -> String {
     let mut out = String::new();
@@ -647,6 +696,12 @@ mod test {
     fn test_parse_number_expression_err() {
         let input = r#"555""#;
         assert!(parse_cyclo_program(input).is_err());
+    }
+
+    #[test]
+    fn test_parse_import_system_stmt() {
+        let input = r#"import System;"#;
+        assert!(parse_cyclo_program(input).is_ok());
     }
 
     #[test]

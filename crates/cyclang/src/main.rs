@@ -123,22 +123,14 @@ mod test {
     }
 
     #[test]
-    fn test_compile_extern_module_sleep() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..");
-        let sleep_path = root.join("examples/native/sleep.c");
-        let input = format!(
-            r#"
-extern module "{}";
-extern fn sleep(i32 ms);
-fn main() {{
-    sleep(0);
-    print("ok");
-}}
-"#,
-            sleep_path.to_string_lossy()
-        );
+    fn test_compile_import_system_sleep() {
+        let input = r#"
+        import System;
+        fn main() {
+            System.sleep(0);
+            print("ok");
+        }
+        "#;
         let output = compile_output_from_string_test(input.to_string());
         assert_eq!(output, "\"ok\"\n");
     }

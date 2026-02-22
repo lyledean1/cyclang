@@ -1,0 +1,5 @@
+extern module "./native/sleep.c";
+extern fn sleep(i32 ms);
+
+extern module "./native/clock.c";
+extern fn unix() -> i64;
