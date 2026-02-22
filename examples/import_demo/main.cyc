@@ -1,0 +1,5 @@
+import "./utils.cyc";
+
+fn main() {
+    print(add(2, 3));
+}
