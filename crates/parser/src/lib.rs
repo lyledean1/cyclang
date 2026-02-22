@@ -679,9 +679,19 @@ fn preprocess_imports(input: &str) -> String {
             let rest = trimmed.trim_start_matches("import").trim();
             let rest = rest.strip_suffix(';').unwrap_or(rest).trim();
             if !rest.is_empty() {
+                let module = if rest.starts_with('"') {
+                    let rest = &rest[1..];
+                    if let Some(end) = rest.find('"') {
+                        &rest[..end]
+                    } else {
+                        rest
+                    }
+                } else {
+                    rest
+                };
                 out.push_str(indent);
                 out.push_str("import_stmt(\"");
-                out.push_str(rest);
+                out.push_str(module);
                 out.push_str("\");");
                 out.push_str(newline);
                 continue;
@@ -805,6 +815,12 @@ mod test {
     #[test]
     fn test_parse_import_system_stmt() {
         let input = r#"import System;"#;
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_import_path_stmt() {
+        let input = r#"import "./utils.cyc";"#;
         assert!(parse_cyclo_program(input).is_ok());
     }
 

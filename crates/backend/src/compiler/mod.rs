@@ -10,6 +10,7 @@ use codegen::builder::LLVMCodegenBuilder;
 use codegen::code_generator::CodeGenerator;
 use parser::Expression;
 use std::path::{Path, PathBuf};
+use std::collections::HashSet;
 use std::process::Command;
 use tempfile::NamedTempFile;
 use std::fs;
@@ -18,8 +19,18 @@ pub use codegen::CompileOptions;
 pub use desugar::desugar_program;
 
 pub fn compile(exprs: Vec<Expression>, options: Option<CompileOptions>) -> Result<String> {
-    let (imports, exprs) = extract_imports(exprs);
-    let exprs = apply_imports(exprs, &imports)?;
+    compile_with_base(exprs, options, None)
+}
+
+pub fn compile_with_base(
+    exprs: Vec<Expression>,
+    options: Option<CompileOptions>,
+    base_dir: Option<&Path>,
+) -> Result<String> {
+    let mut visiting = HashSet::new();
+    let mut visited = HashSet::new();
+    let mut flags = ImportFlags::default();
+    let exprs = expand_imports(exprs, base_dir, &mut visiting, &mut visited, &mut flags)?;
     let (extern_modules, exprs) = extract_extern_modules(exprs);
     let exprs = desugar::desugar_program(exprs);
     let mut type_resolver = TypeResolver::new();
@@ -71,36 +82,99 @@ fn extract_extern_modules(exprs: Vec<Expression>) -> (Vec<String>, Vec<Expressio
     (modules, filtered)
 }
 
-fn apply_imports(mut exprs: Vec<Expression>, imports: &[String]) -> Result<Vec<Expression>> {
-    let mut prelude_exprs = Vec::new();
-    let mut system_imported = false;
-    let mut net_imported = false;
+#[derive(Default, Debug)]
+struct ImportFlags {
+    system: bool,
+    net: bool,
+}
+
+fn expand_imports(
+    exprs: Vec<Expression>,
+    base_dir: Option<&Path>,
+    visiting: &mut HashSet<PathBuf>,
+    visited: &mut HashSet<PathBuf>,
+    flags: &mut ImportFlags,
+) -> Result<Vec<Expression>> {
+    let (imports, mut exprs) = extract_imports(exprs);
+    let mut imported_exprs = Vec::new();
+
     for module in imports {
         match module.as_str() {
             "System" => {
-                system_imported = true;
-                prelude_exprs.extend(load_prelude("System")?);
+                flags.system = true;
+                imported_exprs.extend(load_prelude("System")?);
             }
             "Net" => {
-                net_imported = true;
-                prelude_exprs.extend(load_prelude("Net")?);
+                flags.net = true;
+                imported_exprs.extend(load_prelude("Net")?);
             }
-            _ => return Err(anyhow::anyhow!("Unknown import module: {}", module)),
+            _ => {
+                let path = resolve_import_path(&module, base_dir)?;
+                let mut child = load_import_file(&path, visiting, visited, flags)?;
+                imported_exprs.append(&mut child);
+            }
         }
     }
 
-    if system_imported || net_imported {
+    if flags.system || flags.net {
         for expr in &mut exprs {
             rewrite_import_calls(expr);
         }
     }
 
-    if !prelude_exprs.is_empty() {
-        prelude_exprs.extend(exprs);
-        Ok(prelude_exprs)
+    if !imported_exprs.is_empty() {
+        imported_exprs.extend(exprs);
+        Ok(imported_exprs)
     } else {
         Ok(exprs)
     }
+}
+
+fn resolve_import_path(module: &str, base_dir: Option<&Path>) -> Result<PathBuf> {
+    let candidate = Path::new(module);
+    if candidate.is_absolute() {
+        return Ok(candidate.to_path_buf());
+    }
+    let base = base_dir.unwrap_or_else(|| Path::new("."));
+    Ok(base.join(candidate))
+}
+
+fn load_import_file(
+    path: &Path,
+    visiting: &mut HashSet<PathBuf>,
+    visited: &mut HashSet<PathBuf>,
+    flags: &mut ImportFlags,
+) -> Result<Vec<Expression>> {
+    let canon = path
+        .canonicalize()
+        .with_context(|| format!("failed to resolve import path: {}", path.display()))?;
+
+    if visiting.contains(&canon) {
+        return Err(anyhow::anyhow!(
+            "import cycle detected at {}",
+            canon.display()
+        ));
+    }
+    if visited.contains(&canon) {
+        return Ok(Vec::new());
+    }
+
+    visiting.insert(canon.clone());
+    let src = fs::read_to_string(&canon)
+        .with_context(|| format!("failed to read import file {}", canon.display()))?;
+    let exprs = parser::parse_cyclo_program(&src).map_err(|e| {
+        anyhow::anyhow!(
+            "failed to parse import file {}: {}",
+            canon.display(),
+            e
+        )
+    })?;
+
+    let parent = canon.parent();
+    let expanded = expand_imports(exprs, parent, visiting, visited, flags)?;
+    visiting.remove(&canon);
+    visited.insert(canon);
+    Ok(expanded)
 }
 
 fn load_prelude(module: &str) -> Result<Vec<Expression>> {

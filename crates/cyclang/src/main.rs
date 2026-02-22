@@ -34,6 +34,7 @@ fn compile_output_from_string(
     is_execution_engine: bool,
     emit_llvm_ir: bool,
     target: Option<String>,
+    base_dir: Option<std::path::PathBuf>,
 ) -> String {
     let compile_options = Some(CompileOptions {
         is_execution_engine,
@@ -43,7 +44,8 @@ fn compile_output_from_string(
         target: get_target(target),
     });
     match parse_cyclo_program(&contents) {
-        Ok(exprs) => compiler::compile(exprs, compile_options).unwrap_or_else(|e| {
+        Ok(exprs) => compiler::compile_with_base(exprs, compile_options, base_dir.as_deref())
+            .unwrap_or_else(|e| {
             eprintln!("unable to compile contents due to error: {e}");
             exit(1)
         }),
@@ -72,12 +74,14 @@ fn main() {
             exit(2);
         }
     };
-    let contents = fs::read_to_string(file).expect("Failed to read file");
+    let contents = fs::read_to_string(&file).expect("Failed to read file");
+    let base_dir = std::path::Path::new(&file).parent().map(|p| p.to_path_buf());
     let output = compile_output_from_string(
         contents,
         !args.emit_llvm_ir,
         args.emit_llvm_ir,
         args.target,
+        base_dir,
     );
 
     // If we're emitting LLVM IR, print it; otherwise it's execution output
@@ -93,7 +97,7 @@ mod test {
     use super::*;
     //Note: Integration tests for parsing and compiling output
     fn compile_output_from_string_test(contents: String) -> String {
-        compile_output_from_string(contents, false, false, None)
+        compile_output_from_string(contents, false, false, None, None)
     }
 
     fn add_into_main_func(input: &str) -> String {
