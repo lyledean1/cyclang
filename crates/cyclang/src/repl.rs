@@ -906,6 +906,7 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
         WhileStmt(_, _) => "WhileStmt".to_string(),
         ReturnStmt(_) => "ReturnStmt".to_string(),
         BreakStmt => "BreakStmt".to_string(),
+        ContinueStmt => "ContinueStmt".to_string(),
         ForStmt(name, start, end, step, _) => {
             format!("ForStmt({name} = {start}..{end} step {step})")
         }
@@ -1004,7 +1005,9 @@ fn format_expr_tree(expr: &Expression, prefix: &str, is_last: bool, out: &mut St
             format_expr_tree(body, &body_prefix, true, out);
         }
         ReturnStmt(value) => {
-            format_expr_tree(value, &child_prefix, true, out);
+            if let Some(inner) = value.as_ref() {
+                format_expr_tree(inner, &child_prefix, true, out);
+            }
         }
         BreakStmt => {}
         ForStmt(_, _, _, _, body) => {

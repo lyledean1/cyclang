@@ -257,13 +257,20 @@ impl TypeResolver {
                 ))
             }
             Expression::ReturnStmt(value) => {
-                let (typed_value, value_ty) = self.resolve_expression(value)?;
-                Ok((
-                    TypedExpression::ReturnStmt {
-                        value: Box::new(typed_value),
-                    },
-                    value_ty,
-                ))
+                if let Some(expr) = value {
+                    let (typed_value, value_ty) = self.resolve_expression(expr)?;
+                    Ok((
+                        TypedExpression::ReturnStmt {
+                            value: Some(Box::new(typed_value)),
+                        },
+                        value_ty,
+                    ))
+                } else {
+                    Ok((
+                        TypedExpression::ReturnStmt { value: None },
+                        ResolvedType::Void,
+                    ))
+                }
             }
             Expression::BreakStmt => {
                 if self.loop_depth == 0 {
@@ -272,6 +279,14 @@ impl TypeResolver {
                     ));
                 }
                 Ok((TypedExpression::BreakStmt, ResolvedType::Void))
+            }
+            Expression::ContinueStmt => {
+                if self.loop_depth == 0 {
+                    return Err(anyhow::anyhow!(
+                        "continue can only be used inside a loop"
+                    ));
+                }
+                Ok((TypedExpression::ContinueStmt, ResolvedType::Void))
             }
             Expression::CallStmt(name, args) => {
                 let mut typed_args = Vec::new();

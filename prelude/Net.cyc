@@ -1,0 +1,9 @@
+extern module "./native/net.c";
+
+extern fn cyc_net_listen(i32 port) -> i32;
+extern fn cyc_net_accept(i32 server_fd) -> i32;
+extern fn cyc_net_read(i32 fd, i32 max_bytes) -> string;
+extern fn cyc_net_write(i32 fd, string data) -> i32;
+extern fn cyc_net_close(i32 fd);
+extern fn cyc_net_errno() -> i32;
+extern fn cyc_net_last_listen_fd() -> i32;
