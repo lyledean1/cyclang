@@ -1,6 +1,16 @@
 import Net;
 import System;
 
+struct Resp { status: i32; msg: string; }
+
+fn res_to_json(Resp res) -> string {
+    return "{\"status\": 200,\"msg\":\"Hello World\"}";
+}
+
+fn http_header(string msg) -> string {
+    return "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: 35\r\n\r\n" + msg;
+}
+
 fn main() {
     let server: i32 = Net.listen(3000);
     if (server < 0) {
@@ -9,8 +19,8 @@ fn main() {
         print(Net.errno());
         return;
     }
+    let res: Resp = Resp { status: 200; msg: "ok"; };
     print("Serving on http://localhost:3000");
-    let response: string = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: 15\r\n\r\n{\"status\":\"ok\"}";
     let client: i32 = 0;
     let bytes: i32 = 0;
     while (true) {
@@ -22,7 +32,19 @@ fn main() {
             System.sleep(100);
             continue;
         }
-        bytes = Net.write(client, response);
+        let req: string = Net.read(client, 1024);
+
+        let msg = res_to_json(res);
+        let header = http_header(msg);
+        print(header);
+        print(len(header));
+        bytes = Net.write(client, header);
+        print(bytes);
+        if (bytes < 0) {
+            print(Net.errno());
+        }
+        bytes = Net.write(client, msg);
+        print(bytes);
         if (bytes < 0) {
             print(Net.errno());
         }

@@ -1,5 +1,5 @@
 use crate::context::{LLVMCallFn, LLVMFunctionCache};
-use crate::{int1_type, int8_ptr_type};
+use crate::{int1_type, int8_ptr_type, int32_type, int64_type};
 use llvm_sys::core::{
     LLVMFunctionType, LLVMGetNamedFunction, LLVMGetTypeByName2, LLVMPointerType,
     LLVMVoidTypeInContext,
@@ -91,6 +91,57 @@ pub unsafe fn load_string_helper_funcs(
         LLVMCallFn {
             function: string_is_equal_function,
             func_type: string_is_equal_func_type,
+        },
+    );
+
+    let string_len_function_name = CString::new("stringLen").expect("CString::new failed");
+    let string_len_function = LLVMGetNamedFunction(module, string_len_function_name.as_ptr());
+    let mut string_len_args = [string_ptr_type];
+    let string_len_func_type = LLVMFunctionType(
+        int32_type(),
+        string_len_args.as_mut_ptr(),
+        string_len_args.len() as u32,
+        0,
+    );
+    llvm_func_cache.set(
+        "stringLen",
+        LLVMCallFn {
+            function: string_len_function,
+            func_type: string_len_func_type,
+        },
+    );
+
+    let int32_to_string_name = CString::new("int32ToString").expect("CString::new failed");
+    let int32_to_string_function = LLVMGetNamedFunction(module, int32_to_string_name.as_ptr());
+    let mut int32_to_string_args = [int32_type()];
+    let int32_to_string_type = LLVMFunctionType(
+        string_ptr_type,
+        int32_to_string_args.as_mut_ptr(),
+        int32_to_string_args.len() as u32,
+        0,
+    );
+    llvm_func_cache.set(
+        "int32ToString",
+        LLVMCallFn {
+            function: int32_to_string_function,
+            func_type: int32_to_string_type,
+        },
+    );
+
+    let int64_to_string_name = CString::new("int64ToString").expect("CString::new failed");
+    let int64_to_string_function = LLVMGetNamedFunction(module, int64_to_string_name.as_ptr());
+    let mut int64_to_string_args = [int64_type()];
+    let int64_to_string_type = LLVMFunctionType(
+        string_ptr_type,
+        int64_to_string_args.as_mut_ptr(),
+        int64_to_string_args.len() as u32,
+        0,
+    );
+    llvm_func_cache.set(
+        "int64ToString",
+        LLVMCallFn {
+            function: int64_to_string_function,
+            func_type: int64_to_string_type,
         },
     );
 }

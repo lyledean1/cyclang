@@ -130,6 +130,19 @@ impl SemanticAnalyzer {
                 // Analyze the value expression
                 self.analyze(value)
             }
+            TypedExpression::StructStmt { name: _, fields: _ } => Ok(()),
+            TypedExpression::StructInit { name: _, fields } => {
+                for (_, expr) in fields {
+                    self.analyze(expr)?;
+                }
+                Ok(())
+            }
+            TypedExpression::FieldAccess { base, field: _ } => self.analyze(base),
+            TypedExpression::FieldAssign { base, field: _, value } => {
+                self.analyze(base)?;
+                self.analyze(value)?;
+                Ok(())
+            }
         }
     }
     pub fn analyze_number(&mut self, typed_expr: &TypedExpression) -> Result<()> {

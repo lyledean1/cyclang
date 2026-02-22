@@ -87,6 +87,23 @@ pub enum TypedExpression {
     Len {
         value: Box<TypedExpression>,
     },
+    StructStmt {
+        name: String,
+        fields: Vec<(String, ResolvedType)>,
+    },
+    StructInit {
+        name: String,
+        fields: Vec<(String, TypedExpression)>,
+    },
+    FieldAccess {
+        base: Box<TypedExpression>,
+        field: String,
+    },
+    FieldAssign {
+        base: Box<TypedExpression>,
+        field: String,
+        value: Box<TypedExpression>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -97,6 +114,7 @@ pub enum ResolvedType {
     Bool,
     Binary(Box<ResolvedType>, String, Box<ResolvedType>),
     List(Box<ResolvedType>),
+    Struct(String),
     Function(Vec<ResolvedType>, Box<ResolvedType>),
     CallStmt(Vec<ResolvedType>, Box<ResolvedType>),
     Void,

@@ -1,7 +1,7 @@
 expression_list = { SOI ~ ( stmt_inner | expression_list_inner ) ~ (WHITESPACE* ~ (stmt_inner | expression_list_inner )*) ~ EOI }
-stmt_inner = _{ if_stmt | while_stmt | for_stmt | func_stmt | extern_func_stmt | import_stmt | block_stmt | break_stmt | continue_stmt }
-expression_list_inner = _{((( expression |  index_stmt  |let_stmt  | len_stmt | print_stmt | call_stmt | grouping | import_stmt ) ~ (semicolon ~ WHITESPACE? ~ (binary | expression |index_stmt| let_stmt | len_stmt | print_stmt | call_stmt | grouping | import_stmt))*) ~ semicolon)}
-expression = _ { binary | literal }
+stmt_inner = _{ if_stmt | while_stmt | for_stmt | func_stmt | extern_func_stmt | import_stmt | struct_stmt | block_stmt | break_stmt | continue_stmt }
+expression_list_inner = _{((( field_assign | index_stmt | let_stmt | len_stmt | print_stmt | call_stmt | expression | grouping | import_stmt ) ~ (semicolon ~ WHITESPACE? ~ (binary | field_assign | index_stmt | let_stmt | len_stmt | print_stmt | call_stmt | expression | grouping | import_stmt))*) ~ semicolon)}
+expression = _ { binary | literal | struct_init | field_access }
 
 
 // for loop
@@ -20,16 +20,19 @@ continue_stmt = { "continue" ~ WHITESPACE? ~ semicolon? }
 // let statements and functions
 let_stmt = { (((("let" ~ WHITESPACE?)? ~ name)) ~ WHITESPACE?) ~ (colon ~ type_name ~ WHITESPACE?)? ~ assignment_stmt}
 index_stmt = {list_index ~ WHITESPACE?  ~ assignment_stmt  }
-assignment_stmt = _{equal ~ WHITESPACE? ~ (list_index | len_stmt | call_stmt | expression | grouping | name)}
+assignment_stmt = _{equal ~ WHITESPACE? ~ (list_index | field_access | len_stmt | call_stmt | expression | grouping | name)}
 func_stmt = { "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~ arrow ~ WHITESPACE? ~ type_name)? ~ WHITESPACE? ~ block_stmt }
 extern_func_stmt = { "extern" ~ WHITESPACE? ~ "fn" ~ WHITESPACE? ~ name ~ "(" ~ func_arg* ~ ")" ~ (WHITESPACE? ~ arrow ~ WHITESPACE? ~ type_name)? ~ WHITESPACE? ~ semicolon? }
 import_stmt = { "import" ~ WHITESPACE+ ~ import_name ~ WHITESPACE? ~ semicolon? }
-import_name = @{ ASCII_ALPHA+ }
+import_name = @{ ASCII_ALPHA+ | string }
+struct_stmt = { "struct" ~ name ~ "{" ~ struct_field* ~ "}" ~ semicolon? }
+struct_field = { WHITESPACE? ~ name ~ WHITESPACE? ~ colon ~ WHITESPACE? ~ type_name ~ WHITESPACE? ~ semicolon? }
 func_arg = { WHITESPACE? ~ type_name ~ WHITESPACE? ~ name ~ WHITESPACE? ~ comma? }
-type_name = { base_type | list_type  }
-call_stmt = { qualified_name ~ "(" ~ (expression | name)? ~ (comma ~ (expression | name))* ~ ")" }
-print_stmt = { "print(" ~ (len_stmt | call_stmt | list_index | expression | name ) ~ ")" }
-len_stmt = { "len(" ~ (call_stmt | list_index | expression | name ) ~ ")" }
+type_name = { base_type | list_type | struct_type }
+struct_type = { name }
+call_stmt = { qualified_name ~ "(" ~ (len_stmt | call_stmt | grouping | expression | name)? ~ (comma ~ (len_stmt | call_stmt | grouping | expression | name))* ~ ")" }
+print_stmt = { "print(" ~ (len_stmt | call_stmt | list_index | field_access | expression | name ) ~ ")" }
+len_stmt = { "len(" ~ (call_stmt | list_index | field_access | expression | name ) ~ ")" }
 string_type = {"string"}
 i32_type = {"i32"}
 i64_type = {"i64"}
@@ -38,17 +41,23 @@ base_type = _{bool_type | i32_type | i64_type | string_type}
 list_type = {"List<" ~  (base_type | list_type )~ ">"}
 // binary statemeents
 binary = {  &(operand ~ WHITESPACE? ~ operator) ~ operand ~ WHITESPACE? ~ operator_sequence }
-operand = _{ literal ~ WHITESPACE? | grouping | call_stmt | name  }
+operand = _{ literal ~ WHITESPACE? | grouping | call_stmt | field_access | name  }
 operator_sequence = _{ operator ~ WHITESPACE* ~ operand ~ (WHITESPACE* ~ operator_sequence)? }
 operator = { "==" | "!=" | ">=" | "<=" | ">" | "<" | "+" | "-" | "*" | "/" | "^" }
 
 grouping = { "(" ~ expression ~ ")" }
 literal = { number | string | bool | nil | list  }
 
+struct_init = { name ~ WHITESPACE? ~ "{" ~ WHITESPACE? ~ struct_field_init* ~ WHITESPACE? ~ "}" }
+struct_field_init = { WHITESPACE? ~ name ~ WHITESPACE? ~ colon ~ WHITESPACE? ~ (expression | name | call_stmt | grouping) ~ WHITESPACE? ~ semicolon? }
+field_access = { (call_stmt | name | grouping) ~ ("." ~ name)+ }
+field_assign = { field_access ~ WHITESPACE? ~ equal ~ WHITESPACE? ~ (expression | name | call_stmt | grouping) }
+
 list = { lbracket ~ WHITESPACE? ~ literal ~ (WHITESPACE? ~ "," ~ WHITESPACE? ~ literal)* ~ rbracket }
 list_index = {(call_stmt  |expression | name) ~ lbracket ~ (expression  |number | name | call_stmt) ~ rbracket}
+keyword = { ("if" | "else" | "while" | "for" | "return" | "break" | "continue" | "fn" | "let" | "extern" | "module" | "import" | "struct" | "true" | "false" | "nil") ~ !(alpha | digits | "_") }
 qualified_name = @{ (alpha | "_") ~ (alpha | digits | "_")* ~ ( "." ~ (alpha | digits | "_")+ )* }
-name = @{ (alpha | "_") ~ (alpha | digits | "_")* }
+name = @{ !keyword ~ (alpha | "_") ~ (alpha | digits | "_")* }
 number = { "-"? ~ digits }
 digits = @{ ASCII_DIGIT+ }
 alpha = { ASCII_ALPHA | "_" }

@@ -18,6 +18,7 @@ pub enum Type {
     String,
     Bool,
     List(Box<Type>),
+    Struct(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -47,6 +48,10 @@ pub enum Expression {
     ForStmt(String, i32, i32, i32, Box<Expression>),
     BreakStmt,
     ContinueStmt,
+    StructStmt(String, Vec<(String, Type)>),
+    StructInit(String, Vec<(String, Expression)>),
+    FieldAccess(Box<Expression>, String),
+    FieldAssign(Box<Expression>, String, Box<Expression>),
     Print(Box<Expression>),
     Len(Box<Expression>),
 }
@@ -173,6 +178,22 @@ impl Expression {
     fn new_continue_stmt() -> Self {
         Self::ContinueStmt
     }
+
+    fn new_struct_stmt(name: String, fields: Vec<(String, Type)>) -> Self {
+        Self::StructStmt(name, fields)
+    }
+
+    fn new_struct_init(name: String, fields: Vec<(String, Expression)>) -> Self {
+        Self::StructInit(name, fields)
+    }
+
+    fn new_field_access(base: Expression, field: String) -> Self {
+        Self::FieldAccess(Box::new(base), field)
+    }
+
+    fn new_field_assign(base: Expression, field: String, value: Expression) -> Self {
+        Self::FieldAssign(Box::new(base), field, Box::new(value))
+    }
 }
 
 fn get_type(next: pest::iterators::Pair<Rule>) -> Type {
@@ -180,6 +201,7 @@ fn get_type(next: pest::iterators::Pair<Rule>) -> Type {
     let next = inner_pairs.next().unwrap();
     match next.as_rule() {
         Rule::string_type => Type::String,
+        Rule::struct_type => Type::Struct(next.as_str().to_string()),
         Rule::bool_type => Type::Bool,
         Rule::i32_type => Type::i32,
         Rule::i64_type => Type::i64,
@@ -348,7 +370,12 @@ fn parse_expression(
         }
         Rule::import_stmt => {
             let mut inner_pairs = pair.into_inner();
-            let module = inner_pairs.next().unwrap().as_str().to_string();
+            let raw = inner_pairs.next().unwrap().as_str().to_string();
+            let module = if raw.starts_with('"') {
+                unescape_string_literal(&raw)?
+            } else {
+                raw
+            };
             Ok(Expression::new_import_stmt(module))
         }
         Rule::func_arg => {
@@ -385,18 +412,12 @@ fn parse_expression(
             let mut inner_pairs = pair.into_inner();
             let name = inner_pairs.next().unwrap().as_str().to_string();
             let mut args = vec![];
-            // TODO: fix this so it handles the different cases properly instead of this hack
-            while inner_pairs.peek().is_some_and(|p| {
-                p.as_rule() == Rule::comma
-                    || p.as_rule() == Rule::binary
-                    || p.as_rule() == Rule::literal
-                    || p.as_rule() == Rule::name
-            }) {
-                let next = inner_pairs.next().unwrap();
-                if next.as_rule() != Rule::comma {
-                    let arg_expr = parse_expression(next)?;
-                    args.push(arg_expr);
+            while let Some(next) = inner_pairs.next() {
+                if next.as_rule() == Rule::comma {
+                    continue;
                 }
+                let arg_expr = parse_expression(next)?;
+                args.push(arg_expr);
             }
             let call = Expression::new_call_stmt(name, args);
             if let Expression::CallStmt(call_name, call_args) = &call {
@@ -414,6 +435,87 @@ fn parse_expression(
                 }
             }
             Ok(call)
+        }
+        Rule::struct_stmt => {
+            let mut inner_pairs = pair.into_inner();
+            let name = inner_pairs.next().unwrap().as_str().to_string();
+            let mut fields = Vec::new();
+            while let Some(next) = inner_pairs.next() {
+                if next.as_rule() == Rule::struct_field {
+                    let mut field_pairs = next
+                        .into_inner()
+                        .filter(|p| {
+                            p.as_rule() != Rule::colon
+                                && p.as_rule() != Rule::comma
+                                && p.as_rule() != Rule::semicolon
+                        });
+                    let field_name = field_pairs.next().unwrap().as_str().to_string();
+                    let field_type = get_type(field_pairs.next().unwrap());
+                    fields.push((field_name, field_type));
+                }
+            }
+            Ok(Expression::new_struct_stmt(name, fields))
+        }
+        Rule::struct_init => {
+            let mut inner_pairs = pair.into_inner();
+            let name = inner_pairs.next().unwrap().as_str().to_string();
+            let mut fields = Vec::new();
+            while let Some(next) = inner_pairs.next() {
+                if next.as_rule() == Rule::struct_field_init {
+                    let mut field_pairs = next
+                        .into_inner()
+                        .filter(|p| {
+                            p.as_rule() != Rule::colon
+                                && p.as_rule() != Rule::comma
+                                && p.as_rule() != Rule::semicolon
+                        });
+                    let field_name = field_pairs.next().unwrap().as_str().to_string();
+                    let field_value = parse_expression(field_pairs.next().unwrap())?;
+                    fields.push((field_name, field_value));
+                }
+            }
+            Ok(Expression::new_struct_init(name, fields))
+        }
+        Rule::field_access => {
+            let mut inner_pairs = pair.into_inner();
+            let mut base = parse_expression(inner_pairs.next().unwrap())?;
+            for next in inner_pairs {
+                let field = next.as_str().to_string();
+                base = Expression::new_field_access(base, field);
+            }
+            Ok(base)
+        }
+        Rule::field_assign => {
+            let mut inner_pairs = pair
+                .into_inner()
+                .filter(|p| p.as_rule() != Rule::equal);
+            let access = inner_pairs.next().unwrap();
+            let value = parse_expression(inner_pairs.next().unwrap())?;
+            if access.as_rule() != Rule::field_access {
+                return Err(Box::new(pest::error::Error::new_from_span(
+                    pest::error::ErrorVariant::CustomError {
+                        message: "Expected field access on assignment".to_string(),
+                    },
+                    access.as_span(),
+                )));
+            }
+            let access_span = access.as_span();
+            let mut access_pairs = access.into_inner();
+            let mut base = parse_expression(access_pairs.next().unwrap())?;
+            let mut fields: Vec<String> = access_pairs.map(|p| p.as_str().to_string()).collect();
+            if fields.is_empty() {
+                return Err(Box::new(pest::error::Error::new_from_span(
+                    pest::error::ErrorVariant::CustomError {
+                        message: "Expected field name on assignment".to_string(),
+                    },
+                    access_span,
+                )));
+            }
+            let field = fields.pop().unwrap();
+            for f in fields {
+                base = Expression::new_field_access(base, f);
+            }
+            Ok(Expression::new_field_assign(base, field, value))
         }
         Rule::block_stmt => {
             let inner_pairs = pair.into_inner();
@@ -1517,5 +1619,29 @@ fn main() {
         array[i+1] = 1;
         "#;
         assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_struct_stmt() {
+        let input = r#"
+        struct Person { age: i32; name: string; }
+        "#;
+        if let Err(e) = CycloParser::parse(Rule::struct_stmt, input.trim()) {
+            panic!("struct_stmt parse failed: {e}");
+        }
+        assert!(parse_cyclo_program(input).is_ok());
+    }
+
+    #[test]
+    fn test_parse_struct_init_and_access() {
+        let input = r#"
+        struct Person { age: i32; name: string; }
+        let p: Person = Person { age: 1; name: "Ada"; };
+        let a: i32 = p.age;
+        p.age = 2;
+        "#;
+        if let Err(e) = parse_cyclo_program(input) {
+            panic!("parse_struct_init_and_access failed: {e}");
+        }
     }
 }

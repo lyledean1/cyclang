@@ -59,6 +59,24 @@ fn desugar_expr(expr: Expression) -> Expression {
         }
         Expression::BreakStmt => Expression::BreakStmt,
         Expression::ContinueStmt => Expression::ContinueStmt,
+        Expression::StructStmt(name, fields) => Expression::StructStmt(name, fields),
+        Expression::StructInit(name, fields) => {
+            Expression::StructInit(
+                name,
+                fields
+                    .into_iter()
+                    .map(|(field, expr)| (field, desugar_expr(expr)))
+                    .collect(),
+            )
+        }
+        Expression::FieldAccess(base, field) => {
+            Expression::FieldAccess(Box::new(desugar_expr(*base)), field)
+        }
+        Expression::FieldAssign(base, field, value) => Expression::FieldAssign(
+            Box::new(desugar_expr(*base)),
+            field,
+            Box::new(desugar_expr(*value)),
+        ),
         Expression::FuncStmt(name, args, return_type, body) => Expression::FuncStmt(
             name,
             args,

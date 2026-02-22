@@ -12,6 +12,7 @@ pub struct TypeResolver {
     locals: HashMap<i32, Vec<String>>,
     depth: i32,
     loop_depth: i32,
+    struct_defs: HashMap<String, Vec<(String, ResolvedType)>>,
 }
 
 impl TypeResolver {
@@ -22,6 +23,7 @@ impl TypeResolver {
             locals: HashMap::new(),
             depth: 0,
             loop_depth: 0,
+            struct_defs: HashMap::new(),
         }
     }
 
@@ -290,15 +292,31 @@ impl TypeResolver {
             }
             Expression::CallStmt(name, args) => {
                 let mut typed_args = Vec::new();
+                let mut arg_types = Vec::new();
                 for arg in args {
-                    let (typed_arg, _) = self.resolve_expression(arg)?;
+                    let (typed_arg, arg_ty) = self.resolve_expression(arg)?;
                     typed_args.push(typed_arg);
+                    arg_types.push(arg_ty);
                 }
 
-                let return_type = self
-                    .get_function(name)
-                    .map(|(_, ret)| ret.clone())
-                    .unwrap_or(ResolvedType::Void);
+                let return_type = if name == "str" {
+                    if arg_types.len() != 1 {
+                        return Err(anyhow::anyhow!("str() expects 1 argument"));
+                    }
+                    match arg_types[0] {
+                        ResolvedType::I32 | ResolvedType::I64 => ResolvedType::String,
+                        _ => {
+                            return Err(anyhow::anyhow!(
+                                "str() expects i32 or i64, got {:?}",
+                                arg_types[0]
+                            ))
+                        }
+                    }
+                } else {
+                    self.get_function(name)
+                        .map(|(_, ret)| ret.clone())
+                        .unwrap_or(ResolvedType::Void)
+                };
 
                 Ok((
                     TypedExpression::CallStmt {
@@ -550,25 +568,158 @@ impl TypeResolver {
                 ))
             }
             Expression::Len(value) => {
-                // Resolve the value expression - must be a List type
+                // Resolve the value expression - must be a List or String type
                 let (typed_value, value_type) = self.resolve_expression(value)?;
 
-                // Check that value is a list
+                // Check that value is a list or string
                 match value_type {
-                    ResolvedType::List(_) => {}
+                    ResolvedType::List(_) | ResolvedType::String => {}
                     _ => {
                         return Err(anyhow::anyhow!(
-                            "len() requires a list argument, got {:?}",
+                            "len() requires a list or string argument, got {:?}",
                             value_type
                         ))
                     }
-                };
+                }
 
                 Ok((
                     TypedExpression::Len {
                         value: Box::new(typed_value),
                     },
                     ResolvedType::I32, // len() returns i32
+                ))
+            }
+            Expression::StructStmt(name, fields) => {
+                let mut resolved_fields = Vec::new();
+                for (field_name, field_type) in fields {
+                    let resolved = self.resolve_type(field_type);
+                    resolved_fields.push((field_name.clone(), resolved));
+                }
+                self.struct_defs.insert(name.clone(), resolved_fields.clone());
+                Ok((
+                    TypedExpression::StructStmt {
+                        name: name.clone(),
+                        fields: resolved_fields,
+                    },
+                    ResolvedType::Void,
+                ))
+            }
+            Expression::StructInit(name, fields) => {
+                let struct_fields = self
+                    .struct_defs
+                    .get(name)
+                    .ok_or_else(|| anyhow::anyhow!("Unknown struct type: {}", name))?
+                    .clone();
+                let mut typed_fields = Vec::new();
+                for (field_name, field_expr) in fields {
+                    let (typed_expr, field_ty) = self.resolve_expression(field_expr)?;
+                    let expected = struct_fields
+                        .iter()
+                        .find(|(n, _)| n == field_name)
+                        .map(|(_, t)| t.clone())
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Unknown field '{}' for struct {}",
+                                field_name,
+                                name
+                            )
+                        })?;
+                    if expected != field_ty {
+                        return Err(anyhow::anyhow!(
+                            "Type mismatch for field '{}' in {}: expected {:?}, got {:?}",
+                            field_name,
+                            name,
+                            expected,
+                            field_ty
+                        ));
+                    }
+                    typed_fields.push((field_name.clone(), typed_expr));
+                }
+                Ok((
+                    TypedExpression::StructInit {
+                        name: name.clone(),
+                        fields: typed_fields,
+                    },
+                    ResolvedType::Struct(name.clone()),
+                ))
+            }
+            Expression::FieldAccess(base, field) => {
+                let (typed_base, base_ty) = self.resolve_expression(base)?;
+                let struct_name = match &base_ty {
+                    ResolvedType::Struct(name) => name.clone(),
+                    _ => {
+                        return Err(anyhow::anyhow!(
+                            "Field access on non-struct type: {:?}",
+                            base_ty
+                        ))
+                    }
+                };
+                let struct_fields = self
+                    .struct_defs
+                    .get(&struct_name)
+                    .ok_or_else(|| anyhow::anyhow!("Unknown struct type: {}", struct_name))?;
+                let field_ty = struct_fields
+                    .iter()
+                    .find(|(n, _)| n == field)
+                    .map(|(_, t)| t.clone())
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Unknown field '{}' for struct {}",
+                            field,
+                            struct_name
+                        )
+                    })?;
+                Ok((
+                    TypedExpression::FieldAccess {
+                        base: Box::new(typed_base),
+                        field: field.clone(),
+                    },
+                    field_ty,
+                ))
+            }
+            Expression::FieldAssign(base, field, value) => {
+                let (typed_base, base_ty) = self.resolve_expression(base)?;
+                let struct_name = match &base_ty {
+                    ResolvedType::Struct(name) => name.clone(),
+                    _ => {
+                        return Err(anyhow::anyhow!(
+                            "Field assignment on non-struct type: {:?}",
+                            base_ty
+                        ))
+                    }
+                };
+                let struct_fields = self
+                    .struct_defs
+                    .get(&struct_name)
+                    .ok_or_else(|| anyhow::anyhow!("Unknown struct type: {}", struct_name))?;
+                let expected = struct_fields
+                    .iter()
+                    .find(|(n, _)| n == field)
+                    .map(|(_, t)| t.clone())
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Unknown field '{}' for struct {}",
+                            field,
+                            struct_name
+                        )
+                    })?;
+                let (typed_value, value_ty) = self.resolve_expression(value)?;
+                if expected != value_ty {
+                    return Err(anyhow::anyhow!(
+                        "Type mismatch for field '{}' in {}: expected {:?}, got {:?}",
+                        field,
+                        struct_name,
+                        expected,
+                        value_ty
+                    ));
+                }
+                Ok((
+                    TypedExpression::FieldAssign {
+                        base: Box::new(typed_base),
+                        field: field.clone(),
+                        value: Box::new(typed_value),
+                    },
+                    ResolvedType::Void,
                 ))
             }
             // ... other cases
@@ -585,6 +736,7 @@ impl TypeResolver {
             Type::String => ResolvedType::String,
             Type::Bool => ResolvedType::Bool,
             Type::List(inner) => ResolvedType::List(Box::new(self.resolve_type(inner))),
+            Type::Struct(name) => ResolvedType::Struct(name.clone()),
         }
     }
 }
